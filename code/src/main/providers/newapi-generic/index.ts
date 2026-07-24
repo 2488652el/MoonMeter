@@ -1,7 +1,6 @@
 /**
  * NewAPI / OneAPI 通用供应商实现:通过 /api/user/self 接口查询用户配额与已用额度。
  * 该模块属于 main 进程的 providers 模块,支持自建 OneAPI/NewAPI 网关的余额查询。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,

@@ -1,7 +1,6 @@
 /**
  * OpenAI Admin 供应商实现:通过组织级 API 查询成本(costs)与用量(usage completions)。
  * 该模块属于 main 进程的 providers 模块,使用 admin/org 密钥访问 OpenAI 的 /organization 端点。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,

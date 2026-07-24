@@ -1,7 +1,6 @@
 /**
  * 通义千问 Qwen (manual) 供应商实现:无公开余额 API,需用户手动录入。
  * 该模块属于 main 进程的 providers 模块,实现为手动录入模式,仅提供测试连接占位逻辑。
- * (glm-5.2)
  */
 import type { ProviderImpl, ProviderCapabilities } from '@shared/types/provider'
 
@@ -28,7 +27,7 @@ export const qwenManualProvider: ProviderImpl = {
   build(): ProviderCapabilities {
     return {
       // balance is omitted; renderer shows "manual entry required" UI
-      // 余额能力被省略;渲染层显示"需要手动录入"提示。(glm-5.2)
+      // 余额能力被省略;渲染层显示"需要手动录入"提示。
       testConnection: async () => ({
         ok: true,
         message: '通义千问无公开余额 API — 请在余额查询页手动录入'

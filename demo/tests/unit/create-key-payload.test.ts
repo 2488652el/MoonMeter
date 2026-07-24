@@ -1,7 +1,6 @@
 /**
  * create-key-payload 单元测试:覆盖 buildCreateKeyPayload 构造创建密钥载荷的逻辑,
  * 验证各 provider 的字段处理(别名、密钥、baseUrlOverride、adminKey、平台 cookie 等)。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { buildCreateKeyPayload } from '../../../code/src/shared/create-key-payload'

@@ -2,7 +2,6 @@
  * 编辑已有 API Key 的弹窗组件。
  * 提供别名、Key、Admin Key、平台 Cookie、备注、Base URL 覆盖等字段的编辑,
  * 提交时通过 onSave 将 ApiKeyUpdateInput 交给父页面处理。
- * (glm-5.2)
  */
 import { Icon } from './Icon'
 import { useMemo, useState } from 'react'

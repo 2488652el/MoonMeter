@@ -1,7 +1,6 @@
 /**
  * 请求日志页面:展示所有 API Key 与本地 CLI 会话的 Token 用量明细,
  * 支持按供应商/来源/日期/模型筛选、排序、分页与导出 CSV。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
@@ -33,7 +32,7 @@ const SEARCH_DEBOUNCE_MS = 400
 
 /** hand-rolled CSV — escape quotes/commas/newlines, prepend BOM so
  *  Excel on Windows opens UTF-8 cleanly. No csv lib needed. */
-// 手写 CSV 构建:转义引号/逗号/换行,并在开头加 BOM 以便 Windows Excel 正确识别 UTF-8。 (glm-5.2)
+// 手写 CSV 构建:转义引号/逗号/换行,并在开头加 BOM 以便 Windows Excel 正确识别 UTF-8。
 function buildCsv(rows: UsageRecord[]): string {
   const header =
     'time,provider,model,project,source,prompt_tokens,completion_tokens,cache_read_tokens,cache_creation_tokens,cost,currency,session_id'
@@ -62,7 +61,7 @@ function buildCsv(rows: UsageRecord[]): string {
       ].join(',')
     )
   }
-  // ponytail: BOM lets Excel auto-detect UTF-8 (Windows Excel defaults to GBK).
+  // BOM lets Excel auto-detect UTF-8 (Windows Excel defaults to GBK).
   return '﻿' + lines.join('\r\n') + '\r\n'
 }
 
@@ -165,7 +164,7 @@ export default function RequestLogs() {
     page
   ])
 
-  // ponytail: debounce the server-side model search so typing stays snappy.
+  // debounce the server-side model search so typing stays snappy.
   // Blur/Enter commits immediately for users who want a fast round-trip.
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -246,13 +245,13 @@ export default function RequestLogs() {
       setSortDesc((d) => !d)
     } else {
       setSortKey(key)
-      // ponytail: cost defaults desc (biggest spenders first); time always
+      // cost defaults desc (biggest spenders first); time always
       // defaults desc (newest first) — only flip direction on re-click.
       setSortDesc(key === 'cost')
     }
   }
 
-  // ponytail: filter by model is purely client-side (cheap substring match).
+  // filter by model is purely client-side (cheap substring match).
   // The IPC-side filters already narrowed the result set by provider/source/
   // date-range, so this stays well under the 10k limit even on big installs.
   const visible = useMemo(() => {
@@ -310,7 +309,7 @@ export default function RequestLogs() {
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
-      // ponytail: clipboard can be blocked in some Electron contexts; the
+      // clipboard can be blocked in some Electron contexts; the
       // modal stays open so the user can manually copy from the textarea.
     }
   }

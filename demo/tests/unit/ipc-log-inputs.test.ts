@@ -1,7 +1,6 @@
 /**
  * IPC 输入校验单元测试:覆盖日志路径、Session 来源与价格汇率币种校验,
  * 确保非法输入在调用底层服务前被拒绝。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IPC } from '../../../code/src/shared/ipc-channels'

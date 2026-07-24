@@ -1,7 +1,6 @@
 /**
  * syncFiles 同步单元测试:覆盖 Claude 与 Codex 的 syncFiles 增量同步流程,
  * 校验解析入库、缺失文件跳过与进度回调。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

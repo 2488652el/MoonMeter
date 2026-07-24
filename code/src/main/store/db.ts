@@ -1,7 +1,6 @@
 /**
  * 数据库初始化与 schema 迁移:管理 SQLite 数据库连接、旧库迁移与 v1-v11 版本迁移。
  * 该模块属于 main 进程的 store 模块,是所有 repo 模块的数据库单例来源。
- * (glm-5.2)
  */
 import { app } from 'electron'
 import Database from 'better-sqlite3'
@@ -85,7 +84,7 @@ function legacyDbCandidates(userData: string): string[] {
  * v11 schema without touching the Electron `app.getPath('userData')` path used
  * by {@link getDb}. The migration logic itself lives in {@link applyMigrations}
  * - keep them in lockstep.
- * 测试专用迁移入口:接受外部连接(如 :memory:)以在测试中验证 v11 schema,不依赖 Electron 路径。(glm-5.2)
+ * 测试专用迁移入口:接受外部连接(如 :memory:)以在测试中验证 v11 schema,不依赖 Electron 路径。
  */
 export function applyMigrationsForTest(db: Database.Database): void {
   applyMigrations(db)

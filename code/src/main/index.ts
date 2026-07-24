@@ -1,7 +1,6 @@
 /**
  * Electron 主进程入口模块:负责应用生命周期管理、数据库初始化、IPC 注册、
  * 自动刷新调度与浏览器窗口创建,同时对外部导航/打开链接进行安全校验。
- * (glm-5.2)
  */
 import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
 import { hostname } from 'node:os'
@@ -134,7 +133,7 @@ app.on('web-contents-created', (_, contents) => {
     }
     // Allow navigation only within the app's own origin. In dev the renderer
     // is served from localhost:5173; in production it is a file:// URL.
-    // 仅允许应用自身来源的导航;开发环境渲染进程来自 localhost:5173,生产环境为 file://。 (glm-5.2)
+    // 仅允许应用自身来源的导航;开发环境渲染进程来自 localhost:5173,生产环境为 file://。
     const isAppOrigin = isDev
       ? parsed.origin === 'http://localhost:5173'
       : parsed.protocol === 'file:'

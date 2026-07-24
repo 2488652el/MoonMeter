@@ -1,6 +1,5 @@
 /**
  * preload 版本一致性测试:校验 preload 中暴露的版本号与 package.json 保持同步。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'

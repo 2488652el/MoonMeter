@@ -1,7 +1,6 @@
 /**
  * alert 评估单元测试:覆盖 evaluateAlertRule / usageSliceToRecord / evaluateAlerts,
  * 校验阈值触发、用量转记录与告警事件写入(含冷却与禁用规则)。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { AlertRule } from '@shared/types/alert'

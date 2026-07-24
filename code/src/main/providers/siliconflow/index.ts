@@ -1,7 +1,6 @@
 /**
  * SiliconFlow 供应商实现:通过多个候选端点探测账户余额。
  * 该模块属于 main 进程的 providers 模块,SiliconFlow 为第三方模型聚合平台,以 CNY 计费。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,

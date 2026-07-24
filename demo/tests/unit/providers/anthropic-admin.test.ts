@@ -1,6 +1,5 @@
 /**
  * Anthropic Admin 供应商单元测试:覆盖鉴权头构造、cost_report 余额求和与 bucketed usage 扁平化。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { anthropicAdminProvider } from '../../../../code/src/main/providers/anthropic-admin'

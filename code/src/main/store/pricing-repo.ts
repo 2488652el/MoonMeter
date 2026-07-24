@@ -1,7 +1,6 @@
 /**
  * 定价仓库:管理 pricing_entries 表的 CRUD 与批量 upsert。
  * 该模块属于 main 进程的 store 模块,提供按供应商/模型/币种查询定价与用户定价覆盖能力。
- * (glm-5.2)
  */
 import { getDb } from './db'
 import type { PricingDiffEntry, PricingEntry, PricingHistoryEntry } from '@shared/types/pricing'
@@ -301,7 +300,7 @@ export function listPricingHistory(limit = 100): PricingHistoryEntry[] {
  * source='user' rows are preserved so user-configured prices always win over
  * the catalog. This guard runs in the ON CONFLICT clause: when the conflicting
  * existing row is a user entry, the DO UPDATE is skipped via the WHERE clause.
- * 仅覆盖 source='catalog' 的行,保留 source='user' 的用户自定义定价;冲突时通过 ON CONFLICT WHERE 子句跳过用户行。(glm-5.2)
+ * 仅覆盖 source='catalog' 的行,保留 source='user' 的用户自定义定价;冲突时通过 ON CONFLICT WHERE 子句跳过用户行。
  */
 export function upsertCatalogBatch(
   entries: PricingEntry[],

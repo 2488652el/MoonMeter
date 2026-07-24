@@ -2,7 +2,6 @@
  * Codex CLI 会话日志解析模块:负责从 ~/.codex/sessions 与 ~/.codex/archived_sessions
  * 发现 *.jsonl 会话文件,将 Codex 累计 token_count 事件转换为逐事件增量 UsageRecord,
  * 支持按字节增量同步与会话元数据(agent 标签、sessionId)推导。
- * (glm-5.2)
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -10,10 +9,10 @@ import type { UsageRecord } from '@shared/types/usage'
 import { getCliPaths } from '../platform/paths'
 
 /** Default Codex CLI session directory. Override for tests / portable installs.
- *  Codex CLI 默认会话目录;测试或便携安装时可覆盖。 (glm-5.2)
+ *  Codex CLI 默认会话目录;测试或便携安装时可覆盖。
  */
 /** A raw token_count entry from the JSONL - only fields we read.
- *  JSONL 中单条 token_count 原始条目,仅包含需要读取的字段。 (glm-5.2)
+ *  JSONL 中单条 token_count 原始条目,仅包含需要读取的字段。
  */
 interface CodexTokenEntry {
   event_type?: string
@@ -50,7 +49,7 @@ interface CodexTokenUsage {
 }
 
 /** Cumulative totals tracked across a single session to compute deltas.
- *  单会话内累计用量状态,用于计算相邻事件间的增量。 (glm-5.2)
+ *  单会话内累计用量状态,用于计算相邻事件间的增量。
  */
 interface CumulativeState {
   inputTokens: number
@@ -58,7 +57,7 @@ interface CumulativeState {
   cachedInputTokens: number
 }
 
-/** 单会话解析出的元数据(sessionId 与 agent 标签)。 (glm-5.2) */
+/** 单会话解析出的元数据(sessionId 与 agent 标签)。 */
 interface CodexSessionMeta {
   sessionId?: string
   agentLabel?: string
@@ -71,13 +70,13 @@ interface CodexSessionMeta {
  * or nested under `payload.cwd`; parsing is lenient. Returns undefined if no
  * cwd is found.
  *
- * 返回值:从 cwd 末尾非空路径段推导的可读 agent 标签;未找到 cwd 时返回 undefined。 (glm-5.2)
+ * 返回值:从 cwd 末尾非空路径段推导的可读 agent 标签;未找到 cwd 时返回 undefined。
  */
 export function deriveCodexAgentLabel(content: string): string | undefined {
   return deriveCodexSessionMeta(content).agentLabel
 }
 
-/** 从文件内容前若干行扫描 session_meta 条目,提取 sessionId 与 agent 标签。 (glm-5.2) */
+/** 从文件内容前若干行扫描 session_meta 条目,提取 sessionId 与 agent 标签。 */
 function deriveCodexSessionMeta(content: string): CodexSessionMeta {
   let sessionId: string | undefined
   let agentLabel: string | undefined
@@ -111,7 +110,7 @@ function deriveCodexSessionMeta(content: string): CodexSessionMeta {
   return meta
 }
 
-/** 从单条 Codex 事件中提取 token_count 的累计用量对象,无匹配时返回 undefined。 (glm-5.2) */
+/** 从单条 Codex 事件中提取 token_count 的累计用量对象,无匹配时返回 undefined。 */
 function tokenUsage(entry: CodexTokenEntry): CodexTokenUsage | undefined {
   if (entry.event_type === 'event_msg' && entry.msg?.type === 'token_count') {
     return entry.msg.total_token_usage
@@ -122,7 +121,7 @@ function tokenUsage(entry: CodexTokenEntry): CodexTokenUsage | undefined {
   return undefined
 }
 
-/** 获取事件的消息序列号,用于构造 messageId 去重。 (glm-5.2) */
+/** 获取事件的消息序列号,用于构造 messageId 去重。 */
 function tokenSequence(entry: CodexTokenEntry): number | undefined {
   return entry.msg?.sequence
 }
@@ -136,7 +135,7 @@ function tokenSequence(entry: CodexTokenEntry): number | undefined {
  * @param content  the full file contents (or the new bytes since last sync)
  * @param filePath  path of the file (used for sessionId fallback from filename)
  *
- * 返回值:按事件增量转换后的 UsageRecord[]。 (glm-5.2)
+ * 返回值:按事件增量转换后的 UsageRecord[]。
  */
 export function parseCodexSessionFile(content: string, filePath: string): UsageRecord[] {
   const out: UsageRecord[] = []
@@ -244,7 +243,7 @@ export function parseCodexSessionFile(content: string, filePath: string): UsageR
  * Discover Codex session files under the given root (defaults to CODEX_LOG_DIR
  * and CODEX_ARCHIVED_DIR). Returns absolute paths to *.jsonl files.
  *
- * 发现 Codex 会话文件:在指定根目录(默认 CODEX_LOG_DIR 与 CODEX_ARCHIVED_DIR)下递归查找 *.jsonl,返回绝对路径列表。 (glm-5.2)
+ * 发现 Codex 会话文件:在指定根目录(默认 CODEX_LOG_DIR 与 CODEX_ARCHIVED_DIR)下递归查找 *.jsonl,返回绝对路径列表。
  */
 export function discoverCodexSessions(roots?: string[]): string[] {
   const actualRoots = roots ?? [getCliPaths().codexSessions, getCliPaths().codexArchivedSessions]
@@ -284,7 +283,7 @@ export function discoverCodexSessions(roots?: string[]): string[] {
  * via INSERT OR IGNORE on (source, message_id) makes re-inserts safe.
  *
  * 同步单个 Codex 文件:因累计→增量转换需全文件上下文,每次调用均重新解析整个文件;
- * 下游通过 (source, message_id) 的 INSERT OR IGNORE 去重保证重复插入安全。 (glm-5.2)
+ * 下游通过 (source, message_id) 的 INSERT OR IGNORE 去重保证重复插入安全。
  */
 export function syncCodexFile(
   filePath: string,

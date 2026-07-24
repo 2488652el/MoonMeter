@@ -1,7 +1,6 @@
 /**
  * 价格配置页面:管理各模型每百万 Token 的 Prompt/Completion/Cache 价格,
  * 支持添加、编辑、删除与恢复官方价,以及按供应商和币种筛选。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -200,7 +199,7 @@ export default function PricingConfig() {
       window.alert('当前没有用户自定义条目，无需恢复。')
       return
     }
-    // ponytail: sequential awaits; small N, parallel would risk partial-failure races.
+    // sequential awaits; small N, parallel would risk partial-failure races.
     let ok = 0
     for (const e of userEntries) {
       try {
@@ -1131,7 +1130,7 @@ function PricingEntryModal({
 
     setSaving(true)
     try {
-      // ponytail: build the payload object conditionally so undefined fields are
+      // build the payload object conditionally so undefined fields are
       // omitted — Zod's optional + exactOptionalPropertyTypes doesn't accept
       // explicit `undefined` on optional keys.
       const payload: Parameters<typeof window.api.pricing.set>[0] = {

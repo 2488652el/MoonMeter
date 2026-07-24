@@ -1,7 +1,6 @@
 /**
  * 供应商元信息卡片组件:用于创建/编辑 Key 弹窗内展示该供应商的协议、
  * Base URL 模板、常用模型、注册链接与区域/币种提示等信息。
- * (glm-5.2)
  */
 import { Icon } from './Icon'
 import { type BaseUrlTemplate, type ProviderCatalogEntry } from '@shared/provider-catalog'
@@ -23,7 +22,7 @@ import { PROTOCOL_LABEL } from '@shared/provider-catalog'
  * a thin presentation layer with no embedded provider logic.
  *
  * 供应商元信息卡片:在弹窗内展示协议徽标、Base URL 模板、常用模型、注册链接等,
- * 帮助用户无需离开表单即可判断该供应商是否合适。 (glm-5.2)
+ * 帮助用户无需离开表单即可判断该供应商是否合适。
  */
 export function ProviderMetaCard({
   entry,
@@ -151,7 +150,7 @@ export function ProviderMetaCard({
  * most common interaction is "I want DeepSeek via Anthropic" - the user
  * should not have to aim for a small button.
  *
- * 协议模板单行:展示协议徽标、完整 URL 与提示,点击触发 onPickTemplate 填入覆盖字段。 (glm-5.2)
+ * 协议模板单行:展示协议徽标、完整 URL 与提示,点击触发 onPickTemplate 填入覆盖字段。
  */
 function BaseUrlTemplateChip({ tpl, onClick }: { tpl: BaseUrlTemplate; onClick: () => void }) {
   const label = PROTOCOL_LABEL[tpl.protocol]

@@ -1,7 +1,6 @@
 /**
  * 供应商图标组件:按 providerId 渲染对应品牌图标,
  * 未匹配时回退为显示首字母的占位方块。
- * (glm-5.2)
  */
 import AnthropicIcon from '@lobehub/icons-static-svg/icons/anthropic.svg?url'
 import ClaudeCodeIcon from '@lobehub/icons-static-svg/icons/claudecode-color.svg?url'

@@ -1,7 +1,6 @@
 /**
  * 用量告警页面:管理告警规则的增删改查与启停,
  * 支持按全局或指定供应商、按剩余金额或剩余百分比设置阈值。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
@@ -22,11 +21,11 @@ const METRIC_LABEL: Record<AlertMetric, string> = {
   remaining_pct: '剩余百分比'
 }
 
-// ponytail: inline relative-time helper. Keeps a stable interface so we can
+// inline relative-time helper. Keeps a stable interface so we can
 // extract to money.ts later if more settings or alert views need it. Format is
 // zh-CN friendly but ASCII-safe (no full-width chars) for tabular layouts.
 //
-// 相对时间格式化:将 ISO 时间转为"刚刚/N 分钟前/N 小时前"等中文友好文本。 (glm-5.2)
+// 相对时间格式化:将 ISO 时间转为"刚刚/N 分钟前/N 小时前"等中文友好文本。
 function formatRelative(iso: string | undefined): string {
   if (!iso) return '从未'
   const t = Date.parse(iso)
@@ -86,10 +85,10 @@ export default function UsageAlerts() {
     return m
   }, [providers])
 
-  // ponytail: latest balance per providerId — for displaying "current vs threshold".
+  // latest balance per providerId — for displaying "current vs threshold".
   // Multiple keys under the same provider all reference the same latest snapshot,
   // so we keep the most recent by capturedAt.
-  // 按 providerId 保留最新一条余额快照,用于展示当前值与阈值对比。 (glm-5.2)
+  // 按 providerId 保留最新一条余额快照,用于展示当前值与阈值对比。
   const latestBalanceByProvider = useMemo(() => {
     const m = new Map<string, BalanceSnapshot & { id: number; apiKeyId?: string }>()
     for (const b of balances) {
@@ -180,7 +179,7 @@ export default function UsageAlerts() {
         metric: input.metric
       }
       if (input.scope === 'provider' && input.providerId) payload.providerId = input.providerId
-      // ponytail: parse through the same schema the preload bridge uses, so
+      // parse through the same schema the preload bridge uses, so
       // we get the same exactOptionalPropertyTypes narrowing (e.g. providerId
       // omitted when scope=global). Avoids duplicating Zod's optional-key logic.
       await window.api.alerts.add(alertAddInputSchema.parse(payload))
@@ -388,7 +387,7 @@ function RuleModal({
     threshold: number
   }) => void | Promise<void>
 }) {
-  // ponytail: edit-mode is currently out of scope (alerts-repo only has `add`,
+  // edit-mode is currently out of scope (alerts-repo only has `add`,
   // not upsert). Documented as carry-over. Until then, the modal is create-only.
   const [scope, setScope] = useState<AlertScope>('provider')
   const [providerId, setProviderId] = useState<string>(providers[0]?.id ?? '')

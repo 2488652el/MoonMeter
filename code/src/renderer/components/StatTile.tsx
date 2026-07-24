@@ -1,6 +1,5 @@
 /**
  * 统计瓷砖组件:展示单个指标(label + value + 副标题),常用于仪表盘的概览区。
- * (glm-5.2)
  */
 import { type CSSProperties, type ReactNode } from 'react'
 import clsx from 'clsx'

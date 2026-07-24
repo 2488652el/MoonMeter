@@ -1,7 +1,6 @@
 /**
  * refreshAll 用量刷新单元测试:覆盖 usage provider 的额外凭证透传与定价入库,
  * 校验 extra credentials 传入 build 且按定价计算成本写入 usage 记录。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProviderImpl } from '../../../../code/src/shared/types/provider'

@@ -12,7 +12,6 @@
  *
  * 中文说明:本文件是渲染层"供应商目录"的唯一数据源,定义各供应商在
  * 创建密钥模态框中展示的元信息(Base URL 模板、推荐模型、注册链接、提示文案等)。
- * (glm-5.2)
  */
 import type { ProviderCategory, ProviderProtocol } from './types/provider'
 

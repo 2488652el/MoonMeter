@@ -2,7 +2,6 @@
  * 创建新 API Key 的弹窗组件。
  * 负责表单状态与校验,提交时通过 onSave 将构建好的 ApiKeyCreateInput 交给父页面处理。
  * 根据 provider catalog 动态显示不同字段(Admin Key、平台 Cookie、Base URL 等)。
- * (glm-5.2)
  */
 import { Icon } from './Icon'
 import { useEffect, useMemo, useState } from 'react'
@@ -21,10 +20,10 @@ import type { BaseUrlTemplate, ProviderCatalogEntry } from '@shared/provider-cat
  * with "use default" link, etc.) so the same modal renders correctly for
  * every provider.
  *
- * ponytail: this is presentation only - no IPC calls live here. The parent
+ * this is presentation only - no IPC calls live here. The parent
  * page handles `keys.add` after the form submits.
  *
- * 创建新 Key 的弹窗:持有表单状态与校验逻辑,提交后由父页面执行实际的 keys.add IPC 调用。 (glm-5.2)
+ * 创建新 Key 的弹窗:持有表单状态与校验逻辑,提交后由父页面执行实际的 keys.add IPC 调用。
  */
 export function CreateKeyModal({
   catalog,

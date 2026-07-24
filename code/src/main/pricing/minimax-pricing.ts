@@ -1,7 +1,6 @@
 /**
  * MiniMax 价格常量与播种模块:维护 MiniMax 官方按量付费价格表(CNY/每百万 token),
  * 并在应用启动时以幂等方式写入本地价格表(不覆盖用户已配置的行)。
- * (glm-5.2)
  */
 import type { PricingEntry } from '@shared/types/pricing'
 
@@ -32,7 +31,7 @@ import type { PricingEntry } from '@shared/types/pricing'
  * `upsertCatalogBatch`'s ON CONFLICT clause.
  *
  * 中文说明:MiniMax 官方按量付费价格表(单位 CNY/每百万 token);来源中国平台,
- * 国际站(minimax.io,USD 计费)未涵盖;这些行作为 source='catalog' 播种,绝不覆盖 source='user' 的用户行。 (glm-5.2)
+ * 国际站(minimax.io,USD 计费)未涵盖;这些行作为 source='catalog' 播种,绝不覆盖 source='user' 的用户行。
  */
 export const MINIMAX_PRICING: readonly Omit<PricingEntry, 'id' | 'updatedAt'>[] = [
   // --- MiniMax-M3 (current flagship, permanent 50% off, ≤512k tier) ---
@@ -137,7 +136,7 @@ export const MINIMAX_PRICING: readonly Omit<PricingEntry, 'id' | 'updatedAt'>[] 
  * @param upsert  batch upsert function (defaults to the real repo impl)
  * @returns `{ updated, skipped }` from the upsert
  *
- * 幂等地将 MiniMax 目录价格写入 pricing_entries;每次启动调用均安全:用户已配置的 source='user' 行不会被覆盖。 (glm-5.2)
+ * 幂等地将 MiniMax 目录价格写入 pricing_entries;每次启动调用均安全:用户已配置的 source='user' 行不会被覆盖。
  */
 export async function seedMinimaxPricing(
   upsert?: (entries: PricingEntry[]) => { updated: number; skipped: number }

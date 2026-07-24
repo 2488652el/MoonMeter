@@ -1,7 +1,6 @@
 /**
  * Codex 日志解析器单元测试:覆盖 parseCodexSessionFile / discoverCodexSessions,
  * 校验累计 token 事件的增量计算、会话发现与现代 payload 解析。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import {

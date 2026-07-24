@@ -2,7 +2,6 @@
  * 单个 API Key 的卡片组件:展示余额、用量进度条、消费估算、创建时间,
  * 以及编辑/测试/删除/刷新/用量查询开关等操作。
  * 根据 providerId 自动选择不同的余额展示形态(coding-plan / token-pack / cash-balance / admin-usage / gateway)。
- * (glm-5.2)
  */
 import { Icon } from './Icon'
 import { useEffect, useState } from 'react'
@@ -59,13 +58,13 @@ const CARD_PROFILE_META: Record<CardProfile, { label: string; icon: string }> = 
   gateway: { label: '聚合网关', icon: 'fa-server' }
 }
 
-// ponytail: single-key card. Mirrors BalanceQuery's grid card layout but adds
+// single-key card. Mirrors BalanceQuery's grid card layout but adds
 // the source pill in the Card `action` slot, the usage bar, and a per-row
 // pill toggle for `usageQueryEnabled`. queryMode drives which manual controls
 // are visible: `auto` hides test + manual-refresh, `manual` shows both.
 //
 // 单个 Key 卡片:复用余额查询的卡片布局,额外加入来源徽标、用量进度条与
-// 每行的用量查询开关。queryMode 决定手动控制项的显隐(auto 隐藏测试与刷新,manual 显示)。 (glm-5.2)
+// 每行的用量查询开关。queryMode 决定手动控制项的显隐(auto 隐藏测试与刷新,manual 显示)。
 export function ApiKeyCard({
   keyRecord,
   balance,
@@ -477,10 +476,10 @@ function CodingPlanQuotaRow({ label, quota }: { label: string; quota: CodingPlan
   )
 }
 
-// ponytail: SourceBadge shape matches the legacy table pill so existing users
+// SourceBadge shape matches the legacy table pill so existing users
 // don't see a new visual identity for `manual` / `api-key` / `session-log`.
 //
-// 来源徽标:沿用旧版表格徽标样式,按来源(manual/api-key/session-log)显示不同颜色。 (glm-5.2)
+// 来源徽标:沿用旧版表格徽标样式,按来源(manual/api-key/session-log)显示不同颜色。
 function SourceBadge({ source }: { source: ApiKeyRecord['source'] }) {
   const cls =
     source === 'manual'
@@ -496,14 +495,14 @@ function SourceBadge({ source }: { source: ApiKeyRecord['source'] }) {
   )
 }
 
-// ponytail: 4-state bar driven by remaining/total ratio per PRD:
+// 4-state bar driven by remaining/total ratio per PRD:
 //   >= 90% remaining -> green (healthy)
 //   70% <= ratio < 90% -> amber (running low)
 //   ratio < 70% -> red (critical)
 //   no total or invalid numbers -> neutral 100% placeholder
 // We divide remaining by total, so a "high bar" means "lots left".
 //
-// 用量进度条:依据 remaining/total 比值显示四种状态(绿/琥珀/红/中性占位)。 (glm-5.2)
+// 用量进度条:依据 remaining/total 比值显示四种状态(绿/琥珀/红/中性占位)。
 function UsageBar({
   remaining,
   total
@@ -537,10 +536,10 @@ function UsageBar({
   )
 }
 
-// ponytail: pill-shaped inline switch. No new component lib — Tailwind
+// pill-shaped inline switch. No new component lib — Tailwind
 // classes only. Active = green, inactive = neutral; disabled shows busy state.
 //
-// 用量查询开关:胶囊式开关,启用为绿色、关闭为中性色,禁用时表示切换中。 (glm-5.2)
+// 用量查询开关:胶囊式开关,启用为绿色、关闭为中性色,禁用时表示切换中。
 function UsageToggle({
   enabled,
   disabled,
@@ -572,9 +571,9 @@ function UsageToggle({
   )
 }
 
-// ponytail: tiny helper to look up displayName with a safe fallback.
+// tiny helper to look up displayName with a safe fallback.
 //
-// 辅助函数:在 manifest 列表中查找 provider 的展示名,未找到时回退为 providerId。 (glm-5.2)
+// 辅助函数:在 manifest 列表中查找 provider 的展示名,未找到时回退为 providerId。
 export function providerLabel(providerId: string, manifests: ProviderManifest[]): string {
   const m = manifests.find((p) => p.id === providerId)
   return m?.displayName ?? providerId
@@ -590,7 +589,7 @@ export function providerLabel(providerId: string, manifests: ProviderManifest[])
  * Three states: loading (-), priced (¥xx.xx), no usage (¥0.00).
  *
  * 消费估算行:挂载或 keyRecord 变化时拉取近 30 天消费汇总并展示金额与诊断信息。
- * 包含加载中、已计价、无用量三种状态。 (glm-5.2)
+ * 包含加载中、已计价、无用量三种状态。
  */
 function KeySpendLine({
   keyRecord,

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
  * Postinstall 脚本:在 Windows 上确保 Electron 与 better-sqlite3 原生二进制就位,幂等且支持 prebuild 回退 gyp。
- * (glm-5.2)
  */
 /**
  * Postinstall helper for native-binary modules on Windows.

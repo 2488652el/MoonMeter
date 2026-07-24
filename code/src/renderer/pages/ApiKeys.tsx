@@ -1,7 +1,6 @@
 /**
  * API Keys 管理页面:展示所有密钥卡片、本机 Session 日志解析面板、
  * 搜索与按供应商筛选,以及创建/编辑/导入/测试/删除/刷新/用量查询开关等操作。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -144,7 +143,7 @@ export default function ApiKeys() {
   >({})
   const unsubProgress = useRef<(() => void) | null>(null)
   const unsubDone = useRef<(() => void) | null>(null)
-  // ponytail: simplest possible filter — a single text query + a single
+  // simplest possible filter — a single text query + a single
   // providerId chip selection. No debounce; the list is bounded (<200 rows).
   const [search, setSearch] = useState('')
   const [providerFilter, setProviderFilter] = useState<string | null>(null)
@@ -397,10 +396,10 @@ export default function ApiKeys() {
     }
   }
 
-  // ponytail: cheap string-match hint for common HTTP error codes. Not a real
+  // cheap string-match hint for common HTTP error codes. Not a real
   // parser - just enough to nudge the user toward the obvious next step.
   //
-  // 根据常见 HTTP 错误码给出简要提示文本。 (glm-5.2)
+  // 根据常见 HTTP 错误码给出简要提示文本。
   function hintForError(message: string): string {
     if (message.includes('401')) return ' → 检查 API key 是否正确 / 余额是否充足'
     if (message.includes('403')) return ' → 该 key 可能无权访问此资源'
@@ -428,11 +427,11 @@ export default function ApiKeys() {
     }
   }
 
-  // ponytail: PR-3/4 wiring — per-key usage toggle round-trips through
+  // PR-3/4 wiring — per-key usage toggle round-trips through
   // window.api.keys.setUsageQuery and re-reads the list so the in-memory
   // record stays consistent with the repo.
   //
-  // 切换单个 Key 的用量查询开关。 (glm-5.2)
+  // 切换单个 Key 的用量查询开关。
   async function handleToggleUsage(id: string, enabled: boolean) {
     try {
       await window.api.keys.setUsageQuery(id, enabled)
@@ -442,11 +441,11 @@ export default function ApiKeys() {
     }
   }
 
-  // ponytail: PR-4 only ships `refreshAll` (no per-key IPC). We invoke it
+  // PR-4 only ships `refreshAll` (no per-key IPC). We invoke it
   // without an alert - treat it as a lightweight nudge and silently reload
   // so the user can see whether the bar moved.
   //
-  // 刷新单个 Key 余额:实际调用 refreshAll 并静默重载列表。 (glm-5.2)
+  // 刷新单个 Key 余额:实际调用 refreshAll 并静默重载列表。
   async function handleRefreshOne() {
     try {
       await window.api.usage.refreshAll()
@@ -471,10 +470,10 @@ export default function ApiKeys() {
     }
   }
 
-  // ponytail: latest-by-key map for the balance summary field. Mirrors the
+  // latest-by-key map for the balance summary field. Mirrors the
   // same pattern used in BalanceQuery so the two pages never disagree.
   //
-  // 按 apiKeyId 保留最新一条余额快照,供卡片展示。 (glm-5.2)
+  // 按 apiKeyId 保留最新一条余额快照,供卡片展示。
   const latestByKey = useMemo(() => {
     const m = new Map<string, BalanceSnapshot & { id: number; apiKeyId?: string }>()
     for (const b of balances) {

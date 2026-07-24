@@ -1,4 +1,4 @@
-/** 用量日志分页测试:覆盖 getLogsPage 的分页与排序逻辑。 (glm-5.2) */
+/** 用量日志分页测试:覆盖 getLogsPage 的分页与排序逻辑。 */
 import { describe, expect, it, vi } from 'vitest'
 
 interface UsageRow {

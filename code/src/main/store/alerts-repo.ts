@@ -1,7 +1,6 @@
 /**
  * 告警规则仓库:管理 alert_rules 与 alert_events 表的 CRUD 操作。
  * 该模块属于 main 进程的 store 模块,提供告警规则的增删改查与事件持久化能力。
- * (glm-5.2)
  */
 import { randomUUID } from 'node:crypto'
 import { getDb } from './db'
@@ -87,7 +86,6 @@ export function deleteAlert(id: string): void {
  * 规则触发后更新 last_triggered_at 时间戳。
  * @param ruleId 规则 ID
  * @param firedAt 触发时间(ISO 字符串)
- * (glm-5.2)
  */
 export function markAlertTriggered(ruleId: string, firedAt: string): void {
   const db = getDb()
@@ -99,7 +97,6 @@ export function markAlertTriggered(ruleId: string, firedAt: string): void {
  * 持久化一条告警触发事件。
  * alert_events 表由 store/db 的 schema 迁移创建。
  * @param event 不含 id 的事件数据
- * (glm-5.2)
  */
 export function insertAlertEvent(event: Omit<AlertEvent, 'id'>): void {
   const db = getDb()

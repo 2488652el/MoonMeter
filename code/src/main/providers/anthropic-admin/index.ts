@@ -1,7 +1,6 @@
 /**
  * Anthropic Admin(org/管理后台)Provider 实现:通过 Anthropic Admin API
  * 拉取组织级用量与成本报告,作为余额与用量数据来源。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,
@@ -12,7 +11,7 @@ import type {
 } from '@shared/types/provider'
 import { ProviderHttpClient } from '../http-client'
 
-/** Anthropic Admin Provider 的清单常量。 (glm-5.2) */
+/** Anthropic Admin Provider 的清单常量。 */
 const MANIFEST = {
   id: 'anthropic-admin',
   displayName: 'Anthropic Admin',
@@ -21,7 +20,7 @@ const MANIFEST = {
   docsUrl: 'https://docs.claude.com/en/api/admin-api/usage-cost'
 }
 
-/** Anthropic 用量 API 响应结构。 (glm-5.2) */
+/** Anthropic 用量 API 响应结构。 */
 interface UsageResp {
   data: Array<{
     starting_at: string
@@ -38,7 +37,7 @@ interface UsageResp {
   next_page?: string
 }
 
-/** Anthropic 成本报告 API 响应结构。 (glm-5.2) */
+/** Anthropic 成本报告 API 响应结构。 */
 interface CostResp {
   data: Array<{
     starting_at: string
@@ -47,7 +46,7 @@ interface CostResp {
   }>
 }
 
-/** Anthropic Admin Provider 实现,提供 balance(当月成本合计)、usage 与连接测试。 (glm-5.2) */
+/** Anthropic Admin Provider 实现,提供 balance(当月成本合计)、usage 与连接测试。 */
 export const anthropicAdminProvider: ProviderImpl = {
   manifest: MANIFEST,
   hasBalanceApi: true,

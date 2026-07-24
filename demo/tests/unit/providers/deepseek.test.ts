@@ -1,6 +1,5 @@
 /**
  * DeepSeek 供应商单元测试:覆盖余额接口解析与连通性测试。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { deepseekProvider } from '../../../../code/src/main/providers/deepseek'

@@ -1,6 +1,5 @@
 /**
  * 请求日志过滤构建器单元测试:覆盖 buildRequestLogFilter,校验分页查询与导出查询的参数组装。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { buildRequestLogFilter } from '../../../code/src/shared/utils/request-log-filter'

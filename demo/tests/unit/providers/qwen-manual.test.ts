@@ -1,6 +1,5 @@
 /**
  * Qwen Manual 供应商单元测试:覆盖无余额 API 与手动连通性测试。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { qwenManualProvider } from '../../../../code/src/main/providers/qwen-manual'

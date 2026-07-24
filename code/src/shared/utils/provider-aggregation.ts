@@ -1,11 +1,10 @@
 /**
- * ponytail: pure aggregation helpers used by the Provider Summary page.
+ * pure aggregation helpers used by the Provider Summary page.
  * Extracted so they're trivially unit-testable without mounting React.
  *
  * No imports from `code/src/renderer/**`, no window.*, no React types.
  *
  * 中文说明:供应商汇总页的纯函数聚合工具(按模型/供应商/周窗口统计花费)。
- * (glm-5.2)
  */
 
 import type { UsageRecord } from '../types/usage'
@@ -42,7 +41,7 @@ function toLocalISODate(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-/** ponytail: trend = (current - previous) / previous * 100.
+/** trend = (current - previous) / previous * 100.
  *  Returns `null` when previous is 0 (no comparison possible) AND when
  *  either side is null/undefined. Used by the By-Provider table column. */
 export function computeTrend(
@@ -52,14 +51,14 @@ export function computeTrend(
   if (currentWeekCost == null || previousWeekCost == null) return null
   if (!Number.isFinite(currentWeekCost) || !Number.isFinite(previousWeekCost)) return null
   if (previousWeekCost === 0) {
-    // ponytail: 0 → N is "infinite" growth; surface as 100% (saturating) so
+    // 0 → N is "infinite" growth; surface as 100% (saturating) so
     // the UI never shows NaN and the row stays visually informative.
     return currentWeekCost > 0 ? 100 : 0
   }
   return ((currentWeekCost - previousWeekCost) / previousWeekCost) * 100
 }
 
-/** ponytail: pure derivation: given all logs, return a list of
+/** pure derivation: given all logs, return a list of
  *  {model, providers, cost, tokens, requests} sorted by cost desc. */
 export function aggregateByModel(logs: UsageRecord[], fallbackCurrency = 'CNY'): ModelAggregate[] {
   const map = new Map<
@@ -93,7 +92,7 @@ export function aggregateByModel(logs: UsageRecord[], fallbackCurrency = 'CNY'):
     .sort((a, b) => b.cost - a.cost)
 }
 
-/** ponytail: top-N models for a given provider id. */
+/** top-N models for a given provider id. */
 export function topModelsForProvider(
   logs: UsageRecord[],
   providerId: string,
@@ -114,7 +113,7 @@ export function topModelsForProvider(
     .slice(0, n)
 }
 
-/** ponytail: split logs into "current 7 days" vs "previous 7 days" cost
+/** split logs into "current 7 days" vs "previous 7 days" cost
  *  totals anchored at `now`. Anything older than 14 days is ignored. */
 export function weekWindows(
   now: Date,
@@ -136,7 +135,7 @@ export function weekWindows(
   return { currentWeek, previousWeek }
 }
 
-/** ponytail: exact per-provider week-over-week costs.
+/** exact per-provider week-over-week costs.
  *  Returns { currentWeek, previousWeek } from log rows whose `providerId`
  *  matches exactly. Logs outside the 14-day anchored window are ignored. */
 export function providerWeekWindows(
@@ -150,7 +149,7 @@ export function providerWeekWindows(
   )
 }
 
-/** ponytail: normalize dashboard `daily` rows into a dense date series.
+/** normalize dashboard `daily` rows into a dense date series.
  * SQL only returns dates with data; the chart wants a continuous x-axis. */
 export function buildDailyCostSeries(
   daily: Array<{ date: string; cost: number; tokens: number }>,

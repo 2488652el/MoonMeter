@@ -1,6 +1,5 @@
 /**
  * 用量去重契约测试:覆盖 vendor-api 业务键去重逻辑与 SQLite UNIQUE 约束声明校验。
- * (glm-5.2)
  */
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'

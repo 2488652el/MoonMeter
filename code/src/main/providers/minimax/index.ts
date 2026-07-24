@@ -1,7 +1,6 @@
 /**
  * MiniMax Provider 实现:通过 OpenAI 兼容的 /v1/models 校验密钥,
  * 并读取 Token Plan 剩余额度(/v1/token_plan/remains)作为余额。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,
@@ -12,7 +11,7 @@ import type {
 } from '@shared/types/provider'
 import { ProviderHttpClient } from '../http-client'
 
-/** MiniMax Provider 的清单常量。 (glm-5.2) */
+/** MiniMax Provider 的清单常量。 */
 const MANIFEST = {
   id: 'minimax',
   displayName: 'MiniMax',
@@ -34,7 +33,7 @@ const MANIFEST = {
  * without spending any tokens. The current Token Plan quota snapshot lives at
  * `/v1/token_plan/remains`.
  *
- * 中文说明:MiniMax 兼容 OpenAI 协议;testConnection 用 /v1/models 校验密钥(零开销),余额取自 /v1/token_plan/remains。 (glm-5.2)
+ * 中文说明:MiniMax 兼容 OpenAI 协议;testConnection 用 /v1/models 校验密钥(零开销),余额取自 /v1/token_plan/remains。
  */
 export const minimaxProvider: ProviderImpl = {
   manifest: MANIFEST,
@@ -53,7 +52,7 @@ export const minimaxProvider: ProviderImpl = {
       providerId: MANIFEST.id
     })
 
-    /** 读取 Token Plan 剩余额度,优先取通用模型的周/区间剩余百分比。 (glm-5.2) */
+    /** 读取 Token Plan 剩余额度,优先取通用模型的周/区间剩余百分比。 */
     async function fetchTokenPlanRemains(): Promise<BalanceSnapshot> {
       const body = await http.getJSON<Record<string, unknown>>('/v1/token_plan/remains')
       const payload = asRecord(body.data) ?? body

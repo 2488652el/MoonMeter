@@ -1,7 +1,6 @@
 /**
  * 余额快照仓库:管理 balance_snapshots 表的写入与查询。
  * 该模块属于 main 进程的 store 模块,提供余额快照的持久化与最新快照查询能力。
- * (glm-5.2)
  */
 import { getDb } from './db'
 import { randomUUID } from 'node:crypto'
@@ -75,7 +74,7 @@ export function insertBalance(snap: BalanceSnapshot & { apiKeyId: string }): voi
 export function latestBalances(): Array<BalanceSnapshot & { id: number; apiKeyId?: string }> {
   const db = getDb()
   // For each api_key, take the most recent snapshot
-  // 对每个 api_key 取最新快照。(glm-5.2)
+  // 对每个 api_key 取最新快照。
   const rows = db
     .prepare(
       `

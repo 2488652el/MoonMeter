@@ -1,7 +1,6 @@
 /**
  * API 密钥仓库:管理 api_keys 表的 CRUD、加密存储与查询模式控制。
  * 该模块属于 main 进程的 store 模块,提供密钥的安全存储(加密)、解密读取与列展开能力。
- * (glm-5.2)
  */
 import { randomUUID } from 'node:crypto'
 import { getDb } from './db'
@@ -102,7 +101,6 @@ export function getKey(id: string): ApiKeyRecord | null {
  * 返回解密后的 API 密钥明文,仅供 main 进程内部使用,渲染进程永不调用。
  * @param id 密钥 ID
  * @returns 解密后的密钥字符串;密钥不存在时抛错
- * (glm-5.2)
  */
 export function getDecryptedKey(id: string): string {
   const db = getDb()
@@ -117,7 +115,6 @@ export function getDecryptedKey(id: string): string {
  * 返回解密后的供应商专属凭据(如 adminKey),仅供 main 进程内部使用。
  * @param id 密钥 ID
  * @returns 凭据键值对;密钥不存在时抛错
- * (glm-5.2)
  */
 export function getDecryptedExtraCredentials(id: string): Record<string, string> {
   const db = getDb()
@@ -273,7 +270,7 @@ export function deleteKey(id: string): void {
  * Toggle the per-row `usage_query_enabled` flag. Used by PR-3 settings UI /
  * scheduler skip logic. Returns nothing - callers that need the fresh state
  * should `listKeys()` afterward to avoid a second SELECT round-trip per call.
- * 切换单行 usage_query_enabled 标志,供设置 UI 与调度器跳过逻辑使用;调用方需自行 listKeys() 获取最新状态。(glm-5.2)
+ * 切换单行 usage_query_enabled 标志,供设置 UI 与调度器跳过逻辑使用;调用方需自行 listKeys() 获取最新状态。
  */
 export function toggleUsageQuery(id: string, enabled: boolean): void {
   const db = getDb()

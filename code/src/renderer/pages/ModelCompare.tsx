@@ -1,7 +1,6 @@
 /**
  * 模型对比页面:按模型维度聚合请求数、Token 构成、计价覆盖与费用,
  * 使用品牌卡片跨供应商对比模型用量。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'

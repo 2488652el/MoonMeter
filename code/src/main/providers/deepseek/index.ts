@@ -1,7 +1,6 @@
 /**
  * DeepSeek Provider 实现:通过 DeepSeek 平台 API 读取账户余额,
  * 支持余额查询与连接测试(无用量 API)。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,
@@ -11,7 +10,7 @@ import type {
 } from '@shared/types/provider'
 import { ProviderHttpClient } from '../http-client'
 
-/** DeepSeek Provider 的清单常量。 (glm-5.2) */
+/** DeepSeek Provider 的清单常量。 */
 const MANIFEST = {
   id: 'deepseek',
   displayName: 'DeepSeek',
@@ -20,13 +19,13 @@ const MANIFEST = {
   docsUrl: 'https://platform.deepseek.com/api-docs/'
 }
 
-/** DeepSeek 余额 API 响应结构。 (glm-5.2) */
+/** DeepSeek 余额 API 响应结构。 */
 interface BalanceResp {
   is_available: boolean
   balance_infos: Array<{ currency: string; total_balance: string }>
 }
 
-/** DeepSeek Provider 实现,提供 balance 与连接测试。 (glm-5.2) */
+/** DeepSeek Provider 实现,提供 balance 与连接测试。 */
 export const deepseekProvider: ProviderImpl = {
   manifest: MANIFEST,
   hasBalanceApi: true,

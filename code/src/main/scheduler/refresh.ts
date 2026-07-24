@@ -1,7 +1,6 @@
 /**
  * 调度器核心:定时刷新所有密钥的余额与用量,持久化快照,评估告警规则并写入心跳。
  * 该模块属于 main 进程的 scheduler 模块,协调 providers、store 多个子系统完成数据采集与持久化。
- * (glm-5.2)
  */
 import { listKeys, getDecryptedExtraCredentials, getDecryptedKey } from '../store/keys-repo'
 import { getProvider } from '../providers/registry'
@@ -30,7 +29,7 @@ type RefreshResult = {
   failures: RefreshFailure[]
 }
 
-/** 清除自动刷新定时器。(内部辅助函数)(glm-5.2) */
+/** 清除自动刷新定时器。(内部辅助函数) */
 function clearAutoRefresh(): void {
   if (timer) {
     clearInterval(timer)
@@ -39,7 +38,7 @@ function clearAutoRefresh(): void {
 }
 
 /** Minimum gap between repeat firings of the same rule (5 minutes). */
-/** 同一规则重复触发的最小冷却间隔(5 分钟)。(glm-5.2) */
+/** 同一规则重复触发的最小冷却间隔(5 分钟)。 */
 const ALERT_RETRIGGER_COOLDOWN_MS = 5 * 60 * 1000
 
 /**
@@ -50,7 +49,7 @@ const ALERT_RETRIGGER_COOLDOWN_MS = 5 * 60 * 1000
  * Fire condition:
  *   - remaining_amount: snap.remaining <= threshold
  *   - remaining_pct:    (remaining / total * 100) <= threshold
- * 触发条件:remaining_amount 时余额<=阈值;remaining_pct 时余额占比<=阈值。(glm-5.2)
+ * 触发条件:remaining_amount 时余额<=阈值;remaining_pct 时余额占比<=阈值。
  */
 export function evaluateAlertRule(
   rule: AlertRule,
@@ -75,7 +74,7 @@ export function evaluateAlertRule(
  * a refresh loop does not spam events.
  *
  * @param now override for deterministic tests; defaults to current time
- * @param now 用于测试的确定性时间覆盖,默认当前时间。(glm-5.2)
+ * @param now 用于测试的确定性时间覆盖,默认当前时间。
  */
 export function evaluateAlerts(now: Date = new Date()): { fired: number; skipped: number } {
   const rules = listAlerts().filter((r) => r.enabled)
@@ -143,12 +142,12 @@ export function evaluateAlerts(now: Date = new Date()): { fired: number; skipped
   return { fired, skipped }
 }
 
-/** 若数字有限则返回该数字,否则返回 undefined。(内部辅助函数)(glm-5.2) */
+/** 若数字有限则返回该数字,否则返回 undefined。(内部辅助函数) */
 function finiteOrUndefined(n: number | undefined): number | undefined {
   return typeof n === 'number' && Number.isFinite(n) ? n : undefined
 }
 
-/** 汇总 usage slice 中的各类 token(prompt/completion/cache)之和。(内部辅助函数)(glm-5.2) */
+/** 汇总 usage slice 中的各类 token(prompt/completion/cache)之和。(内部辅助函数) */
 function sumTokens(slice: UsageSlice): number {
   return (
     (finiteOrUndefined(slice.promptTokens) ?? 0) +
@@ -224,7 +223,6 @@ export function usageSliceToRecord(
  * 刷新所有密钥的余额与用量,持久化快照,评估告警规则并写入心跳。
  * 遍历所有密钥,跳过已禁用用量查询的密钥,采集余额与用量并写入数据库。
  * @returns 刷新结果统计:成功数、用量插入/跳过数、失败数及失败明细
- * (glm-5.2)
  */
 export function refreshAll(): Promise<RefreshResult> {
   if (refreshInFlight) return refreshInFlight
@@ -306,7 +304,6 @@ async function refreshAllImpl(): Promise<RefreshResult> {
 /**
  * 启动自动刷新定时器,幂等(重复调用不会创建多个定时器)。
  * 间隔由 refresh_interval_min 设置决定,默认 30 分钟;间隔<=0 时不启动。
- * (glm-5.2)
  */
 export function startAutoRefresh(): void {
   if (timer) return
@@ -321,7 +318,7 @@ export function startAutoRefresh(): void {
 }
 
 /** Restart the auto-refresh timer with the current settings value. */
-/** 重启自动刷新定时器,使用当前设置值重新初始化。(glm-5.2) */
+/** 重启自动刷新定时器,使用当前设置值重新初始化。 */
 export function restartAutoRefresh(): void {
   clearAutoRefresh()
   startAutoRefresh()

@@ -1,7 +1,6 @@
 /**
  * 全局类型声明文件:为渲染进程扩展 Window 接口,
  * 注入由 preload 暴露的 MoonMeterAPI,使渲染层可通过 window.api 调用主进程能力。
- * (glm-5.2)
  */
 import type { MoonMeterAPI } from '../preload'
 

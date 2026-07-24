@@ -3,7 +3,6 @@
  * (密钥管理、用量查询、价格配置、设置、告警、余额、Provider 列表、
  * 本地日志解析与 CLI 密钥导入等)转发到对应的 store/provider/log-parsers 层,
  * 并使用 zod schema 进行入参校验。
- * (glm-5.2)
  */
 import { ipcMain, BrowserWindow, dialog, net, shell } from 'electron'
 import { IPC } from '@shared/ipc-channels'
@@ -96,7 +95,7 @@ import {
  * all undefined values have been dropped at runtime.
  *
  * 移除值为 undefined 的字段,使对象可赋值给 exactOptionalPropertyTypes 严格模式
- * 声明的类型;作用于 zod 解析后的输出后再传给 store 函数。 (glm-5.2)
+ * 声明的类型;作用于 zod 解析后的输出后再传给 store 函数。
  */
 function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {}

@@ -1,7 +1,6 @@
 /**
  * usage-trend 单元测试:覆盖 buildModelUsageSeries,
  * 校验按小时(今日)与按日(7天)的用量序列补齐与归类逻辑。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { buildModelUsageSeries } from '../../../code/src/shared/utils/usage-trend'

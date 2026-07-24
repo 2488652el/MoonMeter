@@ -1,6 +1,5 @@
 /**
  * 用量成本显示定价配置测试:覆盖请求日志重定价、仪表盘聚合重定价与模型对比聚合的 token 拆分保留。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

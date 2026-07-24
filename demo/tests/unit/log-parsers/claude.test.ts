@@ -1,7 +1,6 @@
 /**
  * Claude 日志解析器单元测试:覆盖 parseClaudeSessionLine / parseClaudeSessionFile /
  * discoverClaudeSessions / syncClaudeFile,校验 JSONL 行解析、会话发现与增量同步。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import {

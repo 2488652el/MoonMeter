@@ -1,7 +1,6 @@
 /**
  * dashboard 统计单元测试:覆盖 computeProviderPct 占比计算与 token 求和的 NULL 处理契约,
  * 校验总成本为 0 时的占比归零与 SQL COALESCE 算术约定。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { computeProviderPct } from '../../../../code/src/main/store/usage-repo'

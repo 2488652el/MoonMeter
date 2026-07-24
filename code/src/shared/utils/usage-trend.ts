@@ -1,7 +1,6 @@
 /**
  * 用量趋势工具:把 UsageRecord 列表按时间桶(小时/天)聚合为多模型堆叠序列,
  * 供 Dashboard 折线图渲染。自动补齐空桶,取 Top6 模型 + "其他模型"汇总。
- * (glm-5.2)
  */
 import type { UsageRecord } from '../types/usage'
 

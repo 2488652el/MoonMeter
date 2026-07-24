@@ -1,6 +1,5 @@
 /**
  * LongCat 供应商单元测试:覆盖 baseUrl 归一化、OpenAI 兼容连通性探测与平台 Cookie 令牌包余额读取。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { longcatProvider } from '../../../../code/src/main/providers/longcat'

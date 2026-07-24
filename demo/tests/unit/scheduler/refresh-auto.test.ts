@@ -1,7 +1,6 @@
 /**
  * 调度器自动刷新定时器单元测试:覆盖 startAutoRefresh / restartAutoRefresh,
  * 校验间隔设置生效与重启后旧定时器被取消、新间隔生效。
- * (glm-5.2)
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getSetting, setSetting } from '../../../../code/src/main/store/settings-store'

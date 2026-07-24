@@ -1,7 +1,6 @@
 /**
  * 通用模态弹窗组件:提供遮罩层、标题栏、关闭按钮与内容区,
  * 支持 ESC 关闭与点击遮罩关闭。
- * (glm-5.2)
  */
 import { Icon } from './Icon'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'

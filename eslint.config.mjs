@@ -17,6 +17,7 @@ export default [
       'demo/playwright-report/**',
       'demo/test-results/**',
       'github/repository/**',
+      'design/site/**',
       '.claude/**',
       '.codex/**',
       '.superpowers/**',

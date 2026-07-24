@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
  * We fake the whole `getDb` module with a hand-rolled query runner that
  * returns the right shape. Schema mirrors the prod `usage_records` table;
  * pricing lookups query the same fake `pricing_entries` rows.
- * 中文说明:按 Key 花费估算的存储层测试。 (glm-5.2)
+ * 中文说明:按 Key 花费估算的存储层测试。
  */
 
 interface UsageRow {

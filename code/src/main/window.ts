@@ -1,7 +1,6 @@
 /**
  * 浏览器窗口创建模块:负责 Electron 主窗口的实例化、安全配置、
  * 开发/生产环境加载入口切换,以及窗口内导航的安全拦截。
- * (glm-5.2)
  */
 import { BrowserWindow, app } from 'electron'
 import { join } from 'path'
@@ -45,13 +44,13 @@ export function createWindow(): void {
   if (isDev && process.env['ELECTRON_RENDERER_URL']) {
     win.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    // ponytail: app.getAppPath() returns the asar root in production
+    // app.getAppPath() returns the asar root in production
     // (e.g. ".../resources/app.asar"), so joining with "demo/out/renderer/index.html"
     // correctly resolves to the packaged renderer. In dev, __dirname is
     // "demo/out/main/" so "../renderer/index.html" also works; we use the
     // app.getAppPath() form uniformly to avoid the two-mode divergence.
     // 说明:生产环境 app.getAppPath() 返回 asar 根目录,开发环境 __dirname 为 demo/out/main/;
-    // 统一使用 app.getAppPath() 形式拼接路径,避免开发/生产两种模式的差异。 (glm-5.2)
+    // 统一使用 app.getAppPath() 形式拼接路径,避免开发/生产两种模式的差异。
     const indexPath = join(app.getAppPath(), 'demo', 'out', 'renderer', 'index.html')
     void win.loadFile(indexPath)
   }

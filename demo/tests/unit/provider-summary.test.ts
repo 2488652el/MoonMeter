@@ -1,7 +1,6 @@
 /**
  * provider 聚合工具单元测试:覆盖 computeTrend / formatPct / aggregateByModel /
  * topModelsForProvider / weekWindows / providerWeekWindows / buildDailyCostSeries。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import {
@@ -50,7 +49,7 @@ describe('computeTrend', () => {
   })
 
   it('falls back to 100% when previous is 0 and current is positive', () => {
-    // ponytail: 0 → N is "infinite" growth; saturated to 100 so the UI
+    // 0 → N is "infinite" growth; saturated to 100 so the UI
     // never shows NaN.
     expect(computeTrend(10, 0)).toBe(100)
   })

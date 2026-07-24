@@ -1,7 +1,6 @@
 /**
  * 告警类型定义:描述用量/余额告警规则与触发事件。
  * 规则(AlertRule)定义阈值与指标,事件(AlertEvent)记录实际触发的快照。
- * (glm-5.2)
  */
 
 /** 告警指标:剩余金额(remaining_amount)或剩余百分比(remaining_pct)。 */

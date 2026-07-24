@@ -1,6 +1,5 @@
 /**
  * 页面头部组件:展示页面标题、描述与右侧操作区。
- * (glm-5.2)
  */
 import { type ReactNode } from 'react'
 

@@ -1,7 +1,6 @@
 /**
  * 用量记录仓库:管理 usage_records 表的写入、查询、仪表盘汇总与多维度消费统计。
  * 该模块属于 main 进程的 store 模块,是仪表盘数据与消费分析的核心数据访问层。
- * (glm-5.2)
  */
 import { getDb } from './db'
 import { findPricing, findPricingByModel } from './pricing-repo'
@@ -21,7 +20,7 @@ import { normalizeBillingScope, resolveBillingScope } from '@shared/pricing-scop
  * Compute a provider's cost share of the grand total.
  * Returns 0 when grandTotal is 0 or negative (N5: avoid meaningless pct when
  * there is no spend, which would otherwise make the pie chart lie).
- * 总额为 0 或负时返回 0,避免无消费时饼图显示无意义百分比。(glm-5.2)
+ * 总额为 0 或负时返回 0,避免无消费时饼图显示无意义百分比。
  */
 export function computeProviderPct(providerCost: number, grandTotal: number): number {
   return grandTotal > 0 ? providerCost / grandTotal : 0
@@ -506,7 +505,7 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
  * at ingest time). Groups usage by (provider, model), prices each group via
  * findPricing + calcCost, and aggregates by currency. The "primary" currency is
  * whichever accumulates the largest amount (default 'CNY' when nothing priced).
- * 按原始用量×当前定价实时计算总消费(而非入库时存储的 cost 列),按币种汇总;主币种为金额最大者。(glm-5.2)
+ * 按原始用量×当前定价实时计算总消费(而非入库时存储的 cost 列),按币种汇总;主币种为金额最大者。
  */
 export function computeTotalSpend(filter: number | UsageAnalysisFilter = 30): TotalSpendSummary {
   const db = getDb()
@@ -715,7 +714,7 @@ export function computeModelSpend(
  * because `findPricing` keys on (provider_id, billing_scope, model). The renderer should
  * surface this gap so users can either configure pricing or check the
  * provider's own dashboard.
- * 按密钥维度的消费估算:无直接归属行时,用该密钥所属供应商的定价表对未归属的 session-log 行进行估算。(glm-5.2)
+ * 按密钥维度的消费估算:无直接归属行时,用该密钥所属供应商的定价表对未归属的 session-log 行进行估算。
  */
 export function computeSpendByKey(apiKeyId: string, days = 30): KeySpendSummary {
   const db = getDb()

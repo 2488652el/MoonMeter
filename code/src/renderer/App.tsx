@@ -2,7 +2,6 @@
  * 应用根组件:配置整体路由表,将各业务页面挂载到 AppShell 布局下。
  * 通过 HashRouter 实现客户端路由切换,涵盖仪表盘、供应商、模型对比、
  * 请求日志、余额查询、API 密钥、价格配置、用量告警、设置等页面。
- * (glm-5.2)
  */
 import { Navigate, Routes, Route } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
@@ -21,7 +20,6 @@ import Settings from './pages/Settings'
  * 应用根组件。
  * 使用 react-router 的 Routes 组织所有子路由,统一包裹在 AppShell 布局内,
  * 各 Route 的 element 对应一个业务页面。
- * (glm-5.2)
  */
 export default function App() {
   return (

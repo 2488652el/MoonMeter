@@ -1,7 +1,6 @@
 /**
  * 通用卡片组件:提供标题、副标题、图标、操作区与正文内容的容器布局。
  * 被各业务页面复用以保持一致的卡片视觉风格。
- * (glm-5.2)
  */
 import { type CSSProperties, type ReactNode } from 'react'
 import clsx from 'clsx'

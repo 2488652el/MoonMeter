@@ -1,7 +1,6 @@
 /**
  * 供应商汇总页面:按供应商维度聚合费用与用量,提供三种视图(按供应商/按模型/按费用趋势),
  * 含费用占比环形图、Top 5 排行、明细表格与每日费用趋势折线图。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
@@ -30,8 +29,8 @@ import {
 } from '../../shared/utils/provider-aggregation'
 import type { DashboardSummary, ModelSpendAggregate, UsageRecord } from '../../shared/types/usage'
 
-/** ponytail: 8-color palette — derived from tailwind status colors. */
-// 供应商配色:8 色调色板,源自 tailwind 状态色。 (glm-5.2)
+/** 8-color palette — derived from tailwind status colors. */
+// 供应商配色:8 色调色板,源自 tailwind 状态色。
 const PROVIDER_PALETTE = [
   '#10B981',
   '#3B82F6',
@@ -63,14 +62,14 @@ const TAB_DEFS: TabDef<TabKey>[] = [
 ]
 
 /**
- * ponytail: trend -> CSS class. +tint red for growth, amber for drop.
+ * trend -> CSS class. +tint red for growth, amber for drop.
  * We use colorblind-safe status tokens already defined in tailwind.css.
  *
  * (The trend itself is computed by `computeTrend` from
  * `shared/utils/provider-aggregation` - extracted so it's unit-testable
  * without mounting React.)
  *
- * 趋势值映射为 CSS 类:增长偏红、下降偏琥珀。 (glm-5.2)
+ * 趋势值映射为 CSS 类:增长偏红、下降偏琥珀。
  */
 function trendClass(t: number | null): string {
   if (t === null) return 'text-text-muted'
@@ -79,9 +78,9 @@ function trendClass(t: number | null): string {
   return 'text-text-muted'
 }
 
-/** ponytail: conic-gradient donut without any chart library.
+/** conic-gradient donut without any chart library.
  *
- * 供应商费用占比环形图:纯 CSS conic-gradient 实现,无需图表库。 (glm-5.2) */
+ * 供应商费用占比环形图:纯 CSS conic-gradient 实现,无需图表库。 */
 function DonutChart({ providers }: { providers: DashboardSummary['providers'] }) {
   const reducedMotion = useReducedMotion()
   const [ready, setReady] = useState(reducedMotion)
@@ -244,8 +243,8 @@ function DailyCostLineChart({
   )
 }
 
-/** ponytail: date-range radio filter — defaults to "本月". */
-// 时间范围单选筛选器:本月/本周/今日。 (glm-5.2)
+/** date-range radio filter — defaults to "本月". */
+// 时间范围单选筛选器:本月/本周/今日。
 function RangeFilter({ value, onChange }: { value: RangeKey; onChange: (v: RangeKey) => void }) {
   return (
     <div className="inline-flex items-center border border-border-light rounded-md overflow-hidden text-[12.5px]">
@@ -285,7 +284,7 @@ export default function ProviderSummary() {
   const [refreshing, setRefreshing] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
-  // ponytail: range → IPC args. today uses 1-day window so the dashboard
+  // range → IPC args. today uses 1-day window so the dashboard
   // call stays cheap; the logs call uses explicit fromISO/toISO bounds to
   // keep the per-model aggregation honest about "today".
   const days = useMemo(() => {
@@ -338,7 +337,7 @@ export default function ProviderSummary() {
     setRefreshing(true)
     try {
       await window.api.usage.refreshAll()
-      // ponytail: bump a counter so the load effect re-runs without the
+      // bump a counter so the load effect re-runs without the
       // user having to flip range back and forth.
       setReloadKey((k) => k + 1)
     } finally {

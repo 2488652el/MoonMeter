@@ -1,7 +1,6 @@
 /**
  * 价格目录同步模块:从 models.dev 正式 API 拉取各 Provider 的模型价格,
  * 映射到 TokenLub providerId,并保留其 USD/每百万 token 原始单位。
- * (glm-5.2)
  */
 import type { PricingEntry } from '@shared/types/pricing'
 import { ProviderError } from '@shared/types/provider'
@@ -11,7 +10,7 @@ import { DEFAULT_BILLING_SCOPE } from '@shared/pricing-scope'
  * Raw pricing object from models.dev (scalar values are USD per million tokens).
  * Extra fields (web_search, image, audio, internal_reasoning) are ignored.
  *
- * models.dev 返回的原始价格对象(标量值为 USD/百万 token);额外字段被忽略。 (glm-5.2)
+ * models.dev 返回的原始价格对象(标量值为 USD/百万 token);额外字段被忽略。
  */
 interface CatalogCost {
   input?: number
@@ -38,7 +37,7 @@ type CatalogResponse = Record<string, CatalogProvider>
 export const CATALOG_URL = 'https://models.dev/api.json'
 
 /** HTTP fetch timeout for catalog sync (30s - the file is ~500KB).
- *  目录同步的 HTTP 拉取超时(30 秒,文件约 500KB)。 (glm-5.2) */
+ *  目录同步的 HTTP 拉取超时(30 秒,文件约 500KB)。 */
 const CATALOG_TIMEOUT_MS = 30_000
 
 /**
@@ -54,7 +53,7 @@ const CATALOG_TIMEOUT_MS = 30_000
  * TokenLub equivalent - Gemini uses a manual free-tier provider; `siliconflow`
  * is an aggregator whose prices differ from upstream models).
  *
- * 将 models.dev 的 provider 前缀映射到 TokenLub providerId;不在映射表中的 provider 在同步时跳过。 (glm-5.2)
+ * 将 models.dev 的 provider 前缀映射到 TokenLub providerId;不在映射表中的 provider 在同步时跳过。
  */
 export const PROVIDER_MAPPING: Readonly<Record<string, string>> = {
   anthropic: 'anthropic-admin',
@@ -99,7 +98,7 @@ function toPerMtok(raw: unknown): number | null {
  * Returns null when the entry should be skipped (unknown provider, missing
  * required prices). Pure function - safe to unit test without a DB.
  *
- * 将单条 models.dev 目录条目转换为 TokenLub PricingEntry;未知 provider 或缺少必填价格时返回 null。纯函数,可不依赖 DB 测试。 (glm-5.2)
+ * 将单条 models.dev 目录条目转换为 TokenLub PricingEntry;未知 provider 或缺少必填价格时返回 null。纯函数,可不依赖 DB 测试。
  */
 export function transformCatalogModel(
   catalogProvider: string,
@@ -145,7 +144,7 @@ export function transformCatalogModel(
  * @returns `{ synced, skipped }` - synced = entries written, skipped = entries
  * that didn't match the provider map or lacked required prices.
  *
- * 返回值:`{ synced, skipped }`,synced 为已写入条目数,skipped 为未匹配 provider 或缺价格而跳过的条目数。 (glm-5.2)
+ * 返回值:`{ synced, skipped }`,synced 为已写入条目数,skipped 为未匹配 provider 或缺价格而跳过的条目数。
  */
 export interface CatalogFetchOptions {
   etag?: string

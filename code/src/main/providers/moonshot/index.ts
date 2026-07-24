@@ -1,7 +1,6 @@
 /**
  * Moonshot (Kimi) 供应商实现:基于 OpenAI 兼容协议探测账户余额。
  * 该模块属于 main 进程的 providers 模块,负责构造余额查询的 HTTP 客户端并返回标准化 BalanceSnapshot。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,
@@ -23,7 +22,7 @@ const MANIFEST = {
 // Note: /v1/users/me is the documented Moonshot user-info endpoint but the
 // balance probe list below already covers all known shapes; we keep this
 // comment so future additions can wire the user-info call.
-// 保留此注释以便后续接入 user-info 接口;当前余额探测候选列表已覆盖所有已知返回形态。(glm-5.2)
+// 保留此注释以便后续接入 user-info 接口;当前余额探测候选列表已覆盖所有已知返回形态。
 
 /**
  * Moonshot 余额接口可能返回的多种形态。
@@ -56,7 +55,7 @@ export const moonshotProvider: ProviderImpl = {
   build(creds: ProviderCredentials): ProviderCapabilities {
     const base = creds.baseUrl || 'https://api.moonshot.cn'
     // Overseas endpoint api.moonshot.ai bills in USD; domestic api.moonshot.cn bills in CNY.
-    // 海外端点 api.moonshot.ai 以 USD 计费,国内 api.moonshot.cn 以 CNY 计费。(glm-5.2)
+    // 海外端点 api.moonshot.ai 以 USD 计费,国内 api.moonshot.cn 以 CNY 计费。
     const currency: 'CNY' | 'USD' = base.includes('.ai') ? 'USD' : 'CNY'
     const http = new ProviderHttpClient({
       baseUrl: base,

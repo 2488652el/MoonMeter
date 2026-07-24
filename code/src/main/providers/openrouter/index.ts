@@ -1,7 +1,6 @@
 /**
  * OpenRouter 供应商实现:通过 /auth/key 接口查询密钥的额度限制与用量。
  * 该模块属于 main 进程的 providers 模块,OpenRouter 为第三方模型路由服务,以 USD 计费。
- * (glm-5.2)
  */
 import type {
   ProviderImpl,

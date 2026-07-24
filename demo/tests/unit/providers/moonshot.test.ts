@@ -1,6 +1,5 @@
 /**
  * Moonshot 供应商单元测试:覆盖余额读取、404 回退备用接口与海外端点货币判定。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { moonshotProvider } from '../../../../code/src/main/providers/moonshot'

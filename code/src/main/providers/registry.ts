@@ -1,7 +1,6 @@
 /**
  * Provider 注册表模块:集中登记全部内置 Provider 实现,
  * 提供按 id 查询与列表(合并 UI 侧 catalog 元数据)的能力。
- * (glm-5.2)
  */
 import type { ProviderImpl, ProviderManifest } from '@shared/types/provider'
 import { deepseekProvider } from './deepseek'
@@ -51,7 +50,7 @@ const REGISTRY = new Map<string, ProviderImpl>(BUILTIN.map((p) => [p.manifest.id
  * implementations continue to own the wire protocol and HTTP defaults.
  *
  * 将 UI 侧 catalog 元数据合并进运行时 manifest,使单次 providersList 调用即可携带渲染层所需全部信息;
- * catalog 为 UI 提示的唯一来源,Provider 实现仍持有协议与 HTTP 默认值。 (glm-5.2)
+ * catalog 为 UI 提示的唯一来源,Provider 实现仍持有协议与 HTTP 默认值。
  */
 function withCatalogMeta(p: ProviderImpl): ProviderManifest {
   const entry = getCatalogEntry(p.manifest.id)
@@ -67,12 +66,12 @@ function withCatalogMeta(p: ProviderImpl): ProviderManifest {
   return merged
 }
 
-/** 列出全部 Provider(含合并后的 catalog 元数据)。 (glm-5.2) */
+/** 列出全部 Provider(含合并后的 catalog 元数据)。 */
 export function listProviders(): ProviderManifest[] {
   return Array.from(REGISTRY.values()).map((p) => withCatalogMeta(p))
 }
 
-/** 按 id 获取单个 Provider 实现,不存在时返回 undefined。 (glm-5.2) */
+/** 按 id 获取单个 Provider 实现,不存在时返回 undefined。 */
 export function getProvider(id: string): ProviderImpl | undefined {
   return REGISTRY.get(id)
 }

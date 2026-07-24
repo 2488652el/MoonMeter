@@ -21,7 +21,7 @@
  * Run:  node demo/scripts/gen-models-dev-db-test.mjs
  *
  * 中文说明:models.dev 测试数据集一次性生成器。所有价格从美元换算为人民币,
- * 汇率使用项目默认 USD→CNY 7.0511,与 TokenScope 离线兜底行为一致。 (glm-5.2)
+ * 汇率使用项目默认 USD→CNY 7.0511,与 TokenScope 离线兜底行为一致。
  */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { join, dirname } from 'node:path'

@@ -1,7 +1,6 @@
 /**
  * safe-storage 加密包装单元测试:覆盖 encryptSecret / decryptSecret / keyTail,
  * 校验字符串加密往返与密钥尾部脱敏逻辑。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

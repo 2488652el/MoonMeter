@@ -1,6 +1,5 @@
 /**
  * OpenAI Admin 供应商单元测试:覆盖 Bearer 鉴权选择、cost_report 余额求和与 usage 时间戳解析。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { openaiAdminProvider } from '../../../../code/src/main/providers/openai-admin'

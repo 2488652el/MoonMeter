@@ -1,11 +1,10 @@
 /**
  * Google Gemini(免费层、手动录入)Provider 实现:无余额/用量 API,
  * 仅提供连接测试,余额需用户在余额查询页手动录入。
- * (glm-5.2)
  */
 import type { ProviderImpl, ProviderCapabilities } from '@shared/types/provider'
 
-/** Gemini-manual Provider 的清单常量。 (glm-5.2) */
+/** Gemini-manual Provider 的清单常量。 */
 const MANIFEST = {
   id: 'gemini-manual',
   displayName: 'Google Gemini (free tier, manual)',
@@ -14,7 +13,7 @@ const MANIFEST = {
   docsUrl: 'https://ai.google.dev/gemini-api/docs'
 }
 
-/** Gemini-manual Provider 实现,仅提供 testConnection。 (glm-5.2) */
+/** Gemini-manual Provider 实现,仅提供 testConnection。 */
 export const geminiManualProvider: ProviderImpl = {
   manifest: MANIFEST,
   hasBalanceApi: false,

@@ -1,7 +1,6 @@
 /**
  * CLI 鉴权检测单元测试:覆盖 maskKey / detectClaudeKey / detectCodexKey / detectAllCLIKeys,
  * 校验环境变量与凭据文件的密钥发现、脱敏与降级处理。
- * (glm-5.2)
  */
 import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import {

@@ -1,6 +1,5 @@
 /**
  * OpenRouter 供应商单元测试:覆盖余额读取与 hasUsageApi 回归守卫。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { openrouterProvider } from '../../../../code/src/main/providers/openrouter'

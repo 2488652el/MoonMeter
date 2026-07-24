@@ -1,6 +1,5 @@
 /**
  * 空状态组件:在列表/数据为空时展示图标、标题、提示文本与可选操作按钮。
- * (glm-5.2)
  */
 import { type ReactNode } from 'react'
 import { Icon } from './Icon'

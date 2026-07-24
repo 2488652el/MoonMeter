@@ -1,7 +1,6 @@
 /**
  * ipc-schemas 单元测试:覆盖 api key / usage filter / pricing / alert / settings
  * 等各 IPC 输入 schema 的校验规则,确保非法输入被 zod 拦截。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import {

@@ -1,17 +1,16 @@
 /**
  * 选项卡组件:轻量级标签栏,通过底部边框高亮当前选中项,
  * 与 Card / PageHeader 等基础组件的设计 token 保持一致。
- * (glm-5.2)
  */
 import { type ReactNode } from 'react'
 import clsx from 'clsx'
 import { Icon } from './Icon'
 
-/** ponytail: minimal tab strip — no UI lib. Highlights the selected tab via
+/** minimal tab strip — no UI lib. Highlights the selected tab via
  *  bottom-border accent + bg, consistent with tailwind tokens used by the
  *  existing Card / PageHeader primitives.
  *
- * 单个选项卡定义:key、label、可选图标。 (glm-5.2) */
+ * 单个选项卡定义:key、label、可选图标。 */
 export interface TabDef<T extends string> {
   key: T
   label: string

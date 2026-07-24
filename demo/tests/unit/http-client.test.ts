@@ -1,7 +1,6 @@
 /**
  * http-client 单元测试:覆盖 ProviderHttpClient 的 getJSON / postJSON 请求逻辑,
  * 验证 2xx 返回、500 错误、429 重试、x-api-key 鉴权头及 POST 行为。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { ProviderHttpClient } from '../../../code/src/main/providers/http-client'

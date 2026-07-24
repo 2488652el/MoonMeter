@@ -1,6 +1,5 @@
 /**
  * 设置页面:提供全局配置项,当前包含余额自动刷新间隔设置。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import { useEffect, useState, type FormEvent } from 'react'
@@ -14,10 +13,10 @@ import type { SyncMode } from '../../shared/sync-mode'
 import { SYNC_BACKUP_DIRECTORY_SETTING_KEY } from '../../shared/sync-v2'
 import type { AppUpdateStatus } from '../../shared/types/app-update'
 
-// ponytail: scheduler reads `refresh_interval_min` (number, minutes).
+// scheduler reads `refresh_interval_min` (number, minutes).
 // 0 means "关闭" - refresh.ts treats intervalMin <= 0 as a no-op.
 //
-// 自动刷新间隔选项:0 表示关闭。 (glm-5.2)
+// 自动刷新间隔选项:0 表示关闭。
 const REFRESH_OPTIONS: Array<{ value: number; label: string }> = [
   { value: 0, label: '关闭' },
   { value: 15, label: '15 分钟' },
@@ -137,7 +136,7 @@ export default function Settings() {
 
   useEffect(() => {
     void window.api.settings.get().then((all) => {
-      // ponytail: settings.get returns unknown — coerce defensively.
+      // settings.get returns unknown — coerce defensively.
       const raw = all[REFRESH_KEY]
       const n = typeof raw === 'number' ? raw : Number(raw)
       if (Number.isFinite(n) && n >= 0) setRefreshMin(n)

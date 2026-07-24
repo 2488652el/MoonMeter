@@ -1,7 +1,6 @@
 /**
  * keys:set-usage-query IPC 处理器单元测试:覆盖 zod 输入校验与 handler 转发逻辑,
  * 校验 (id, enabled) 参数透传与异常输入拒绝。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'

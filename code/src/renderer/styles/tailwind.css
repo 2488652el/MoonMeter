@@ -1,4 +1,4 @@
-/* Tailwind 基础样式入口:引入 base/components/utilities 层并设定全局 body 样式。 (glm-5.2) */
+/* Tailwind 基础样式入口:引入 base/components/utilities 层并设定全局 body 样式。 */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

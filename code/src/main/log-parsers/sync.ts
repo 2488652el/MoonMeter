@@ -1,7 +1,6 @@
 /**
  * 日志同步编排模块:协调 Claude Code 与 Codex 会话文件的发现、增量同步、
  * 用量写入与同步状态持久化,并在同步后对历史数据进行 agent 标签回填。
- * (glm-5.2)
  */
 import { statSync, readFileSync } from 'node:fs'
 import { getDb } from '../store/db'
@@ -16,7 +15,7 @@ import {
 } from './kimi-code'
 import type { UsageRecord } from '@shared/types/usage'
 
-/** 单文件同步进度回调载荷。 (glm-5.2) */
+/** 单文件同步进度回调载荷。 */
 export interface SyncProgress {
   source: string
   file: string
@@ -24,13 +23,13 @@ export interface SyncProgress {
   tokens: number
 }
 
-/** 单来源同步汇总结果。 (glm-5.2) */
+/** 单来源同步汇总结果。 */
 export interface SyncResult {
   source: string
   totals: { lines: number; tokens: number; inserted: number }
 }
 
-/** log_sync_state 表行结构,记录每个文件的同步偏移与 mtime。 (glm-5.2) */
+/** log_sync_state 表行结构,记录每个文件的同步偏移与 mtime。 */
 interface SyncStateRow {
   byte_offset: number | null
   mtime_ms: number | null
@@ -39,7 +38,7 @@ interface SyncStateRow {
 const CODEX_SYNC_STATE_SOURCE = 'codex:v2'
 const KIMI_CODE_SYNC_STATE_SOURCE = 'kimi-code:v1'
 
-/** 读取指定来源+文件路径在 log_sync_state 中的字节偏移与 mtime。 (glm-5.2) */
+/** 读取指定来源+文件路径在 log_sync_state 中的字节偏移与 mtime。 */
 function readSyncState(source: string, filePath: string): { byteOffset: number; mtimeMs: number } {
   const db = getDb()
   const row = db
@@ -51,7 +50,7 @@ function readSyncState(source: string, filePath: string): { byteOffset: number; 
   }
 }
 
-/** 写入(UPSERT)指定来源+文件路径的最新字节偏移与 mtime。 (glm-5.2) */
+/** 写入(UPSERT)指定来源+文件路径的最新字节偏移与 mtime。 */
 function writeSyncState(
   source: string,
   filePath: string,
@@ -71,7 +70,7 @@ function writeSyncState(
   ).run(source, filePath, mtimeMs, byteOffset, new Date().toISOString())
 }
 
-/** 累加一组 UsageRecord 的 totalTokens 总和。 (glm-5.2) */
+/** 累加一组 UsageRecord 的 totalTokens 总和。 */
 function sumTokens(records: UsageRecord[]): number {
   return records.reduce((s, r) => s + (r.totalTokens ?? 0), 0)
 }
@@ -80,7 +79,7 @@ function sumTokens(records: UsageRecord[]): number {
  * Exported for the sync.test.ts check.
  *
  * 通用文件同步:遍历文件列表,按各自的字节偏移增量解析并写入用量,同时持久化同步状态;
- * 支持进度回调。返回该来源的汇总结果。 (glm-5.2)
+ * 支持进度回调。返回该来源的汇总结果。
  */
 export function syncFiles(
   source: string,
@@ -100,7 +99,7 @@ export function syncFiles(
     }
     const { byteOffset, mtimeMs } = readSyncState(source, file)
     // Fast path: already synced once AND unchanged since.
-    // 快速路径:已同步过且文件未变更(mtime 与大小一致)则跳过。 (glm-5.2)
+    // 快速路径:已同步过且文件未变更(mtime 与大小一致)则跳过。
     if (byteOffset > 0 && st.mtimeMs === mtimeMs && st.size === byteOffset) {
       continue
     }
@@ -117,12 +116,12 @@ export function syncFiles(
   return { source, totals: { lines, tokens, inserted } }
 }
 
-/** 同步所有 Claude Code 会话文件,返回汇总结果。 (glm-5.2) */
+/** 同步所有 Claude Code 会话文件,返回汇总结果。 */
 export function syncClaudeSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
   return syncFiles('claude-code', discoverClaudeSessions(), syncClaudeFile, onProgress)
 }
 
-/** 同步所有 Codex 会话文件,返回汇总结果(进度来源名统一为 'codex')。 (glm-5.2) */
+/** 同步所有 Codex 会话文件,返回汇总结果(进度来源名统一为 'codex')。 */
 export function syncCodexSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
   const result = syncFiles(
     CODEX_SYNC_STATE_SOURCE,
@@ -167,13 +166,13 @@ export function syncAllSessions(
         : syncKimiCodeSessions(onProgress)
   // Best-effort: label historical rows that predate the agent_label column so
   // the UI can show a project name. Guarded internally so it never breaks sync.
-  // 尽力而为:为早于 agent_label 列的历史行补充标签,内部已做防护,失败不影响同步。 (glm-5.2)
+  // 尽力而为:为早于 agent_label 列的历史行补充标签,内部已做防护,失败不影响同步。
   backfillAgentLabels()
   return result
 }
 
 /** Filename stem (no .jsonl, no dir) - matches the parsers' sessionId fallback.
- *  取文件名(去 .jsonl、去目录部分),与解析器的 sessionId 回退逻辑一致。 (glm-5.2) */
+ *  取文件名(去 .jsonl、去目录部分),与解析器的 sessionId 回退逻辑一致。 */
 function fileStem(filePath: string): string | undefined {
   return (
     filePath
@@ -184,7 +183,7 @@ function fileStem(filePath: string): string | undefined {
 }
 
 /** Read at most `maxLines` leading lines of a file (best-effort, '' on error).
- *  读取文件前 maxLines 行(尽力而为,出错返回空串)。 (glm-5.2) */
+ *  读取文件前 maxLines 行(尽力而为,出错返回空串)。 */
 function readHeadLines(filePath: string, maxLines = 50): string {
   try {
     return readFileSync(filePath, { encoding: 'utf8' }).split(/\r?\n/).slice(0, maxLines).join('\n')
@@ -194,7 +193,7 @@ function readHeadLines(filePath: string, maxLines = 50): string {
 }
 
 /** Derive a Claude label from a file's head: prefer a cwd line, else filePath.
- *  从文件头部推导 Claude 标签:优先用 cwd 行,否则用文件路径推导。 (glm-5.2) */
+ *  从文件头部推导 Claude 标签:优先用 cwd 行,否则用文件路径推导。 */
 function claudeLabelForFile(head: string, filePath: string): string | undefined {
   for (const line of head.split(/\r?\n/)) {
     const trimmed = line.trim()
@@ -219,7 +218,7 @@ function claudeLabelForFile(head: string, filePath: string): string | undefined 
  * Wrapped in a transaction and fully guarded - a failure never breaks sync.
  *
  * 在事务中执行且全程防护:发现 claude 与 codex 会话文件,推导每文件 sessionId(文件名)与标签(取自文件头部),
- * 更新 agent_label 为 NULL 的匹配行;失败不会中断同步。 (glm-5.2)
+ * 更新 agent_label 为 NULL 的匹配行;失败不会中断同步。
  */
 export function backfillAgentLabels(): void {
   try {
@@ -257,7 +256,7 @@ export function backfillAgentLabels(): void {
 }
 
 /** Discover session file counts for the renderer's session-parse page.
- *  为渲染层的会话解析页发现 claude 与 codex 会话文件列表。 (glm-5.2) */
+ *  为渲染层的会话解析页发现 claude 与 codex 会话文件列表。 */
 export function discoverAllSessions(): {
   claude: string[]
   codex: string[]

@@ -1,6 +1,5 @@
 /**
  * money 工具单元测试:覆盖 toDecimal / fmtMoney / calcCost / convertSpendToCny / normalizeCurrency / fmtCount。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import {

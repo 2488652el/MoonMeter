@@ -20,7 +20,6 @@ import type { ProviderCatalogEntry } from '../shared/provider-catalog'
  *   for LongCat, and is used by the main process to read Token Pack balance
  *
  * 中文说明:纯函数,把"创建密钥"表单状态转换为 IPC 入参,并做必填校验。
- * (glm-5.2)
  */
 /** 创建密钥的表单状态(对应模态框各输入字段)。 */
 export interface CreateKeyFormState {

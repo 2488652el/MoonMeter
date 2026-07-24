@@ -2,7 +2,6 @@
  * Claude Code 会话日志解析模块:负责从 ~/.claude/projects 目录发现 *.jsonl
  * 会话文件,按行解析 assistant 消息中的 usage 字段为 UsageRecord,
  * 支持按字节增量同步与文件发现。
- * (glm-5.2)
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -10,10 +9,10 @@ import type { UsageRecord } from '@shared/types/usage'
 import { getCliPaths } from '../platform/paths'
 
 /** Default Claude Code session directory. Override for tests / portable installs.
- *  Claude Code 默认会话目录;测试或便携安装时可覆盖。 (glm-5.2)
+ *  Claude Code 默认会话目录;测试或便携安装时可覆盖。
  */
 /** A raw assistant entry from the JSONL - only fields we read.
- *  JSONL 中单条 assistant 原始条目,仅包含需要读取的字段。 (glm-5.2)
+ *  JSONL 中单条 assistant 原始条目,仅包含需要读取的字段。
  */
 interface ClaudeAssistantEntry {
   type: string
@@ -44,7 +43,7 @@ interface ClaudeAssistantEntry {
  *
  * Returns undefined when no non-empty label can be derived.
  *
- * 返回值:可读的 agent/项目标签字符串;无法推导时返回 undefined。 (glm-5.2)
+ * 返回值:可读的 agent/项目标签字符串;无法推导时返回 undefined。
  */
 export function deriveClaudeAgentLabel(
   entry: ClaudeAssistantEntry,
@@ -58,7 +57,7 @@ export function deriveClaudeAgentLabel(
     if (seg) return seg
   }
   // Parent directory name (the dash-encoded project path) under .../projects/.
-  // 父目录名为 .../projects/ 下以短横线编码的项目路径。 (glm-5.2)
+  // 父目录名为 .../projects/ 下以短横线编码的项目路径。
   const projectDir = filePath
     .split(/[\\/]/)
     .filter((s) => s.length > 0)
@@ -83,7 +82,7 @@ export function deriveClaudeAgentLabel(
  * @param line   one JSONL line (may have trailing newline)
  * @param filePath  path of the file this line came from (used for sessionId fallback)
  *
- * 返回值:解析得到的 UsageRecord;若该行非携带 token 的 assistant 条目则返回 null。 (glm-5.2)
+ * 返回值:解析得到的 UsageRecord;若该行非携带 token 的 assistant 条目则返回 null。
  */
 export function parseClaudeSessionLine(line: string, filePath: string): UsageRecord | null {
   const trimmed = line.trim()
@@ -113,7 +112,7 @@ export function parseClaudeSessionLine(line: string, filePath: string): UsageRec
     capturedAt: entry.timestamp ?? new Date().toISOString()
   }
   // sessionId: prefer the entry's sessionId, fall back to the filename stem
-  // sessionId:优先使用条目自带值,否则回退到文件名(去 .jsonl)。 (glm-5.2)
+  // sessionId:优先使用条目自带值,否则回退到文件名(去 .jsonl)。
   if (entry.sessionId) {
     record.sessionId = entry.sessionId
   } else {
@@ -147,7 +146,7 @@ export function parseClaudeSessionLine(line: string, filePath: string): UsageRec
  * Parse an entire JSONL file (already-read string) into UsageRecord[].
  * Blank lines and unparseable lines are silently skipped.
  *
- * 将已读取的整个 JSONL 文件内容解析为 UsageRecord[];空行与无法解析的行被静默跳过。 (glm-5.2)
+ * 将已读取的整个 JSONL 文件内容解析为 UsageRecord[];空行与无法解析的行被静默跳过。
  */
 export function parseClaudeSessionFile(content: string, filePath: string): UsageRecord[] {
   const out: UsageRecord[] = []
@@ -165,13 +164,13 @@ export function parseClaudeSessionFile(content: string, filePath: string): Usage
  * Uses glob-style recursive walk. Returns [] if the directory does not exist
  * (common on machines without Claude Code installed).
  *
- * 使用递归遍历发现文件;目录不存在时返回空数组(未安装 Claude Code 时常见)。 (glm-5.2)
+ * 使用递归遍历发现文件;目录不存在时返回空数组(未安装 Claude Code 时常见)。
  */
 export function discoverClaudeSessions(root?: string): string[] {
   const actualRoot = root ?? getCliPaths().claudeProjects
   if (!existsSync(actualRoot)) return []
   const results: string[] = []
-  /** 递归遍历目录,收集 *.jsonl 文件绝对路径。 (glm-5.2) */
+  /** 递归遍历目录,收集 *.jsonl 文件绝对路径。 */
   const walk = (dir: string): void => {
     let entries: string[]
     try {
@@ -209,7 +208,7 @@ export function discoverClaudeSessions(root?: string): string[] {
  * skipped. Only one boundary line is affected, never the whole file.
  *
  * 若字节偏移落在多字节 UTF-8 字符中间,该边界字符会变为替换字符并导致该行 JSON 解析失败被跳过;
- * 仅影响一行,不影响整个文件。 (glm-5.2)
+ * 仅影响一行,不影响整个文件。
  */
 export function syncClaudeFile(
   filePath: string,

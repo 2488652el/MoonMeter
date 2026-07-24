@@ -1,11 +1,10 @@
 /**
  * IPC 通道注册表单元测试:覆盖 IPC 对象的通道命名稳定性、唯一性与冻结检查。
- * (glm-5.2)
  */
 import { describe, expect, it, vi } from 'vitest'
 import { IPC } from '../../../code/src/shared/ipc-channels'
 
-// ponytail: IPC channels are the contract between renderer and main. New
+// IPC channels are the contract between renderer and main. New
 // channels must be added here AND in preload. This guards against typo'd
 // channel names and accidental deletion of existing entries.
 

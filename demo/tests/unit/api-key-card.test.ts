@@ -1,7 +1,6 @@
 /**
  * api-key-card 单元测试:覆盖 MiniMax Coding Plan 配额解析逻辑,
  * 验证 model_remains / token-plan remains / legacy 三种数据结构的解析结果。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { extractCodingPlanQuotas } from '../../../code/src/shared/utils/minimax-quota'

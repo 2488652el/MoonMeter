@@ -2,7 +2,6 @@
  * 仪表盘页面:展示总览统计(真实消耗 Tokens、总请求、总成本、缓存命中率)、
  * 按模型分组的用量趋势折线图、消费统计(折算人民币)与各 Key 余额快照。
  * 支持当日/7 天/30 天/全部的时间范围切换、刷新与导出 CSV。
- * (glm-5.2)
  */
 import { Icon } from '../components/Icon'
 import {
@@ -88,7 +87,7 @@ const HEALTH_META: Record<
 
 /** 将仪表盘汇总导出为 CSV 并触发下载 */
 function handleExport(d: DashboardSummary | null) {
-  // ponytail: keep export stub until Phase J wires `usage:export-csv`. The
+  // keep export stub until Phase J wires `usage:export-csv`. The
   // button is functional even now (downloads a CSV built from the in-memory
   // summary) so users get immediate feedback instead of a dead button.
   const header = 'date,provider,model,prompt_tokens,completion_tokens,cost'
@@ -115,7 +114,7 @@ function handleExport(d: DashboardSummary | null) {
  * days with data; without this helper the chart shows N-1 dashes for empty
  * days. Pure function, local to the page (no other consumer yet).
  *
- * 填充缺失日期:为没有数据的日期补零,使折线图连续无断点。 (glm-5.2)
+ * 填充缺失日期:为没有数据的日期补零,使折线图连续无断点。
  */
 function fillMissingDays(
   daily: DashboardSummary['daily'],
@@ -354,7 +353,7 @@ export default function Dashboard() {
   const totalTokens = summary
     ? summary.totalInputTokens + summary.totalOutputTokens + summary.totalCacheReadTokens
     : 0
-  // ponytail: hero number is "used tokens over the period" — falls back to
+  // hero number is "used tokens over the period" — falls back to
   // 余额-used from balance snapshots if the dashboard has no usage yet.
   const usedFromBalance = balances.reduce((acc, s) => acc + (s.used ?? 0), 0)
   const heroNumber = totalTokens > 0 ? totalTokens : usedFromBalance > 0 ? usedFromBalance : null

@@ -1,6 +1,5 @@
 /**
  * API Key 额外凭证存储测试:覆盖 extra credentials 加密存储、列表隐藏与更新合并。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

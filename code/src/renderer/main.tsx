@@ -2,7 +2,6 @@
  * 渲染入口文件:在 #root 节点上挂载 React 应用。
  * 启用 StrictMode 进行开发期校验,使用 HashRouter 处理 Electron 下的前端路由,
  * 并引入全局 Tailwind 与设计 token 样式。
- * (glm-5.2)
  */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

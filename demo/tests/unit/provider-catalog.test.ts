@@ -1,4 +1,4 @@
-/** 供应商目录单元测试:覆盖 PROVIDER_CATALOG / PROTOCOL_LABEL / getCatalogEntry 等。 (glm-5.2) */
+/** 供应商目录单元测试:覆盖 PROVIDER_CATALOG / PROTOCOL_LABEL / getCatalogEntry 等。 */
 import { describe, expect, it } from 'vitest'
 import {
   PROVIDER_CATALOG,

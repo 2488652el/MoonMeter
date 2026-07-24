@@ -1,6 +1,5 @@
 /**
  * MiniMax 供应商单元测试:覆盖令牌计划余额解析、连通性探测、baseUrl 尾斜杠处理与定价种子校验。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { minimaxProvider } from '../../../../code/src/main/providers/minimax'

@@ -1,7 +1,6 @@
 /**
  * 汇率转换服务:调用外部 API 将非 CNY 币种消费转换为人民币,失败时回退到默认汇率。
  * 该模块属于 main 进程的 services 模块,为仪表盘提供按币种汇总的 CNY 换算能力。
- * (glm-5.2)
  */
 import { convertSpendToCny, DEFAULT_CNY_RATES, normalizeCurrency } from '@shared/utils/money'
 import type { TotalSpendSummary } from '@shared/types/usage'

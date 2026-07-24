@@ -1,7 +1,6 @@
 /**
  * IPC 通道名常量:集中定义渲染进程与主进程之间所有 invoke/handle 通道字符串。
  * 使用 `as const` 以获得字面量类型,避免通道名拼写不一致。
- * (glm-5.2)
  */
 export const IPC = {
   keysList: 'keys:list',

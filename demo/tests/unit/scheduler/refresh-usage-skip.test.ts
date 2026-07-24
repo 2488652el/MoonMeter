@@ -1,7 +1,6 @@
 /**
  * refreshAll usageQueryEnabled 跳过逻辑单元测试:覆盖禁用/启用/遗留 key 的处理,
  * 校验 usageQueryEnabled=false 的 key 被完全跳过、undefined 视为启用。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProviderImpl } from '../../../../code/src/shared/types/provider'

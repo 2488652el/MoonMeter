@@ -1,7 +1,6 @@
 /**
  * Zhipu GLM 供应商实现:通过 /api/biz/account/balance 查询余额,失败时用 chat 探测验证密钥有效性。
  * 该模块属于 main 进程的 providers 模块,智谱 GLM 以 CNY 计费,支持 PaaS 与 Coding Plan 两种密钥类型。
- * (glm-5.2)
  */
 import type { ProviderImpl, ProviderCapabilities, BalanceSnapshot } from '@shared/types/provider'
 import { ProviderError } from '@shared/types/provider'
@@ -56,7 +55,7 @@ export const zhipuProvider: ProviderImpl = {
     // renderer's baseUrl override here: the create-key modal exposes chat
     // protocol bases such as /api/paas/v4 and /api/anthropic, while balance
     // always lives under the platform root.
-    // `http` 指向平台根域名,用于 /api/biz/account/balance 余额接口;不使用渲染层的 baseUrl 覆盖,因为余额始终在平台根下。(glm-5.2)
+    // `http` 指向平台根域名,用于 /api/biz/account/balance 余额接口;不使用渲染层的 baseUrl 覆盖,因为余额始终在平台根下。
     const http = new ProviderHttpClient({
       baseUrl: 'https://open.bigmodel.cn',
       auth: { type: 'bearer', token: creds.apiKey },
@@ -69,7 +68,7 @@ export const zhipuProvider: ProviderImpl = {
     // when they pick the Anthropic-compatible template, probe the matching
     // OpenAI-compatible Coding Plan base instead so "Test connection" still
     // verifies the key without calling an incompatible protocol path.
-    // `chatHttp` 指向 OpenAI 兼容的 chat 基址,用于密钥连通性探测;Coding Plan 用户可在表单中覆盖。(glm-5.2)
+    // `chatHttp` 指向 OpenAI 兼容的 chat 基址,用于密钥连通性探测;Coding Plan 用户可在表单中覆盖。
     const chatHttp = new ProviderHttpClient({
       baseUrl: normalizeOpenAIChatBase(creds.baseUrl),
       auth: { type: 'bearer', token: creds.apiKey },
@@ -83,12 +82,12 @@ export const zhipuProvider: ProviderImpl = {
      *    of throwing. The upstream /api/biz namespace was observed to return
      *    `{"code":500,"msg":"系统异常"}` for *every* key in 2026-07, including
      *    valid control-panel tokens; failing the whole test there is wrong.
-     * 策略:优先走官方余额接口;失败后用最低价模型做 chat 探测,密钥有效则返回"余额未知"快照而非抛错。(glm-5.2)
+     * 策略:优先走官方余额接口;失败后用最低价模型做 chat 探测,密钥有效则返回"余额未知"快照而非抛错。
      */
     async function tryBalance(): Promise<BalanceSnapshot> {
       // Coerce string balance ("12.34") to number, matching what other
       // providers (deepseek, siliconflow, stepfun) do for similar shapes.
-      // 将字符串余额("12.34")转为数字,与其他供应商处理同类返回体的方式一致。(glm-5.2)
+      // 将字符串余额("12.34")转为数字,与其他供应商处理同类返回体的方式一致。
       const toNumber = (v: unknown): number | undefined => {
         if (typeof v === 'number' && Number.isFinite(v)) return v
         if (typeof v === 'string') {
@@ -123,7 +122,7 @@ export const zhipuProvider: ProviderImpl = {
       // We use `glm-4.5-flash` because it's the cheapest documented model
       // that works on both PaaS and Coding Plan keys; the docs list it for
       // the highspeed tier.
-      // 用最低价模型 glm-4.5-flash 做一次 chat completions 探测,验证密钥是否有效;该模型在 PaaS 与 Coding Plan 密钥上均可用。(glm-5.2)
+      // 用最低价模型 glm-4.5-flash 做一次 chat completions 探测,验证密钥是否有效;该模型在 PaaS 与 Coding Plan 密钥上均可用。
       try {
         const probe = await chatHttp.postJSON<ChatProbeResp>('/chat/completions', {
           model: 'glm-4.5-flash',

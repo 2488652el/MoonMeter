@@ -1,7 +1,6 @@
 /**
  * 金额与 Token 计数工具:基于 decimal.js 提供高精度货币换算与格式化,
  * 避免浮点累加误差。供 Dashboard / ProviderSummary / ModelCompare 等页面使用。
- * (glm-5.2)
  */
 import Decimal from 'decimal.js'
 
@@ -174,7 +173,7 @@ export function calcCost(
   return Number(p.plus(c).plus(cr).plus(cc).toFixed(8))
 }
 
-/** ponytail: percentage formatter — never returns "NaN%".
+/** percentage formatter — never returns "NaN%".
  *  - `null/undefined/NaN` → "—"
  *  - else → `${n.toFixed(1)}%`  (e.g. 12.345 → "12.3%")
  *  Used by ProviderSummary trend column. */
@@ -184,7 +183,7 @@ export function formatPct(n: number | null | undefined): string {
 }
 
 /**
- ponytail: compact human-readable formatter for big token counts.
+ compact human-readable formatter for big token counts.
    - >= 1e8 → "1.23 亿"
    - >= 1e4 → "1.23 万"
    - else plain integer (e.g. 4321)

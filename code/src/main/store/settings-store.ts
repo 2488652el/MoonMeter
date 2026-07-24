@@ -1,7 +1,6 @@
 /**
  * 应用设置仓库:管理 app_settings 表的键值读写。
  * 该模块属于 main 进程的 store 模块,值以 JSON 字符串存储,读取时自动反序列化。
- * (glm-5.2)
  */
 import { getDb } from './db'
 import { SYNCABLE_SETTING_KEYS } from '../../shared/sync-v2'

@@ -1,7 +1,6 @@
 /**
  * IPC 输入校验 Schema:使用 zod 定义各 IPC 通道入参的校验规则,
  * 在主进程 handle 入口处统一校验,防止非法输入写入数据库。
- * (glm-5.2)
  */
 import { z } from 'zod'
 

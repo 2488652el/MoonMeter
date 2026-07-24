@@ -1,6 +1,5 @@
 /**
  * 数据库迁移契约测试:覆盖 v5 迁移、v6 同步表、v16 区域价格键、PRAGMA 幂等守卫与列默认值。
- * (glm-5.2)
  */
 import { describe, expect, it, vi } from 'vitest'
 

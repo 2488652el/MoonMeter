@@ -1,7 +1,6 @@
 /**
  * usage refresh IPC 单元测试:覆盖 usage:refresh-all handler,
  * 校验其返回 refreshAll 的明细计数而非简单的 fire-and-forget 应答。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IPC } from '../../../code/src/shared/ipc-channels'

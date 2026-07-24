@@ -1,6 +1,5 @@
 /**
  * API Key 用量查询开关存储测试:覆盖 addKey 默认值、deriveQueryMode 派生、显式禁用与 toggleUsageQuery UPDATE 语句。
- * (glm-5.2)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveQueryMode } from '../../../../code/src/main/store/db-usage-defaults'

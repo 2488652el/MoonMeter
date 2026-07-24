@@ -1,31 +1,30 @@
 /**
  * Provider HTTP 客户端模块:为各 LLM Provider 提供统一的 HTTP GET/POST 封装,
  * 内置 Bearer / x-api-key / 自定义 header 鉴权、超时控制与自动重试(429/网络错误)。
- * (glm-5.2)
  */
 import { ProviderError } from '@shared/types/provider'
 
-/** Bearer Token 鉴权配置。 (glm-5.2) */
+/** Bearer Token 鉴权配置。 */
 interface AuthBearer {
   type: 'bearer'
   token: string
 }
-/** 通过指定 header 携带 API Key 的鉴权配置。 (glm-5.2) */
+/** 通过指定 header 携带 API Key 的鉴权配置。 */
 interface AuthXApiKey {
   type: 'x-api-key'
   header: string
   token: string
 }
-/** 自定义多 header 鉴权配置。 (glm-5.2) */
+/** 自定义多 header 鉴权配置。 */
 interface AuthCustom {
   type: 'custom'
   headers: Record<string, string>
 }
 
-/** 三种鉴权方式的联合类型。 (glm-5.2) */
+/** 三种鉴权方式的联合类型。 */
 type Auth = AuthBearer | AuthXApiKey | AuthCustom
 
-/** HTTP 客户端配置:基础地址、鉴权方式、Provider 标识、超时与额外 header。 (glm-5.2) */
+/** HTTP 客户端配置:基础地址、鉴权方式、Provider 标识、超时与额外 header。 */
 export interface HttpClientOptions {
   baseUrl: string
   auth: Auth
@@ -40,7 +39,7 @@ export interface HttpClientOptions {
 export class ProviderHttpClient {
   constructor(private readonly opts: HttpClientOptions) {}
 
-  /** 组装请求头:设置 Content-Type 并按鉴权方式注入对应 header。 (glm-5.2) */
+  /** 组装请求头:设置 Content-Type 并按鉴权方式注入对应 header。 */
   private buildHeaders(): Record<string, string> {
     const h: Record<string, string> = { 'Content-Type': 'application/json' }
     if (this.opts.auth.type === 'bearer') h['Authorization'] = `Bearer ${this.opts.auth.token}`
@@ -106,7 +105,7 @@ export class ProviderHttpClient {
    * the server won't bill heavily (e.g. `max_tokens: 1`).
    *
    * 发送 JSON body 的 POST 请求并解析响应;不重试,失败直接冒泡给调用方展示。
-   * 调用方应发送不会被高额计费的 body(如 max_tokens: 1)。 (glm-5.2)
+   * 调用方应发送不会被高额计费的 body(如 max_tokens: 1)。
    */
   async postJSON<T>(path: string, body: unknown): Promise<T> {
     const url = `${this.opts.baseUrl.replace(/\/+$/, '')}${path}`
@@ -142,7 +141,7 @@ export class ProviderHttpClient {
     return (await res.json()) as T
   }
 
-  /** 异步休眠指定毫秒数,用于重试退避。 (glm-5.2) */
+  /** 异步休眠指定毫秒数,用于重试退避。 */
   private sleep(ms: number): Promise<void> {
     return new Promise((r) => setTimeout(r, ms))
   }

@@ -1,6 +1,5 @@
 /**
  * NewAPI Generic 供应商单元测试:覆盖 baseUrl 必填校验与配额到 USD 的换算逻辑。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { newapiGenericProvider } from '../../../../code/src/main/providers/newapi-generic'

@@ -1,6 +1,5 @@
 /**
  * Zhipu 供应商单元测试:覆盖余额读取、500 系统异常时 chat 探测回退、多种 baseUrl override 路由与连通性判定。
- * (glm-5.2)
  */
 import { describe, expect, it, vi, afterEach } from 'vitest'
 import { zhipuProvider } from '../../../../code/src/main/providers/zhipu'

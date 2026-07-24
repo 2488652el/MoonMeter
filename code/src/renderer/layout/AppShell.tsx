@@ -1,6 +1,5 @@
 /**
  * 应用外壳布局:左侧导航栏 + 右侧主内容区(Outlet)的整体结构。
- * (glm-5.2)
  */
 import { useLocation, useOutlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'

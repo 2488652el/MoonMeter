@@ -1,7 +1,6 @@
 /**
  * registry 与 catalog 集成测试:锁定来源注册表与 UI 目录之间的契约,
  * 校验 listProviders / getCatalogEntry 合并清单的完整性与字段一致性。
- * (glm-5.2)
  */
 import { describe, expect, it } from 'vitest'
 import { listProviders, getProvider } from '../../../code/src/main/providers/registry'
