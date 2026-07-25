@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 const { spawnSync } = require('node:child_process')
-const { readFileSync } = require('node:fs')
+const { existsSync, readFileSync, rmSync } = require('node:fs')
 const path = require('node:path')
 
-const projectRoot = path.join(__dirname, '..', '..')
+const sourceProjectRoot = path.join(__dirname, '..', '..')
+const projectRoot = process.env.MOONMETER_ASCII_PROJECT_ROOT ?? sourceProjectRoot
 
 function sanitizeSegment(value, label) {
   const withoutControlCharacters = Array.from(String(value ?? ''), (character) =>
@@ -63,16 +64,80 @@ function buildNodeCliCommand(cliPath, args, nodeExecutable = process.execPath) {
   return { command: nodeExecutable, args: [cliPath, ...args] }
 }
 
+function needsAsciiProjectRoot(platform, root) {
+  return platform === 'win32' && /[^\x20-\x7e]/.test(root)
+}
+
+function findAvailableDriveLetter() {
+  for (const letter of ['Z', 'Y', 'X', 'W', 'V', 'U', 'T']) {
+    if (!existsSync(`${letter}:\\`)) return letter
+  }
+  throw new Error('没有可用于 Windows 打包的临时盘符（已检查 T: 到 Z:）。')
+}
+
+function runFromAsciiProjectRoot(args) {
+  const driveLetter = findAvailableDriveLetter()
+  const drive = `${driveLetter}:`
+  const driveRoot = `${drive}\\`
+  const createResult = spawnSync('subst.exe', [drive, sourceProjectRoot], {
+    stdio: 'inherit',
+    shell: false
+  })
+  if (createResult.error) throw createResult.error
+  if (createResult.status !== 0) {
+    throw new Error(`无法创建 Windows 打包临时盘符 ${drive}`)
+  }
+
+  let childError
+  let cleanupError
+  try {
+    console.log(`[package] NSIS 使用临时 ASCII 项目入口：${driveRoot}`)
+    const childScript = path.join(driveRoot, path.relative(sourceProjectRoot, __filename))
+    const result = spawnSync(process.execPath, [childScript, ...args], {
+      cwd: driveRoot,
+      stdio: 'inherit',
+      shell: false,
+      env: {
+        ...process.env,
+        MOONMETER_ASCII_PROJECT_ROOT: driveRoot,
+        MOONMETER_SKIP_APP_BUILD: '1',
+        INIT_CWD: driveRoot,
+        npm_config_local_prefix: driveRoot
+      }
+    })
+    if (result.error) {
+      childError = result.error
+    } else if (result.status !== 0) {
+      childError = new Error(`Windows 打包子进程失败（退出码 ${result.status}）`)
+    }
+  } finally {
+    const removeResult = spawnSync('subst.exe', [drive, '/d'], {
+      stdio: 'inherit',
+      shell: false
+    })
+    if (removeResult.error) {
+      cleanupError = removeResult.error
+    } else if (removeResult.status !== 0) {
+      cleanupError = new Error(`无法解除 Windows 打包临时盘符 ${drive}`)
+    }
+  }
+  if (childError) throw childError
+  if (cleanupError) throw cleanupError
+}
+
+function buildApplication() {
+  const electronViteCli = path.join(
+    path.dirname(require.resolve('electron-vite/package.json')),
+    'bin',
+    'electron-vite.js'
+  )
+  rmSync(path.join(projectRoot, 'demo', 'out'), { recursive: true, force: true })
+  runNodeCli(electronViteCli, ['build'])
+}
+
 function runNodeCli(cliPath, args) {
   const invocation = buildNodeCliCommand(cliPath, args)
   run(invocation.command, invocation.args)
-}
-
-function resolveNpmCli() {
-  return (
-    process.env.npm_execpath ??
-    path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
-  )
 }
 
 function builderArgs(options, outputDirectory, arch) {
@@ -88,7 +153,17 @@ function builderArgs(options, outputDirectory, arch) {
 }
 
 function main() {
-  const options = parseOptions(process.argv.slice(2))
+  const args = process.argv.slice(2)
+  const options = parseOptions(args)
+  if (
+    !process.env.MOONMETER_ASCII_PROJECT_ROOT &&
+    needsAsciiProjectRoot(process.platform, sourceProjectRoot)
+  ) {
+    buildApplication()
+    runFromAsciiProjectRoot(args)
+    return
+  }
+
   const pkg = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
   const outputDirectory = buildReleaseOutputDirectory({
     version: pkg.version,
@@ -99,10 +174,9 @@ function main() {
   console.log(`[package] 输出目录：${outputDirectory}`)
   if (options.dryRun) return
 
-  const npmCli = resolveNpmCli()
   const builderCli = require.resolve('electron-builder/out/cli/cli.js')
 
-  runNodeCli(npmCli, ['run', 'build:clean'])
+  if (!process.env.MOONMETER_SKIP_APP_BUILD) buildApplication()
   const architectures = options.arch === 'all' ? ['x64', 'arm64'] : [options.arch]
   for (const arch of architectures) {
     runNodeCli(builderCli, builderArgs(options, outputDirectory, arch))
@@ -121,6 +195,7 @@ if (require.main === module) {
 module.exports = {
   buildNodeCliCommand,
   buildReleaseOutputDirectory,
+  needsAsciiProjectRoot,
   parseOptions,
   sanitizeSegment
 }

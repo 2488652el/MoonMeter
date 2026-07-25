@@ -19,7 +19,15 @@ const state = vi.hoisted(() => ({
       cache_read_tokens: 0,
       total_tokens: 1_500_000,
       cost: 0,
+      cost_basis: 'current-estimate' as const,
       currency: null,
+      pricing_entry_id: null,
+      pricing_updated_at: null,
+      snapshot_prompt_price: null,
+      snapshot_completion_price: null,
+      snapshot_cache_read_price: null,
+      snapshot_cache_creation_price: null,
+      snapshot_currency: null,
       source: 'session-log',
       session_id: 's1',
       message_id: 'm1',
@@ -72,7 +80,9 @@ vi.mock('../../../../code/src/main/store/db', () => ({
               ct: 500_000,
               crt: 0,
               cct: 0,
-              stored_cost: 0
+              stored_cost: 0,
+              currency: null,
+              cost_basis: 'current-estimate'
             }
           ])
         }
@@ -90,6 +100,8 @@ vi.mock('../../../../code/src/main/store/db', () => ({
               cct: 0,
               tt: 1_500_000,
               stored_cost: 0,
+              currency: null,
+              cost_basis: 'current-estimate',
               n: 1
             }
           ])
@@ -104,6 +116,20 @@ vi.mock('../../../../code/src/main/store/db', () => ({
 describe('usage cost display uses pricing config', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    Object.assign(state.rows[0]!, {
+      cost: 0,
+      cost_basis: 'current-estimate',
+      currency: null,
+      pricing_entry_id: null,
+      pricing_updated_at: null,
+      snapshot_prompt_price: null,
+      snapshot_completion_price: null,
+      snapshot_cache_read_price: null,
+      snapshot_cache_creation_price: null,
+      snapshot_currency: null
+    })
+    state.pricing.promptPricePerMtok = 10
+    state.pricing.completionPricePerMtok = 20
   })
 
   it('reprices request log rows from current pricing entries', async () => {
@@ -111,6 +137,34 @@ describe('usage cost display uses pricing config', () => {
     const rows = queryUsage({ limit: 10 })
     expect(rows[0]?.cost).toBe(20)
     expect(rows[0]?.currency).toBe('USD')
+    expect(rows[0]?.costBasis).toBe('current-estimate')
+  })
+
+  it('keeps occurrence-time snapshot cost after the catalog price changes', async () => {
+    Object.assign(state.rows[0]!, {
+      cost: 7,
+      cost_basis: 'price-snapshot',
+      currency: 'USD',
+      pricing_entry_id: 1,
+      pricing_updated_at: '2026-07-01T00:00:00.000Z',
+      snapshot_prompt_price: 3,
+      snapshot_completion_price: 8,
+      snapshot_cache_read_price: null,
+      snapshot_cache_creation_price: null,
+      snapshot_currency: 'USD'
+    })
+    state.pricing.promptPricePerMtok = 100
+    state.pricing.completionPricePerMtok = 200
+
+    const { queryUsage } = await import('../../../../code/src/main/store/usage-repo')
+    const rows = queryUsage({ limit: 10 })
+    expect(rows[0]?.cost).toBe(7)
+    expect(rows[0]?.costBasis).toBe('price-snapshot')
+    expect(rows[0]?.priceSnapshot).toMatchObject({
+      promptPricePerMtok: 3,
+      completionPricePerMtok: 8,
+      currency: 'USD'
+    })
   })
 
   it('reprices dashboard provider and daily cost aggregates', async () => {

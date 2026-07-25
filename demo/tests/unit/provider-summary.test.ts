@@ -18,13 +18,15 @@ const NOW = new Date('2026-07-06T12:00:00Z')
 const DAY_MS = 86_400_000
 
 function rec(partial: Partial<UsageRecord>): UsageRecord {
+  const cost = partial.cost ?? 0
   return {
     providerId: 'p1',
     model: 'm1',
     source: 'session-log',
     capturedAt: new Date().toISOString(),
-    cost: 0,
-    ...partial
+    cost,
+    ...partial,
+    costCny: partial.costCny ?? cost
   } as UsageRecord
 }
 

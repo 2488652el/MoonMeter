@@ -72,10 +72,10 @@ export function aggregateByModel(logs: UsageRecord[], fallbackCurrency = 'CNY'):
       cost: 0,
       tokens: 0,
       requests: 0,
-      currency: r.currency ?? fallbackCurrency
+      currency: fallbackCurrency
     }
     cur.providers.add(r.providerId)
-    cur.cost += r.cost ?? 0
+    cur.cost += r.costCny ?? 0
     cur.tokens += r.totalTokens ?? (r.promptTokens ?? 0) + (r.completionTokens ?? 0)
     cur.requests += 1
     map.set(model, cur)
@@ -103,7 +103,7 @@ export function topModelsForProvider(
     if (r.providerId !== providerId) continue
     const m = r.model || '(unknown)'
     const cur = map.get(m) ?? { cost: 0, tokens: 0 }
-    cur.cost += r.cost ?? 0
+    cur.cost += r.costCny ?? 0
     cur.tokens += r.totalTokens ?? (r.promptTokens ?? 0) + (r.completionTokens ?? 0)
     map.set(m, cur)
   }
@@ -128,7 +128,7 @@ export function weekWindows(
   for (const r of logs) {
     const ts = Date.parse(r.capturedAt)
     if (!Number.isFinite(ts)) continue
-    const cost = r.cost ?? 0
+    const cost = r.costCny ?? 0
     if (ts >= weekStart && ts < t) currentWeek += cost
     else if (ts >= prevStart && ts < weekStart) previousWeek += cost
   }

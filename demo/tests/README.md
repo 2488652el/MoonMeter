@@ -1,5 +1,19 @@
 # Tests
 
+## Packaged macOS notification acceptance
+
+Native notification acceptance must run against an Apple-identity-signed
+`MoonMeter.app`, not the unsigned development Electron binary:
+
+```bash
+MOONMETER_PACKAGED_APP="/absolute/path/to/MoonMeter.app" \
+  npm run test:e2e:mac:packaged
+```
+
+`macos-packaged-startup.spec.ts` rejects missing, invalid, and ad-hoc
+signatures, then verifies notification delivery in foreground, minimized, and
+hidden-background window states. A platform skip is not a passing macOS result.
+
 - `unit/` - Vitest unit tests for parsers, stores, providers, and IPC contracts.
 - `integration/` - in-memory and optional external-service integration tests.
 - `e2e/` - Playwright tests against Electron and packaged applications.

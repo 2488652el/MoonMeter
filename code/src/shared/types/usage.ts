@@ -5,6 +5,17 @@
 
 /** 用量数据来源:供应商 API 实时拉取 或 本地会话日志解析。 */
 export type UsageSource = 'vendor-api' | 'session-log'
+export type UsageCostBasis = 'provider' | 'price-snapshot' | 'current-estimate' | 'unpriced'
+
+export interface UsagePriceSnapshot {
+  pricingEntryId?: number
+  pricingUpdatedAt: string
+  promptPricePerMtok: number
+  completionPricePerMtok: number
+  cacheReadPricePerMtok?: number
+  cacheCreationPricePerMtok?: number
+  currency: string
+}
 
 /** 仪表盘与请求日志共享的用量筛选条件。 */
 export interface UsageAnalysisFilter {
@@ -40,6 +51,10 @@ export interface UsageRecord {
   totalTokens?: number
   cost?: number
   currency?: string
+  /** Main-process normalized amount using the shared CNY exchange-rate policy. */
+  costCny?: number
+  costBasis?: UsageCostBasis
+  priceSnapshot?: UsagePriceSnapshot
   source: UsageSource
   /** Stable provider-side dimension used to distinguish aggregate admin results. */
   upstreamDimension?: string
@@ -73,6 +88,9 @@ export interface TotalSpendSummary {
   exchangeRateUpdatedAt?: string
   unconvertedCurrencies: string[]
   pricedRequests: number // count of request rows that matched a pricing entry
+  providerCostRequests: number
+  snapshotCostRequests: number
+  estimatedRequests: number
   unpricedRequests: number // count of rows with no pricing match
   totalRequests: number
 }
@@ -118,6 +136,8 @@ export interface ModelSpendAggregate {
 /** 仪表盘汇总:总花费/Token/请求数,按供应商与按日的趋势数据。 */
 export interface DashboardSummary {
   totalCost: number
+  currency: string
+  byCurrency: Array<{ currency: string; amount: number }>
   totalInputTokens: number
   totalOutputTokens: number
   totalCacheReadTokens: number
@@ -125,10 +145,16 @@ export interface DashboardSummary {
   providers: Array<{
     providerId: string
     cost: number
+    byCurrency: Array<{ currency: string; amount: number }>
     tokens: number
     pct: number
   }>
-  daily: Array<{ date: string; cost: number; tokens: number }>
+  daily: Array<{
+    date: string
+    cost: number
+    byCurrency: Array<{ currency: string; amount: number }>
+    tokens: number
+  }>
 }
 
 /** Per-key failure detail from a bulk refresh (e.g. usage.refreshAll). */

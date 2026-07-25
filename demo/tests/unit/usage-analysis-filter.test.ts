@@ -31,7 +31,9 @@ describe('shared usage analysis filter', () => {
       range: '7d',
       source: 'all',
       modelContains: '',
-      projectContains: ''
+      projectContains: '',
+      customFrom: '',
+      customTo: ''
     })
   })
 
@@ -41,7 +43,9 @@ describe('shared usage analysis filter', () => {
       range: 'today' as const,
       source: 'session-log' as const,
       modelContains: 'gpt',
-      projectContains: 'tokenlub'
+      projectContains: 'tokenlub',
+      customFrom: '',
+      customTo: ''
     }
 
     writeUsageAnalysisFilter(storage, filter)
@@ -54,6 +58,19 @@ describe('shared usage analysis filter', () => {
     expect(usageRangeToLocalDates('7d', new Date(2026, 6, 24, 12))).toEqual({
       from: '2026-07-18',
       to: '2026-07-24'
+    })
+  })
+
+  it('supports month-to-date and persisted custom billing periods', () => {
+    expect(usageRangeToLocalDates('month-to-date', new Date(2026, 6, 24, 12))).toEqual({
+      from: '2026-07-01',
+      to: '2026-07-24'
+    })
+    expect(
+      usageRangeToLocalDates('custom', new Date(2026, 6, 24, 12), '2026-06-15', '2026-07-14')
+    ).toEqual({
+      from: '2026-06-15',
+      to: '2026-07-14'
     })
   })
 })

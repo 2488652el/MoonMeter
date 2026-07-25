@@ -3,7 +3,8 @@
  * 通过 HashRouter 实现客户端路由切换,涵盖仪表盘、供应商、模型对比、
  * 请求日志、余额查询、API 密钥、价格配置、用量告警、设置等页面。
  */
-import { Navigate, Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Routes, Route, useNavigate } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
 import Dashboard from './pages/Dashboard'
 import AgentDetail from './pages/AgentDetail'
@@ -23,20 +24,39 @@ import Settings from './pages/Settings'
  */
 export default function App() {
   return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/agents" element={<AgentDetail />} />
-        <Route path="/providers" element={<ProviderSummary />} />
-        <Route path="/models" element={<ModelCompare />} />
-        <Route path="/logs" element={<RequestLogs />} />
-        <Route path="/sessions" element={<Navigate to="/apikeys" replace />} />
-        <Route path="/balance" element={<BalanceQuery />} />
-        <Route path="/apikeys" element={<ApiKeys />} />
-        <Route path="/pricing" element={<PricingConfig />} />
-        <Route path="/alerts" element={<UsageAlerts />} />
-        <Route path="/settings" element={<Settings />} />
-      </Route>
-    </Routes>
+    <>
+      <AlertDestinationBridge />
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/agents" element={<AgentDetail />} />
+          <Route path="/providers" element={<ProviderSummary />} />
+          <Route path="/models" element={<ModelCompare />} />
+          <Route path="/logs" element={<RequestLogs />} />
+          <Route path="/sessions" element={<Navigate to="/apikeys" replace />} />
+          <Route path="/balance" element={<BalanceQuery />} />
+          <Route path="/apikeys" element={<ApiKeys />} />
+          <Route path="/pricing" element={<PricingConfig />} />
+          <Route path="/alerts" element={<UsageAlerts />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+      </Routes>
+    </>
   )
+}
+
+function AlertDestinationBridge() {
+  const navigate = useNavigate()
+
+  useEffect(
+    () =>
+      window.api.alerts.onOpenDestination(({ eventId, providerId }) => {
+        navigate(
+          `/providers?provider=${encodeURIComponent(providerId)}&alertEvent=${encodeURIComponent(eventId)}`
+        )
+      }),
+    [navigate]
+  )
+
+  return null
 }

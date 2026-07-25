@@ -4,13 +4,21 @@
  */
 import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { Modal } from '../components/Modal'
 import { AnimatedNumber, ProgressBar } from '../components/motion'
 import { fmtMoney } from '../../shared/utils/money'
-import type { AlertRule, AlertMetric, AlertScope } from '../../shared/types/alert'
+import type {
+  AlertEvent,
+  AlertMetric,
+  AlertNotificationStatus,
+  AlertRule,
+  AlertRuleInput,
+  AlertScope
+} from '../../shared/types/alert'
 import type { ProviderManifest, BalanceSnapshot } from '../../shared/types/provider'
 import { alertAddInputSchema } from '../../shared/ipc-schemas'
 import { useReducedMotion } from '../hooks/useReducedMotion'
@@ -19,6 +27,52 @@ import { useReducedMotion } from '../hooks/useReducedMotion'
 const METRIC_LABEL: Record<AlertMetric, string> = {
   remaining_amount: '剩余金额',
   remaining_pct: '剩余百分比'
+}
+
+function notificationPresentation(status: AlertNotificationStatus | null): {
+  icon: string
+  iconClass: string
+  badgeClass: string
+  label: string
+} {
+  if (!status) {
+    return {
+      icon: 'fa-bell',
+      iconClass: 'text-text-muted',
+      badgeClass: 'bg-bg-hover text-text-muted',
+      label: '读取中'
+    }
+  }
+  if (status.state === 'delivered') {
+    return {
+      icon: 'fa-bell',
+      iconClass: 'text-status-green',
+      badgeClass: 'bg-status-green-dim text-status-green',
+      label: '已验证'
+    }
+  }
+  if (status.state === 'pending') {
+    return {
+      icon: 'fa-bell',
+      iconClass: 'text-status-blue',
+      badgeClass: 'bg-status-blue-dim text-status-blue',
+      label: '待确认'
+    }
+  }
+  if (status.state === 'unverified') {
+    return {
+      icon: 'fa-bell',
+      iconClass: 'text-status-blue',
+      badgeClass: 'bg-status-blue-dim text-status-blue',
+      label: '未验证'
+    }
+  }
+  return {
+    icon: 'fa-triangle-exclamation',
+    iconClass: 'text-status-amber',
+    badgeClass: 'bg-status-amber-dim text-status-amber',
+    label: status.state === 'unsupported' ? '不可用' : '需检查'
+  }
 }
 
 // inline relative-time helper. Keeps a stable interface so we can
@@ -47,7 +101,10 @@ function formatRelative(iso: string | undefined): string {
  * 拉取告警规则、供应商与余额,渲染规则表格与新建规则弹窗。
  */
 export default function UsageAlerts() {
+  const navigate = useNavigate()
   const [rules, setRules] = useState<AlertRule[]>([])
+  const [events, setEvents] = useState<AlertEvent[]>([])
+  const [notificationStatus, setNotificationStatus] = useState<AlertNotificationStatus | null>(null)
   const [providers, setProviders] = useState<ProviderManifest[]>([])
   const [balances, setBalances] = useState<
     Array<BalanceSnapshot & { id: number; apiKeyId?: string }>
@@ -55,20 +112,25 @@ export default function UsageAlerts() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingRule, setEditingRule] = useState<AlertRule | null>(null)
   const reducedMotion = useReducedMotion()
 
   /** 刷新告警规则、供应商与余额列表 */
   async function refresh() {
     setLoading(true)
     try {
-      const [list, provs, bals] = await Promise.all([
+      const [list, provs, bals, alertEvents, status] = await Promise.all([
         window.api.alerts.list(),
         window.api.providers.list(),
-        window.api.balance.latest()
+        window.api.balance.latest(),
+        window.api.alerts.listEvents(),
+        window.api.alerts.notificationStatus()
       ])
       setRules(list)
       setProviders(provs)
       setBalances(bals)
+      setEvents(alertEvents)
+      setNotificationStatus(status)
     } finally {
       setLoading(false)
     }
@@ -117,6 +179,12 @@ export default function UsageAlerts() {
 
   /** 打开新建规则弹窗 */
   function openCreate() {
+    setEditingRule(null)
+    setModalOpen(true)
+  }
+
+  function openEdit(rule: AlertRule) {
+    setEditingRule(rule)
     setModalOpen(true)
   }
 
@@ -160,12 +228,7 @@ export default function UsageAlerts() {
   }
 
   /** 保存新建规则:经 schema 校验后调用 alerts.add */
-  async function handleSave(input: {
-    scope: AlertScope
-    providerId?: string
-    metric: AlertMetric
-    threshold: number
-  }) {
+  async function handleSave(input: AlertRuleInput) {
     setBusy(true)
     try {
       const payload: {
@@ -182,8 +245,11 @@ export default function UsageAlerts() {
       // parse through the same schema the preload bridge uses, so
       // we get the same exactOptionalPropertyTypes narrowing (e.g. providerId
       // omitted when scope=global). Avoids duplicating Zod's optional-key logic.
-      await window.api.alerts.add(alertAddInputSchema.parse(payload))
+      const parsed = alertAddInputSchema.parse(payload) as AlertRuleInput
+      if (editingRule) await window.api.alerts.update(editingRule.id, parsed)
+      else await window.api.alerts.add(parsed)
       setModalOpen(false)
+      setEditingRule(null)
       await refresh()
     } catch (e) {
       window.alert(`保存失败：${(e as Error).message}`)
@@ -192,13 +258,34 @@ export default function UsageAlerts() {
     }
   }
 
+  async function handleMarkAllRead() {
+    await window.api.alerts.markAllRead()
+    const readAt = new Date().toISOString()
+    setEvents((current) => current.map((event) => ({ ...event, readAt: event.readAt ?? readAt })))
+  }
+
+  async function handleOpenEvent(event: AlertEvent) {
+    if (!event.readAt) {
+      await window.api.alerts.markEventRead(event.id)
+      setEvents((current) =>
+        current.map((item) =>
+          item.id === event.id ? { ...item, readAt: new Date().toISOString() } : item
+        )
+      )
+    }
+    navigate(
+      `/providers?provider=${encodeURIComponent(event.providerId)}&alertEvent=${encodeURIComponent(event.id)}`
+    )
+  }
+
   const showTable = !loading && rules.length > 0
+  const notificationUi = notificationPresentation(notificationStatus)
 
   return (
     <div className="page-content">
       <PageHeader
         title="用量告警"
-        desc="阈值规则触发时写入告警事件"
+        desc="余额越过阈值时通过系统通知提醒，并保留可追溯的事件历史"
         action={
           <button
             className="btn btn-primary"
@@ -210,6 +297,26 @@ export default function UsageAlerts() {
           </button>
         }
       />
+
+      <Card motion="status" className="mb-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-[13px] font-medium">
+              <Icon name={notificationUi.icon} className={notificationUi.iconClass} />
+              系统通知
+              <span className={`rounded px-2 py-0.5 text-[11px] ${notificationUi.badgeClass}`}>
+                {notificationUi.label}
+              </span>
+            </div>
+            <p className="mt-1 text-[12px] text-text-muted">
+              {notificationStatus?.detail ?? '正在读取系统通知状态…'}
+            </p>
+          </div>
+          <span className="text-[12px] text-text-muted">
+            持续低于阈值不会重复通知，恢复后再次越线才会重触发
+          </span>
+        </div>
+      </Card>
 
       {loading ? (
         <Card motion="status" className={busy ? 'motion-data-flash' : ''}>
@@ -275,14 +382,24 @@ export default function UsageAlerts() {
                       {r.createdAt.slice(0, 16).replace('T', ' ')}
                     </td>
                     <td>
-                      <button
-                        className="btn btn-ghost btn-xs"
-                        onClick={() => handleDelete(r)}
-                        disabled={busy}
-                        title="删除"
-                      >
-                        <Icon name="fa-trash-can" className="text-red" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => openEdit(r)}
+                          disabled={busy}
+                          title="编辑"
+                        >
+                          <Icon name="fa-pen" />
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => handleDelete(r)}
+                          disabled={busy}
+                          title="删除"
+                        >
+                          <Icon name="fa-trash-can" className="text-red" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -295,11 +412,103 @@ export default function UsageAlerts() {
         </Card>
       )}
 
+      <Card
+        title="告警事件"
+        icon="fa-clock-rotate-left"
+        subtitle="最近 100 条，点击可查看对应 Provider"
+        className="mt-4"
+      >
+        {events.length === 0 ? (
+          <EmptyState icon="fa-bell" title="暂无告警事件" hint="规则首次越过阈值后会记录在这里" />
+        ) : (
+          <>
+            <div className="mb-3 flex justify-end">
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => void handleMarkAllRead()}
+                disabled={events.every((event) => event.readAt)}
+              >
+                全部标为已读
+              </button>
+            </div>
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>状态</th>
+                    <th>Provider</th>
+                    <th>事件</th>
+                    <th>通知</th>
+                    <th>触发时间</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody className="motion-table-rows">
+                  {events.map((event) => (
+                    <tr key={event.id} className={event.readAt ? '' : 'bg-accent-dim/25'}>
+                      <td>
+                        <span
+                          className={`rounded px-2 py-0.5 text-[11px] ${
+                            event.readAt
+                              ? 'bg-bg-base text-text-muted'
+                              : 'bg-status-red-dim text-status-red'
+                          }`}
+                        >
+                          {event.readAt ? '已读' : '未读'}
+                        </span>
+                      </td>
+                      <td className="text-[12.5px]">
+                        {providerNameById.get(event.providerId) ?? event.providerId}
+                      </td>
+                      <td className="max-w-[420px] text-[12.5px]" title={event.message}>
+                        {event.message}
+                      </td>
+                      <td className="text-[12px] text-text-muted">
+                        {notificationDeliveryLabel(event)}
+                      </td>
+                      <td className="text-[12px] text-text-muted">
+                        {formatRelative(event.firedAt)}
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-outline btn-xs"
+                          onClick={() => void handleOpenEvent(event)}
+                        >
+                          查看 Provider
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </Card>
+
       {modalOpen && (
-        <RuleModal providers={providers} onClose={() => setModalOpen(false)} onSave={handleSave} />
+        <RuleModal
+          key={editingRule?.id ?? 'new'}
+          providers={providers}
+          initialRule={editingRule}
+          onClose={() => {
+            setModalOpen(false)
+            setEditingRule(null)
+          }}
+          onSave={handleSave}
+        />
       )}
     </div>
   )
+}
+
+function notificationDeliveryLabel(event: AlertEvent): string {
+  if (event.notificationStatus === 'shown') return '系统已展示'
+  if (event.notificationStatus === 'unsupported') return '系统不支持'
+  if (event.notificationStatus === 'failed') {
+    return event.notificationError ? `失败：${event.notificationError}` : '发送失败'
+  }
+  return '待发送'
 }
 
 /** 作用域徽标:区分 global 与 provider */
@@ -375,24 +584,23 @@ function Toggle({
  */
 function RuleModal({
   providers,
+  initialRule,
   onClose,
   onSave
 }: {
   providers: ProviderManifest[]
+  initialRule: AlertRule | null
   onClose: () => void
-  onSave: (input: {
-    scope: AlertScope
-    providerId?: string
-    metric: AlertMetric
-    threshold: number
-  }) => void | Promise<void>
+  onSave: (input: AlertRuleInput) => void | Promise<void>
 }) {
-  // edit-mode is currently out of scope (alerts-repo only has `add`,
-  // not upsert). Documented as carry-over. Until then, the modal is create-only.
-  const [scope, setScope] = useState<AlertScope>('provider')
-  const [providerId, setProviderId] = useState<string>(providers[0]?.id ?? '')
-  const [metric, setMetric] = useState<AlertMetric>('remaining_amount')
-  const [threshold, setThreshold] = useState<string>('')
+  const [scope, setScope] = useState<AlertScope>(initialRule?.scope ?? 'provider')
+  const [providerId, setProviderId] = useState<string>(
+    initialRule?.providerId ?? providers[0]?.id ?? ''
+  )
+  const [metric, setMetric] = useState<AlertMetric>(initialRule?.metric ?? 'remaining_amount')
+  const [threshold, setThreshold] = useState<string>(
+    initialRule ? String(initialRule.threshold) : ''
+  )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -427,7 +635,7 @@ function RuleModal({
   }
 
   return (
-    <Modal title="新建告警规则" onClose={onClose}>
+    <Modal title={initialRule ? '编辑告警规则' : '新建告警规则'} onClose={onClose}>
       <form className="space-y-3" onSubmit={handleSubmit}>
         <div className="form-group">
           <label className="form-label">Scope</label>
@@ -530,7 +738,7 @@ function RuleModal({
             className={`btn btn-primary ${saving ? 'motion-data-flash' : ''}`}
             disabled={saving}
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? '保存中…' : initialRule ? '保存修改' : '保存'}
           </button>
         </div>
       </form>

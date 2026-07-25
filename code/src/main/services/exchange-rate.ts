@@ -3,7 +3,12 @@
  * 该模块属于 main 进程的 services 模块,为仪表盘提供按币种汇总的 CNY 换算能力。
  */
 import { convertSpendToCny, DEFAULT_CNY_RATES, normalizeCurrency } from '@shared/utils/money'
-import type { TotalSpendSummary } from '@shared/types/usage'
+import type {
+  DashboardSummary,
+  ModelSpendAggregate,
+  TotalSpendSummary,
+  UsageRecord
+} from '@shared/types/usage'
 import type { CnyRateQuote } from '@shared/types/pricing'
 import type { PricingExchangePolicy, PricingExchangePolicyConfig } from '@shared/types/pricing'
 import { getSetting, setSetting } from '../store/settings-store'
@@ -168,6 +173,54 @@ export function clearExchangeRateCache(): void {
   pendingRates.clear()
 }
 
+interface CnyRateContext {
+  rates: Record<string, number>
+  source: 'api' | 'fallback' | 'mixed' | 'none'
+  updatedAt?: string
+}
+
+async function resolveCnyRateContext(
+  rows: Array<{ currency: string; amount: number }>
+): Promise<CnyRateContext> {
+  const currencies = [
+    ...new Set(
+      rows
+        .filter((row) => row.amount !== 0)
+        .map((row) => normalizeCurrency(row.currency))
+        .filter((currency) => currency !== 'CNY' && currency !== 'RMB')
+    )
+  ]
+  if (currencies.length === 0) {
+    return {
+      rates: { ...DEFAULT_CNY_RATES },
+      source: rows.length ? 'fallback' : 'none'
+    }
+  }
+
+  const rates: Record<string, number> = { ...DEFAULT_CNY_RATES }
+  const usedApi = new Set<string>()
+  let updatedAt: string | undefined
+  await Promise.all(
+    currencies.map(async (currency) => {
+      try {
+        const result = await getCnyRateQuote(currency)
+        rates[currency] = result.rateToCny
+        if (result.source === 'api') usedApi.add(currency)
+        updatedAt = updatedAt ?? result.updatedAt
+      } catch {
+        // Unknown currencies without a configured fallback stay unconverted.
+      }
+    })
+  )
+  const source =
+    usedApi.size === 0 ? 'fallback' : usedApi.size === currencies.length ? 'api' : 'mixed'
+  return {
+    rates,
+    source,
+    ...(updatedAt ? { updatedAt } : {})
+  }
+}
+
 /**
  * 为消费汇总追加 CNY 换算:对非 CNY 币种并发查询实时汇率,失败回退默认汇率。
  * @param summary 原始按币种汇总的消费数据
@@ -176,43 +229,81 @@ export function clearExchangeRateCache(): void {
 export async function withCnySpendConversion(
   summary: TotalSpendSummary
 ): Promise<TotalSpendSummary> {
-  const currencies = summary.byCurrency
-    .map((c) => normalizeCurrency(c.currency))
-    .filter((currency) => currency !== 'CNY' && currency !== 'RMB')
-
-  if (currencies.length === 0) {
-    const conversion = convertSpendToCny({
-      byCurrency: summary.byCurrency,
-      ratesToCny: DEFAULT_CNY_RATES,
-      rateSource: summary.byCurrency.length ? 'fallback' : 'none'
-    })
-    return { ...summary, ...conversion }
-  }
-
-  const rates: Record<string, number> = { ...DEFAULT_CNY_RATES }
-  const usedApi = new Set<string>()
-  let updatedAt: string | undefined
-
-  await Promise.all(
-    [...new Set(currencies)].map(async (currency) => {
-      try {
-        const result = await getCnyRateQuote(currency)
-        rates[currency] = result.rateToCny
-        if (result.source === 'api') usedApi.add(currency)
-        updatedAt = updatedAt ?? result.updatedAt
-      } catch {
-        // Unknown currencies without a fallback remain unconverted.
-      }
-    })
-  )
-
-  const allNonCnyConvertedByApi =
-    currencies.length > 0 && currencies.every((currency) => usedApi.has(currency))
+  const context = await resolveCnyRateContext(summary.byCurrency)
   const conversion = convertSpendToCny({
     byCurrency: summary.byCurrency,
-    ratesToCny: rates,
-    rateSource: usedApi.size === 0 ? 'fallback' : allNonCnyConvertedByApi ? 'api' : 'mixed',
-    updatedAt
+    ratesToCny: context.rates,
+    rateSource: context.source,
+    updatedAt: context.updatedAt
   })
   return { ...summary, ...conversion }
+}
+
+export async function withCnyDashboardConversion(
+  summary: DashboardSummary
+): Promise<DashboardSummary> {
+  const context = await resolveCnyRateContext(summary.byCurrency)
+  const convert = (rows: Array<{ currency: string; amount: number }>) =>
+    convertSpendToCny({
+      byCurrency: rows,
+      ratesToCny: context.rates,
+      rateSource: context.source,
+      updatedAt: context.updatedAt
+    }).cnyTotal
+  const totalCost = convert(summary.byCurrency)
+  const providers = summary.providers
+    .map((provider) => {
+      const cost = convert(provider.byCurrency)
+      return {
+        ...provider,
+        cost,
+        pct: totalCost > 0 ? cost / totalCost : 0
+      }
+    })
+    .sort((a, b) => b.cost - a.cost)
+  return {
+    ...summary,
+    totalCost,
+    currency: 'CNY',
+    providers,
+    daily: summary.daily.map((row) => ({ ...row, cost: convert(row.byCurrency) }))
+  }
+}
+
+export async function withCnyModelSpendConversion(
+  rows: ModelSpendAggregate[]
+): Promise<ModelSpendAggregate[]> {
+  const allCurrencies = rows.flatMap((row) => row.byCurrency)
+  const context = await resolveCnyRateContext(allCurrencies)
+  return rows
+    .map((row) => ({
+      ...row,
+      total: convertSpendToCny({
+        byCurrency: row.byCurrency,
+        ratesToCny: context.rates,
+        rateSource: context.source,
+        updatedAt: context.updatedAt
+      }).cnyTotal,
+      currency: 'CNY'
+    }))
+    .sort((a, b) => b.total - a.total || b.tokens - a.tokens || a.model.localeCompare(b.model))
+}
+
+export async function withCnyUsageRecordsConversion(rows: UsageRecord[]): Promise<UsageRecord[]> {
+  const amounts = rows.flatMap((row) =>
+    row.cost !== undefined && row.currency ? [{ currency: row.currency, amount: row.cost }] : []
+  )
+  const context = await resolveCnyRateContext(amounts)
+  return rows.map((row) => {
+    if (row.cost === undefined || !row.currency) return row
+    const conversion = convertSpendToCny({
+      byCurrency: [{ currency: row.currency, amount: row.cost }],
+      ratesToCny: context.rates,
+      rateSource: context.source,
+      updatedAt: context.updatedAt
+    })
+    return conversion.convertedByCurrency.length > 0
+      ? { ...row, costCny: conversion.cnyTotal }
+      : row
+  })
 }

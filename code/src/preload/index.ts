@@ -26,7 +26,13 @@ import type {
   PricingExchangePolicyConfig,
   PricingEntry
 } from '../shared/types/pricing'
-import type { AlertRule } from '../shared/types/alert'
+import type {
+  AlertEvent,
+  AlertNotificationStatus,
+  AlertOpenDestination,
+  AlertRule,
+  AlertRuleInput
+} from '../shared/types/alert'
 import type { ProviderManifest, BalanceSnapshot } from '../shared/types/provider'
 import type { ProviderTestResult } from '../shared/types/provider'
 import type { ProviderCatalogEntry } from '../shared/provider-catalog'
@@ -48,7 +54,7 @@ window.addEventListener('online', () => {
  * the same zod schema before dispatching. Validating twice is YAGNI.
  */
 const api = {
-  version: '1.2.5',
+  version: '1.2.52',
 
   keys: {
     list: (): Promise<ApiKeyRecord[]> => ipcRenderer.invoke(IPC.keysList),
@@ -74,10 +80,8 @@ const api = {
       ipcRenderer.invoke(IPC.usageGetDashboard, filter ?? 30),
     getTotalSpend: (filter?: number | UsageAnalysisFilter): Promise<TotalSpendSummary> =>
       ipcRenderer.invoke(IPC.usageGetTotalSpend, filter ?? 30),
-    getModelSpend: (filter?: {
-      fromISO?: string | undefined
-      toISO?: string | undefined
-    }): Promise<ModelSpendAggregate[]> => ipcRenderer.invoke(IPC.usageGetModelSpend, filter ?? {}),
+    getModelSpend: (filter?: UsageAnalysisFilter): Promise<ModelSpendAggregate[]> =>
+      ipcRenderer.invoke(IPC.usageGetModelSpend, filter ?? {}),
     getLogs: (filter?: UsageLogFilter): Promise<UsageRecord[]> =>
       ipcRenderer.invoke(IPC.usageGetLogs, filter ?? {}),
     getLogsPage: (filter?: UsageLogFilter): Promise<UsageLogPage> =>
@@ -181,15 +185,25 @@ const api = {
 
   alerts: {
     list: (): Promise<AlertRule[]> => ipcRenderer.invoke(IPC.alertsList),
-    add: (input: {
-      scope: 'provider' | 'global'
-      providerId?: string | undefined
-      threshold: number
-      metric: 'remaining_amount' | 'remaining_pct'
-    }): Promise<AlertRule> => ipcRenderer.invoke(IPC.alertsAdd, input),
+    add: (input: AlertRuleInput): Promise<AlertRule> => ipcRenderer.invoke(IPC.alertsAdd, input),
+    update: (id: string, input: AlertRuleInput): Promise<AlertRule> =>
+      ipcRenderer.invoke(IPC.alertsUpdate, { id, ...input }),
     toggle: (id: string, enabled: boolean): Promise<{ ok: true }> =>
       ipcRenderer.invoke(IPC.alertsToggle, { id, enabled }),
-    delete: (id: string): Promise<{ ok: true }> => ipcRenderer.invoke(IPC.alertsDelete, id)
+    delete: (id: string): Promise<{ ok: true }> => ipcRenderer.invoke(IPC.alertsDelete, id),
+    listEvents: (limit = 100): Promise<AlertEvent[]> =>
+      ipcRenderer.invoke(IPC.alertsListEvents, { limit }),
+    markEventRead: (id: string): Promise<{ ok: true }> =>
+      ipcRenderer.invoke(IPC.alertsMarkEventRead, { id }),
+    markAllRead: (): Promise<{ ok: true }> => ipcRenderer.invoke(IPC.alertsMarkAllRead),
+    notificationStatus: (): Promise<AlertNotificationStatus> =>
+      ipcRenderer.invoke(IPC.alertsNotificationStatus),
+    onOpenDestination: (cb: (destination: AlertOpenDestination) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, destination: AlertOpenDestination) =>
+        cb(destination)
+      ipcRenderer.on(IPC.alertsOpenDestination, listener)
+      return () => ipcRenderer.off(IPC.alertsOpenDestination, listener)
+    }
   },
 
   providers: {

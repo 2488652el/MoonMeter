@@ -4,7 +4,12 @@
  */
 import { randomUUID } from 'node:crypto'
 import { getDb } from './db'
-import type { AlertRule, AlertEvent } from '@shared/types/alert'
+import type {
+  AlertRule,
+  AlertEvent,
+  AlertNotificationDelivery,
+  AlertRuleInput
+} from '@shared/types/alert'
 
 /** alert_rules 表的数据库行结构映射。 */
 interface DbRow {
@@ -16,6 +21,25 @@ interface DbRow {
   enabled: number
   last_triggered_at: string | null
   created_at: string
+}
+
+interface AlertEventRow {
+  id: string
+  rule_id: string
+  provider_id: string
+  api_key_id: string | null
+  fired_at: string
+  value: number
+  threshold: number
+  message: string
+  read_at: string | null
+  notification_status: AlertNotificationDelivery
+  notification_error: string | null
+}
+
+interface AlertRuleStateRow {
+  active: number
+  breach_count: number
 }
 
 /** 将数据库行映射为 AlertRule 对象,处理可选字段的条件展开。 */
@@ -44,11 +68,7 @@ export function listAlerts(): AlertRule[] {
  * @param input 不含 id/createdAt/enabled/lastTriggeredAt 的规则数据
  * @returns 完整的 AlertRule 对象(含生成的 id 与时间戳)
  */
-export function addAlert(
-  input: Omit<AlertRule, 'id' | 'createdAt' | 'enabled' | 'lastTriggeredAt'> & {
-    enabled?: boolean
-  }
-): AlertRule {
+export function addAlert(input: AlertRuleInput & { enabled?: boolean }): AlertRule {
   const db = getDb()
   const id = randomUUID()
   const now = new Date().toISOString()
@@ -69,16 +89,36 @@ export function addAlert(
   return { id, enabled: input.enabled !== false, createdAt: now, ...input }
 }
 
+export function updateAlert(id: string, input: AlertRuleInput): AlertRule {
+  const db = getDb()
+  const result = db
+    .prepare(
+      `
+      UPDATE alert_rules
+      SET scope = ?, provider_id = ?, threshold = ?, metric = ?
+      WHERE id = ?
+    `
+    )
+    .run(input.scope, input.providerId ?? null, input.threshold, input.metric, id)
+  if (result.changes === 0) throw new Error('告警规则不存在')
+  db.prepare('DELETE FROM alert_rule_states WHERE rule_id = ?').run(id)
+  return listAlerts().find((rule) => rule.id === id)!
+}
+
 /** 切换告警规则的启用状态。 */
 export function toggleAlert(id: string, enabled: boolean): void {
   const db = getDb()
   db.prepare('UPDATE alert_rules SET enabled = ? WHERE id = ?').run(enabled ? 1 : 0, id)
+  if (!enabled) db.prepare('DELETE FROM alert_rule_states WHERE rule_id = ?').run(id)
 }
 
 /** 删除指定告警规则。 */
 export function deleteAlert(id: string): void {
   const db = getDb()
-  db.prepare('DELETE FROM alert_rules WHERE id = ?').run(id)
+  db.transaction(() => {
+    db.prepare('DELETE FROM alert_rule_states WHERE rule_id = ?').run(id)
+    db.prepare('DELETE FROM alert_rules WHERE id = ?').run(id)
+  })()
 }
 
 /** Update last_triggered_at after a rule fires (N3). */
@@ -98,12 +138,115 @@ export function markAlertTriggered(ruleId: string, firedAt: string): void {
  * alert_events 表由 store/db 的 schema 迁移创建。
  * @param event 不含 id 的事件数据
  */
-export function insertAlertEvent(event: Omit<AlertEvent, 'id'>): void {
+function rowToEvent(row: AlertEventRow): AlertEvent {
+  return {
+    id: row.id,
+    ruleId: row.rule_id,
+    providerId: row.provider_id,
+    firedAt: row.fired_at,
+    value: row.value,
+    threshold: row.threshold,
+    message: row.message,
+    notificationStatus: row.notification_status,
+    ...(row.api_key_id !== null ? { apiKeyId: row.api_key_id } : {}),
+    ...(row.read_at !== null ? { readAt: row.read_at } : {}),
+    ...(row.notification_error !== null ? { notificationError: row.notification_error } : {})
+  }
+}
+
+export function insertAlertEvent(
+  event: Omit<AlertEvent, 'id' | 'readAt' | 'notificationStatus' | 'notificationError'>
+): AlertEvent {
   const db = getDb()
+  const id = randomUUID()
   db.prepare(
     `
-    INSERT INTO alert_events (id, rule_id, fired_at, value, threshold, message)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO alert_events (
+      id, rule_id, provider_id, api_key_id, fired_at, value, threshold, message,
+      notification_status
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
   `
-  ).run(randomUUID(), event.ruleId, event.firedAt, event.value, event.threshold, event.message)
+  ).run(
+    id,
+    event.ruleId,
+    event.providerId,
+    event.apiKeyId ?? null,
+    event.firedAt,
+    event.value,
+    event.threshold,
+    event.message
+  )
+  return { id, notificationStatus: 'pending', ...event }
+}
+
+export function listAlertEvents(limit = 100): AlertEvent[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM alert_events ORDER BY fired_at DESC LIMIT ?')
+    .all(limit) as AlertEventRow[]
+  return rows.map(rowToEvent)
+}
+
+export function markAlertEventRead(id: string, readAt = new Date().toISOString()): void {
+  getDb()
+    .prepare('UPDATE alert_events SET read_at = COALESCE(read_at, ?) WHERE id = ?')
+    .run(readAt, id)
+}
+
+export function markAllAlertEventsRead(readAt = new Date().toISOString()): void {
+  getDb().prepare('UPDATE alert_events SET read_at = ? WHERE read_at IS NULL').run(readAt)
+}
+
+export function updateAlertEventNotification(
+  id: string,
+  status: AlertNotificationDelivery,
+  error?: string
+): void {
+  getDb()
+    .prepare('UPDATE alert_events SET notification_status = ?, notification_error = ? WHERE id = ?')
+    .run(status, error ?? null, id)
+}
+
+export function getAlertRuleState(
+  ruleId: string,
+  providerId: string,
+  apiKeyId?: string
+): { active: boolean; breachCount: number } {
+  const row = getDb()
+    .prepare(
+      `
+      SELECT active, breach_count FROM alert_rule_states
+      WHERE rule_id = ? AND provider_id = ? AND api_key_id = ?
+    `
+    )
+    .get(ruleId, providerId, apiKeyId ?? '') as AlertRuleStateRow | undefined
+  return {
+    active: row?.active === 1,
+    breachCount: Math.max(0, row?.breach_count ?? 0)
+  }
+}
+
+export function setAlertRuleState(
+  ruleId: string,
+  providerId: string,
+  apiKeyId: string | undefined,
+  active: boolean,
+  value: number,
+  updatedAt: string,
+  breachCount = 0
+): void {
+  getDb()
+    .prepare(
+      `
+      INSERT INTO alert_rule_states (
+        rule_id, provider_id, api_key_id, active, last_value, updated_at, breach_count
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(rule_id, provider_id, api_key_id) DO UPDATE SET
+        active = excluded.active,
+        last_value = excluded.last_value,
+        updated_at = excluded.updated_at,
+        breach_count = excluded.breach_count
+    `
+    )
+    .run(ruleId, providerId, apiKeyId ?? '', active ? 1 : 0, value, updatedAt, breachCount)
 }

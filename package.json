@@ -1,6 +1,6 @@
 {
   "name": "moonmeter",
-  "version": "1.2.51",
+  "version": "1.2.52",
   "description": "MoonMeter - unified LLM token usage & cost aggregator for Windows and macOS",
   "main": "demo/out/main/index.js",
   "author": "bestzuge@gmail.com",
@@ -23,6 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:mac:packaged": "playwright test demo/tests/e2e/macos-packaged-startup.spec.ts --project=electron",
     "server:start": "tsx drive/src/server/index.ts",
     "prepare": "husky || true",
     "postinstall": "node code/scripts/postinstall-better-sqlite3.cjs && electron-builder install-app-deps",

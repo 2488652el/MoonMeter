@@ -645,4 +645,57 @@ function applyMigrations(db: Database.Database): void {
       throw e
     }
   }
+
+  // --- v19: alert delivery history and per-account breach state ---
+  if (currentVersion < 19) {
+    db.exec(`
+      ALTER TABLE alert_events ADD COLUMN provider_id TEXT NOT NULL DEFAULT '';
+      ALTER TABLE alert_events ADD COLUMN api_key_id TEXT;
+      ALTER TABLE alert_events ADD COLUMN read_at TEXT;
+      ALTER TABLE alert_events ADD COLUMN notification_status TEXT NOT NULL DEFAULT 'pending';
+      ALTER TABLE alert_events ADD COLUMN notification_error TEXT;
+      CREATE INDEX IF NOT EXISTS idx_alert_events_fired
+        ON alert_events(fired_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_alert_events_unread
+        ON alert_events(read_at) WHERE read_at IS NULL;
+      CREATE TABLE IF NOT EXISTS alert_rule_states (
+        rule_id TEXT NOT NULL,
+        provider_id TEXT NOT NULL,
+        api_key_id TEXT NOT NULL DEFAULT '',
+        active INTEGER NOT NULL DEFAULT 0,
+        last_value REAL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (rule_id, provider_id, api_key_id),
+        FOREIGN KEY (rule_id) REFERENCES alert_rules(id) ON DELETE CASCADE
+      );
+    `)
+    db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(19)
+  }
+
+  // --- v20: immutable occurrence-time cost and price snapshots ---
+  if (currentVersion < 20) {
+    db.exec(`
+      ALTER TABLE usage_records
+        ADD COLUMN cost_basis TEXT NOT NULL DEFAULT 'current-estimate';
+      ALTER TABLE usage_records ADD COLUMN pricing_entry_id INTEGER;
+      ALTER TABLE usage_records ADD COLUMN pricing_updated_at TEXT;
+      ALTER TABLE usage_records ADD COLUMN snapshot_prompt_price REAL;
+      ALTER TABLE usage_records ADD COLUMN snapshot_completion_price REAL;
+      ALTER TABLE usage_records ADD COLUMN snapshot_cache_read_price REAL;
+      ALTER TABLE usage_records ADD COLUMN snapshot_cache_creation_price REAL;
+      ALTER TABLE usage_records ADD COLUMN snapshot_currency TEXT;
+      CREATE INDEX IF NOT EXISTS idx_usage_cost_basis
+        ON usage_records(cost_basis, captured_at);
+    `)
+    db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(20)
+  }
+
+  // --- v21: consecutive-sample debounce for alert delivery ---
+  if (currentVersion < 21) {
+    db.exec(`
+      ALTER TABLE alert_rule_states
+        ADD COLUMN breach_count INTEGER NOT NULL DEFAULT 0;
+    `)
+    db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(21)
+  }
 }

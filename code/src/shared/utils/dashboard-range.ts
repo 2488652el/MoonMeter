@@ -3,7 +3,14 @@ import type { UsageTrendRange } from './usage-trend'
 export const DASHBOARD_RANGE_STORAGE_KEY = 'dashboard_usage_range'
 
 const DEFAULT_DASHBOARD_RANGE: UsageTrendRange = '30d'
-const DASHBOARD_RANGES: ReadonlySet<string> = new Set(['today', '7d', '30d', 'all'])
+const DASHBOARD_RANGES: ReadonlySet<string> = new Set([
+  'today',
+  '7d',
+  '30d',
+  'month-to-date',
+  'custom',
+  'all'
+])
 
 type DashboardRangeStorage = {
   getItem(key: string): string | null

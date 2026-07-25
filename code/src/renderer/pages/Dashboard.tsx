@@ -44,6 +44,9 @@ import {
 import { buildDashboardHealth, type DashboardHealthTone } from '../../shared/utils/dashboard-health'
 import {
   readUsageAnalysisFilter,
+  usageAnalysisFilterToQuery,
+  usageRangeLabel,
+  usageRangeToLocalDates,
   writeUsageAnalysisFilter,
   type PersistedUsageAnalysisFilter
 } from '../../shared/utils/usage-analysis-filter'
@@ -51,12 +54,14 @@ import {
 /** 时间范围类型,复用 UsageTrendRange */
 type RangeKey = UsageTrendRange
 
-/** 时间范围选项:key、显示文案、对应天数(all 为 null) */
-const RANGE_OPTIONS: Array<{ key: RangeKey; label: string; days: number | null }> = [
-  { key: 'today', label: '当日', days: 1 },
-  { key: '7d', label: '7 天', days: 7 },
-  { key: '30d', label: '30 天', days: 30 },
-  { key: 'all', label: '全部', days: null }
+/** 时间范围选项。 */
+const RANGE_OPTIONS: Array<{ key: RangeKey; label: string }> = [
+  { key: 'today', label: '当日' },
+  { key: '7d', label: '7 天' },
+  { key: '30d', label: '30 天' },
+  { key: 'month-to-date', label: '本月至今' },
+  { key: 'custom', label: '自定义' },
+  { key: 'all', label: '全部' }
 ]
 
 const HEALTH_META: Record<
@@ -127,24 +132,17 @@ function fillMissingDays(
     const d = new Date(today)
     d.setDate(today.getDate() - i)
     const key = d.toISOString().slice(0, 10)
-    out.push(byDate.get(key) ?? { date: key, cost: 0, tokens: 0 })
+    out.push(byDate.get(key) ?? { date: key, cost: 0, byCurrency: [], tokens: 0 })
   }
   return out
 }
 
-/** 返回今天 0 点的 Date */
-function startOfToday(): Date {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-/** 计算指定时间范围的起始 ISO 时间(all 返回 undefined) */
-function rangeSince(range: RangeKey): string | undefined {
-  if (range === 'all') return undefined
-  if (range === 'today') return startOfToday().toISOString()
-  const days = RANGE_OPTIONS.find((r) => r.key === range)?.days ?? 30
-  return new Date(Date.now() - days * 24 * 3600 * 1000).toISOString()
+function dateSpanDays(fromISO?: string, toISO?: string): number | null {
+  if (!fromISO || !toISO) return null
+  const from = new Date(fromISO)
+  const to = new Date(toISO)
+  const span = Math.floor((to.getTime() - from.getTime()) / 86_400_000) + 1
+  return Number.isFinite(span) && span > 0 && span <= 366 ? span : null
 }
 
 function formatCapturedAt(value: string | null): string {
@@ -298,14 +296,8 @@ export default function Dashboard() {
     setLoading(true)
     setLoadError(null)
     try {
-      const selected = RANGE_OPTIONS.find((r) => r.key === range) ?? RANGE_OPTIONS[2]!
-      const days = selected.days ?? 0
-      const fromISO = rangeSince(range)
-      const analysisFilter: UsageAnalysisFilter = { days }
-      if (filter.source !== 'all') analysisFilter.source = filter.source
-      if (filter.modelContains) analysisFilter.modelContains = filter.modelContains
-      if (filter.projectContains) analysisFilter.projectContains = filter.projectContains
-      const logFilter = { ...analysisFilter, ...(fromISO ? { fromISO } : {}), limit: 10000 }
+      const analysisFilter: UsageAnalysisFilter = usageAnalysisFilterToQuery(filter)
+      const logFilter = { ...analysisFilter, limit: 10000 }
       // a single dashboard call covers the chart + totals. Balance
       // snapshots are independent (per-key) so they ride along in parallel.
       // Total spend is computed from logs × pricing config over the period.
@@ -316,9 +308,9 @@ export default function Dashboard() {
         window.api.usage.getLogs(logFilter).catch(() => []),
         window.api.sync.status().catch(() => null)
       ])
-      setSummary(
-        d ? { ...d, daily: selected.days ? fillMissingDays(d.daily, selected.days) : d.daily } : d
-      )
+      const denseDays =
+        range === 'custom' ? null : dateSpanDays(analysisFilter.fromISO, analysisFilter.toISO)
+      setSummary(d ? { ...d, daily: denseDays ? fillMissingDays(d.daily, denseDays) : d.daily } : d)
       setBalances(b)
       setSpend(s)
       setRecords(logs)
@@ -363,7 +355,7 @@ export default function Dashboard() {
   const topProviders = useMemo(() => {
     return [...(summary?.providers ?? [])].sort((a, b) => b.tokens - a.tokens).slice(0, 4)
   }, [summary])
-  const activeRangeLabel = RANGE_OPTIONS.find((r) => r.key === range)?.label ?? '30 天'
+  const activeRangeLabel = usageRangeLabel(filter)
   const activeFilterCount =
     (filter.source !== 'all' ? 1 : 0) +
     (filter.modelContains ? 1 : 0) +
@@ -386,7 +378,14 @@ export default function Dashboard() {
           : '云端已连接'
 
   function updateRange(nextRange: RangeKey) {
-    const next = { ...filter, range: nextRange }
+    const defaults = usageRangeToLocalDates(nextRange === 'custom' ? '30d' : nextRange)
+    const next = {
+      ...filter,
+      range: nextRange,
+      ...(nextRange === 'custom' && !filter.customFrom && !filter.customTo
+        ? { customFrom: defaults.from, customTo: defaults.to }
+        : {})
+    }
     setFilter(next)
     setFilterDraft((current) => ({ ...current, range: nextRange }))
     writeUsageAnalysisFilter(window.localStorage, next)
@@ -408,7 +407,9 @@ export default function Dashboard() {
       range,
       source: 'all',
       modelContains: '',
-      projectContains: ''
+      projectContains: '',
+      customFrom: filter.customFrom,
+      customTo: filter.customTo
     }
     setFilter(next)
     setFilterDraft(next)
@@ -595,6 +596,37 @@ export default function Dashboard() {
                   </button>
                 </div>
               </form>
+              {filterDraft.range === 'custom' ? (
+                <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-t border-border-light pt-3">
+                  <input
+                    type="date"
+                    aria-label="自定义账期开始日期"
+                    value={filterDraft.customFrom}
+                    max={filterDraft.customTo || undefined}
+                    onChange={(event) =>
+                      setFilterDraft((current) => ({
+                        ...current,
+                        customFrom: event.target.value
+                      }))
+                    }
+                    className="h-9 rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary"
+                  />
+                  <span className="text-[12px] text-text-muted">至</span>
+                  <input
+                    type="date"
+                    aria-label="自定义账期结束日期"
+                    value={filterDraft.customTo}
+                    min={filterDraft.customFrom || undefined}
+                    onChange={(event) =>
+                      setFilterDraft((current) => ({
+                        ...current,
+                        customTo: event.target.value
+                      }))
+                    }
+                    className="h-9 rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary"
+                  />
+                </div>
+              ) : null}
             </Card>
           </div>
 
@@ -629,7 +661,13 @@ export default function Dashboard() {
                     durationMs={520}
                   />
                 }
-                sub={hasCnySpend ? '统一折算人民币' : '按原始记录汇总'}
+                sub={
+                  hasCnySpend
+                    ? spend && spend.estimatedRequests > 0
+                      ? '发生时成本优先，含旧记录估算'
+                      : '按发生时成本汇总'
+                    : '按原始记录汇总'
+                }
                 motionOrder={0}
               />
               <OverviewMetricCard
@@ -777,7 +815,7 @@ export default function Dashboard() {
                 <div>
                   <h2 className="text-[20px] font-bold text-text-primary">消费统计</h2>
                   <p className="mt-1 text-[13px] text-text-secondary">
-                    统一折算人民币，保留未计价请求提示
+                    发生时成本优先，旧记录按当前价格估算
                   </p>
                 </div>
                 <Icon name="fa-coins" className="text-accent" />
@@ -793,13 +831,19 @@ export default function Dashboard() {
                       />
                     </div>
                     <p className="mt-2 text-[12.5px] text-text-secondary">
-                      按请求日志 × 价格配置估算（{activeRangeLabel}，已折算人民币）
+                      请求发生时的供应商成本或价格快照（{activeRangeLabel}，已折算人民币）
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                  <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
                     <InfoPill
-                      label="已计价"
-                      value={`${spend.pricedRequests.toLocaleString('en-US')} 次`}
+                      label="发生时成本"
+                      value={`${(
+                        spend.providerCostRequests + spend.snapshotCostRequests
+                      ).toLocaleString('en-US')} 次`}
+                    />
+                    <InfoPill
+                      label="当前价格估算"
+                      value={`${spend.estimatedRequests.toLocaleString('en-US')} 次`}
                     />
                     <InfoPill
                       label="未计价"

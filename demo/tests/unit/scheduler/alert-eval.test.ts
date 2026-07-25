@@ -1,6 +1,6 @@
 /**
  * alert 评估单元测试:覆盖 evaluateAlertRule / usageSliceToRecord / evaluateAlerts,
- * 校验阈值触发、用量转记录与告警事件写入(含冷却与禁用规则)。
+ * 校验阈值触发、用量转记录与告警事件写入(含恢复锁与禁用规则)。
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { AlertRule } from '@shared/types/alert'
@@ -11,7 +11,25 @@ import type { BalanceSnapshot } from '@shared/types/provider'
 vi.mock('../../../../code/src/main/store/alerts-repo', () => ({
   listAlerts: vi.fn(() => [] as AlertRule[]),
   markAlertTriggered: vi.fn(() => {}),
-  insertAlertEvent: vi.fn(() => {})
+  insertAlertEvent: vi.fn((event) => ({
+    id: 'event-1',
+    notificationStatus: 'pending',
+    ...event
+  })),
+  getAlertRuleState: vi.fn(() => ({ active: false, breachCount: 1 })),
+  setAlertRuleState: vi.fn(() => {}),
+  updateAlertEventNotification: vi.fn(() => {})
+}))
+vi.mock('../../../../code/src/main/services/alert-notifications', () => ({
+  showAlertNotification: vi.fn(
+    (
+      _event: unknown,
+      onDelivery?: (result: { status: 'shown' | 'failed'; error?: string }) => void
+    ) => {
+      onDelivery?.({ status: 'shown' })
+      return { status: 'pending' }
+    }
+  )
 }))
 vi.mock('../../../../code/src/main/store/balance-repo', () => ({
   insertBalance: vi.fn(),
@@ -40,11 +58,15 @@ import {
   usageSliceToRecord
 } from '../../../../code/src/main/scheduler/refresh'
 import {
+  getAlertRuleState,
   listAlerts,
   markAlertTriggered,
-  insertAlertEvent
+  insertAlertEvent,
+  setAlertRuleState,
+  updateAlertEventNotification
 } from '../../../../code/src/main/store/alerts-repo'
 import { latestBalances } from '../../../../code/src/main/store/balance-repo'
+import { showAlertNotification } from '../../../../code/src/main/services/alert-notifications'
 
 function makeRule(over: Record<string, unknown> = {}): AlertRule {
   const base: Record<string, unknown> = {
@@ -172,6 +194,12 @@ describe('usageSliceToRecord (pure)', () => {
     expect(rec.totalTokens).toBe(1_500_000)
     expect(rec.cost).toBeCloseTo(10.5, 8)
     expect(rec.currency).toBe('USD')
+    expect(rec.costBasis).toBe('price-snapshot')
+    expect(rec.priceSnapshot).toMatchObject({
+      promptPricePerMtok: 3,
+      completionPricePerMtok: 15,
+      currency: 'USD'
+    })
   })
 
   it('keeps provider cost when present instead of recalculating', () => {
@@ -199,13 +227,44 @@ describe('usageSliceToRecord (pure)', () => {
       }
     )
     expect(rec.cost).toBe(4.25)
+    expect(rec.costBasis).toBe('provider')
+    expect(rec.priceSnapshot).toMatchObject({
+      promptPricePerMtok: 999,
+      completionPricePerMtok: 999,
+      currency: 'USD'
+    })
   })
 })
 
-// evaluateAlerts (integration):结合 mock 的 store 层验证告警事件写入与冷却跳过
+// evaluateAlerts (integration):结合 mock 的 store 层验证越线、抑制与恢复后重触发
 describe('evaluateAlerts (integration with mocked store)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(getAlertRuleState).mockReturnValue({ active: false, breachCount: 1 })
+    vi.mocked(setAlertRuleState).mockImplementation(() => undefined)
+  })
+
+  it('debounces a single breached sample before notifying', () => {
+    const rule = makeRule({ metric: 'remaining_amount', threshold: 10 })
+    vi.mocked(listAlerts).mockReturnValue([rule])
+    vi.mocked(getAlertRuleState).mockReturnValue({ active: false, breachCount: 0 })
+    vi.mocked(latestBalances).mockReturnValue([
+      { ...makeSnap({ remaining: 5 }), id: 1, apiKeyId: 'k1' }
+    ])
+
+    const result = evaluateAlerts(new Date('2026-07-06T11:55:00Z'))
+
+    expect(result.fired).toBe(0)
+    expect(insertAlertEvent).not.toHaveBeenCalled()
+    expect(setAlertRuleState).toHaveBeenCalledWith(
+      'rule-1',
+      'openai-admin',
+      'k1',
+      false,
+      5,
+      '2026-07-06T11:55:00.000Z',
+      1
+    )
   })
 
   it('writes an event + marks triggered when a rule fires', () => {
@@ -218,16 +277,49 @@ describe('evaluateAlerts (integration with mocked store)', () => {
     const result = evaluateAlerts(now)
     expect(result.fired).toBe(1)
     expect(insertAlertEvent).toHaveBeenCalledTimes(1)
+    expect(insertAlertEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerId: 'openai-admin',
+        apiKeyId: 'k1'
+      })
+    )
+    expect(setAlertRuleState).toHaveBeenCalledWith(
+      'rule-1',
+      'openai-admin',
+      'k1',
+      true,
+      5,
+      now.toISOString(),
+      2
+    )
+    expect(showAlertNotification).toHaveBeenCalledTimes(1)
+    expect(updateAlertEventNotification).toHaveBeenCalledWith('event-1', 'shown', undefined)
     expect(markAlertTriggered).toHaveBeenCalledWith('rule-1', now.toISOString())
   })
 
-  it('skips a rule that fired within the 5-minute cooldown', () => {
-    const rule = makeRule({
-      metric: 'remaining_amount',
-      threshold: 10,
-      lastTriggeredAt: '2026-07-06T11:58:00Z' // 2 minutes ago
-    })
+  it('persists the asynchronous native failure result', () => {
+    const rule = makeRule({ metric: 'remaining_amount', threshold: 10 })
     vi.mocked(listAlerts).mockReturnValue([rule])
+    vi.mocked(latestBalances).mockReturnValue([
+      { ...makeSnap({ remaining: 5 }), id: 1, apiKeyId: 'k1' }
+    ])
+    vi.mocked(showAlertNotification).mockImplementationOnce((_event, onDelivery) => {
+      onDelivery?.({ status: 'failed', error: 'permission denied' })
+      return { status: 'pending' }
+    })
+
+    expect(evaluateAlerts(new Date('2026-07-06T12:00:00Z')).fired).toBe(1)
+    expect(updateAlertEventNotification).toHaveBeenCalledWith(
+      'event-1',
+      'failed',
+      'permission denied'
+    )
+  })
+
+  it('does not repeat while the same provider/account remains breached', () => {
+    const rule = makeRule({ metric: 'remaining_amount', threshold: 10 })
+    vi.mocked(listAlerts).mockReturnValue([rule])
+    vi.mocked(getAlertRuleState).mockReturnValue({ active: true, breachCount: 2 })
     vi.mocked(latestBalances).mockReturnValue([
       { ...makeSnap({ remaining: 5 }), id: 1, apiKeyId: 'k1' }
     ])
@@ -238,19 +330,34 @@ describe('evaluateAlerts (integration with mocked store)', () => {
     expect(markAlertTriggered).not.toHaveBeenCalled()
   })
 
-  it('re-fires a rule past the cooldown', () => {
-    const rule = makeRule({
-      metric: 'remaining_amount',
-      threshold: 10,
-      lastTriggeredAt: '2026-07-06T11:50:00Z' // 10 minutes ago
-    })
+  it('clears the latch on recovery and fires again on a later breach', () => {
+    const rule = makeRule({ metric: 'remaining_amount', threshold: 10 })
+    let state = { active: true, breachCount: 2 }
     vi.mocked(listAlerts).mockReturnValue([rule])
+    vi.mocked(getAlertRuleState).mockImplementation(() => state)
+    vi.mocked(setAlertRuleState).mockImplementation(
+      (_ruleId, _providerId, _keyId, active, _value, _updatedAt, breachCount = 0) => {
+        state = { active, breachCount }
+      }
+    )
+    vi.mocked(latestBalances).mockReturnValue([
+      { ...makeSnap({ remaining: 20 }), id: 1, apiKeyId: 'k1' }
+    ])
+    const recovered = evaluateAlerts(new Date('2026-07-06T11:55:00Z'))
+    expect(recovered.fired).toBe(0)
+    expect(state).toEqual({ active: false, breachCount: 0 })
+
     vi.mocked(latestBalances).mockReturnValue([
       { ...makeSnap({ remaining: 5 }), id: 1, apiKeyId: 'k1' }
     ])
-    const result = evaluateAlerts(new Date('2026-07-06T12:00:00Z'))
+    const pending = evaluateAlerts(new Date('2026-07-06T12:00:00Z'))
+    expect(pending.fired).toBe(0)
+    expect(state).toEqual({ active: false, breachCount: 1 })
+
+    const result = evaluateAlerts(new Date('2026-07-06T12:05:00Z'))
     expect(result.fired).toBe(1)
     expect(insertAlertEvent).toHaveBeenCalledTimes(1)
+    expect(state).toEqual({ active: true, breachCount: 2 })
   })
 
   it('does NOT evaluate disabled rules', () => {

@@ -4,8 +4,8 @@
  */
 import type { UsageRecord } from '../types/usage'
 
-/** 用量趋势时间范围:当日 / 7 天 / 30 天 / 全部。 */
-export type UsageTrendRange = 'today' | '7d' | '30d' | 'all'
+/** 用量趋势时间范围:当日 / 7 天 / 30 天 / 本月至今 / 自定义 / 全部。 */
+export type UsageTrendRange = 'today' | '7d' | '30d' | 'month-to-date' | 'custom' | 'all'
 
 /** 趋势图中的单条模型序列描述(key/标签/颜色)。 */
 export interface UsageTrendModel {

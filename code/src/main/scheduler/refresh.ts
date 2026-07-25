@@ -9,13 +9,23 @@ import { scheduleSyncAfterChange } from '../sync/service'
 import { insertUsage } from '../store/usage-repo'
 import { findPricing } from '../store/pricing-repo'
 import { getSetting, setSetting } from '../store/settings-store'
-import { listAlerts, markAlertTriggered, insertAlertEvent } from '../store/alerts-repo'
+import {
+  getAlertRuleState,
+  insertAlertEvent,
+  listAlerts,
+  markAlertTriggered,
+  setAlertRuleState,
+  updateAlertEventNotification
+} from '../store/alerts-repo'
+import { showAlertNotification } from '../services/alert-notifications'
 import type { AlertRule } from '@shared/types/alert'
 import type { BalanceSnapshot, UsageSlice } from '@shared/types/provider'
 import type { RefreshFailure, UsageRecord } from '@shared/types/usage'
 import type { PricingEntry } from '@shared/types/pricing'
 import { calcCost } from '@shared/utils/money'
 import { resolveBillingScope } from '@shared/pricing-scope'
+
+export const ALERT_DEBOUNCE_SAMPLES = 2
 
 let timer: NodeJS.Timeout | null = null
 let refreshInFlight: Promise<RefreshResult> | null = null
@@ -36,10 +46,6 @@ function clearAutoRefresh(): void {
     timer = null
   }
 }
-
-/** Minimum gap between repeat firings of the same rule (5 minutes). */
-/** 同一规则重复触发的最小冷却间隔(5 分钟)。 */
-const ALERT_RETRIGGER_COOLDOWN_MS = 5 * 60 * 1000
 
 /**
  * Pure evaluation of a single alert rule against a balance snapshot (N3).
@@ -69,9 +75,9 @@ export function evaluateAlertRule(
 
 /**
  * Evaluate all enabled alert rules against the latest balance snapshots and
- * fire any that breach their threshold (N3). Writes an alert_events row and
- * updates last_triggered_at for each firing rule, with a 5-minute cooldown so
- * a refresh loop does not spam events.
+ * fire when a provider/account transitions from healthy to breached. The
+ * persisted latch suppresses repeated notifications while the balance remains
+ * below the threshold and resets only after a healthy snapshot is observed.
  *
  * @param now override for deterministic tests; defaults to current time
  * @param now 用于测试的确定性时间覆盖,默认当前时间。
@@ -83,21 +89,11 @@ export function evaluateAlerts(now: Date = new Date()): { fired: number; skipped
   const snaps = latestBalances()
   if (snaps.length === 0) return { fired: 0, skipped: rules.length }
 
-  const nowMs = now.getTime()
   const nowISO = now.toISOString()
   let fired = 0
   let skipped = 0
 
   for (const rule of rules) {
-    // Cooldown: skip if this rule fired within the last 5 minutes.
-    if (rule.lastTriggeredAt) {
-      const lastMs = new Date(rule.lastTriggeredAt).getTime()
-      if (Number.isFinite(lastMs) && nowMs - lastMs < ALERT_RETRIGGER_COOLDOWN_MS) {
-        skipped++
-        continue
-      }
-    }
-
     // For provider-scoped rules, match the provider's snapshots. For global
     // rules, evaluate against every snapshot (fire once per breaching key).
     const matching =
@@ -108,22 +104,58 @@ export function evaluateAlerts(now: Date = new Date()): { fired: number; skipped
     let ruleFired = false
     for (const snap of matching) {
       const result = evaluateAlertRule(rule, snap)
-      if (!result || !result.fires) continue
-      ruleFired = true
+      if (!result) continue
+      const state = getAlertRuleState(rule.id, snap.providerId, snap.apiKeyId)
+      if (!result.fires) {
+        if (state.active || state.breachCount > 0) {
+          setAlertRuleState(rule.id, snap.providerId, snap.apiKeyId, false, result.value, nowISO, 0)
+        }
+        continue
+      }
+      if (state.active) continue
+
+      const breachCount = state.breachCount + 1
+      if (breachCount < ALERT_DEBOUNCE_SAMPLES) {
+        setAlertRuleState(
+          rule.id,
+          snap.providerId,
+          snap.apiKeyId,
+          false,
+          result.value,
+          nowISO,
+          breachCount
+        )
+        continue
+      }
+
       const message =
         rule.metric === 'remaining_amount'
-          ? `[${rule.providerId ?? 'global'}] remaining ${result.value.toFixed(2)} <= threshold ${rule.threshold}`
-          : `[${rule.providerId ?? 'global'}] remaining ${result.value.toFixed(1)}% <= threshold ${rule.threshold}%`
+          ? `${snap.providerId} 剩余 ${result.value.toFixed(2)}，已低于阈值 ${rule.threshold}`
+          : `${snap.providerId} 剩余 ${result.value.toFixed(1)}%，已低于阈值 ${rule.threshold}%`
       try {
-        insertAlertEvent({
+        const event = insertAlertEvent({
           ruleId: rule.id,
+          providerId: snap.providerId,
+          ...(snap.apiKeyId ? { apiKeyId: snap.apiKeyId } : {}),
           firedAt: nowISO,
           value: result.value,
           threshold: rule.threshold,
           message
         })
+        setAlertRuleState(
+          rule.id,
+          snap.providerId,
+          snap.apiKeyId,
+          true,
+          result.value,
+          nowISO,
+          breachCount
+        )
+        showAlertNotification(event, (delivery) => {
+          updateAlertEventNotification(event.id, delivery.status, delivery.error)
+        })
+        ruleFired = true
       } catch (e) {
-        // alert_events table missing (ensureAlertTable not run) — log and continue
         console.error('[alerts] failed to insert event:', (e as Error).message)
       }
     }
@@ -200,6 +232,22 @@ export function usageSliceToRecord(
   const cost = finiteOrUndefined(slice.cost)
   if (cost !== undefined) {
     record.cost = cost
+    record.costBasis = 'provider'
+    if (opts.pricing) {
+      record.priceSnapshot = {
+        ...(opts.pricing.id !== undefined ? { pricingEntryId: opts.pricing.id } : {}),
+        pricingUpdatedAt: opts.pricing.updatedAt ?? record.capturedAt,
+        promptPricePerMtok: opts.pricing.promptPricePerMtok,
+        completionPricePerMtok: opts.pricing.completionPricePerMtok,
+        ...(opts.pricing.cacheReadPricePerMtok !== undefined
+          ? { cacheReadPricePerMtok: opts.pricing.cacheReadPricePerMtok }
+          : {}),
+        ...(opts.pricing.cacheCreationPricePerMtok !== undefined
+          ? { cacheCreationPricePerMtok: opts.pricing.cacheCreationPricePerMtok }
+          : {}),
+        currency: opts.pricing.currency
+      }
+    }
   } else if (opts.pricing) {
     record.cost = calcCost(
       record.promptTokens,
@@ -211,6 +259,22 @@ export function usageSliceToRecord(
       opts.pricing.cacheReadPricePerMtok,
       opts.pricing.cacheCreationPricePerMtok
     )
+    record.costBasis = 'price-snapshot'
+    record.priceSnapshot = {
+      ...(opts.pricing.id !== undefined ? { pricingEntryId: opts.pricing.id } : {}),
+      pricingUpdatedAt: opts.pricing.updatedAt ?? record.capturedAt,
+      promptPricePerMtok: opts.pricing.promptPricePerMtok,
+      completionPricePerMtok: opts.pricing.completionPricePerMtok,
+      ...(opts.pricing.cacheReadPricePerMtok !== undefined
+        ? { cacheReadPricePerMtok: opts.pricing.cacheReadPricePerMtok }
+        : {}),
+      ...(opts.pricing.cacheCreationPricePerMtok !== undefined
+        ? { cacheCreationPricePerMtok: opts.pricing.cacheCreationPricePerMtok }
+        : {}),
+      currency: opts.pricing.currency
+    }
+  } else {
+    record.costBasis = 'unpriced'
   }
 
   if (slice.currency) record.currency = slice.currency

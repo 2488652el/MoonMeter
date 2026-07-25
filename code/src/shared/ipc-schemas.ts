@@ -75,10 +75,23 @@ export const alertAddInputSchema = z.object({
   metric: z.enum(['remaining_amount', 'remaining_pct'])
 })
 
+/** 编辑告警规则入参校验。 */
+export const alertUpdateInputSchema = alertAddInputSchema.extend({
+  id: z.string().uuid()
+})
+
 /** 切换告警规则启用状态入参校验。 */
 export const alertToggleInputSchema = z.object({
   id: z.string().uuid(),
   enabled: z.boolean()
+})
+
+export const alertEventIdInputSchema = z.object({
+  id: z.string().uuid()
+})
+
+export const alertEventListInputSchema = z.object({
+  limit: z.number().int().positive().max(500).default(100)
 })
 
 // Settings

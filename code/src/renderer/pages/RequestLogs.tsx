@@ -14,7 +14,7 @@ import {
   buildRequestLogFilter,
   REQUEST_LOGS_EXPORT_LIMIT
 } from '../../shared/utils/request-log-filter'
-import type { UsageRecord, UsageSource } from '../../shared/types/usage'
+import type { TotalSpendSummary, UsageRecord, UsageSource } from '../../shared/types/usage'
 import type { ProviderManifest } from '../../shared/types/provider'
 import {
   readUsageAnalysisFilter,
@@ -35,7 +35,7 @@ const SEARCH_DEBOUNCE_MS = 400
 // 手写 CSV 构建:转义引号/逗号/换行,并在开头加 BOM 以便 Windows Excel 正确识别 UTF-8。
 function buildCsv(rows: UsageRecord[]): string {
   const header =
-    'time,provider,model,project,source,prompt_tokens,completion_tokens,cache_read_tokens,cache_creation_tokens,cost,currency,session_id'
+    'time,provider,model,project,source,prompt_tokens,completion_tokens,cache_read_tokens,cache_creation_tokens,cost,currency,cost_cny,cost_basis,pricing_entry_id,pricing_updated_at,session_id'
   const esc = (v: unknown): string => {
     if (v === null || v === undefined) return ''
     const s = String(v)
@@ -57,6 +57,10 @@ function buildCsv(rows: UsageRecord[]): string {
         esc(r.cacheCreationTokens ?? ''),
         esc(r.cost !== undefined ? r.cost.toFixed(6) : ''),
         esc(r.currency ?? ''),
+        esc(r.costCny !== undefined ? r.costCny.toFixed(6) : ''),
+        esc(r.costBasis),
+        esc(r.priceSnapshot?.pricingEntryId ?? ''),
+        esc(r.priceSnapshot?.pricingUpdatedAt ?? ''),
         esc(r.sessionId ?? '')
       ].join(',')
     )
@@ -86,13 +90,23 @@ export default function RequestLogs() {
   const persistedFilter = useMemo(() => readUsageAnalysisFilter(window.localStorage), [])
   const [providers, setProviders] = useState<ProviderManifest[]>([])
   const [logs, setLogs] = useState<UsageRecord[]>([])
+  const [spend, setSpend] = useState<TotalSpendSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [detail, setDetail] = useState<UsageRecord | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const init = useMemo(() => usageRangeToLocalDates(persistedFilter.range), [persistedFilter.range])
+  const init = useMemo(
+    () =>
+      usageRangeToLocalDates(
+        persistedFilter.range,
+        new Date(),
+        persistedFilter.customFrom,
+        persistedFilter.customTo
+      ),
+    [persistedFilter]
+  )
   const [providerFilter, setProviderFilter] = useState<string>('all')
   const [sourceFilter, setSourceFilter] = useState<UsageSource | 'all'>(persistedFilter.source)
   const [fromDate, setFromDate] = useState<string>(init.from)
@@ -125,12 +139,20 @@ export default function RequestLogs() {
         limit: PAGE_SIZE,
         offset: (targetPage - 1) * PAGE_SIZE
       })
-      const result = await window.api.usage.getLogsPage(filter)
+      const aggregateFilter = { ...filter }
+      delete aggregateFilter.limit
+      delete aggregateFilter.offset
+      const [result, totalSpend] = await Promise.all([
+        window.api.usage.getLogsPage(filter),
+        window.api.usage.getTotalSpend(aggregateFilter).catch(() => null)
+      ])
       setLogs(result.rows ?? [])
       setTotalCount(result.total ?? 0)
+      setSpend(totalSpend)
     } catch {
       setLogs([])
       setTotalCount(0)
+      setSpend(null)
     } finally {
       setLoading(false)
     }
@@ -180,6 +202,18 @@ export default function RequestLogs() {
     setPage(1)
     setCommittedSearch(search)
     setCommittedProjectSearch(projectSearch)
+  }
+
+  function updateCustomDates(nextFrom: string, nextTo: string) {
+    setFromDate(nextFrom)
+    setToDate(nextTo)
+    setPage(1)
+    writeUsageAnalysisFilter(window.localStorage, {
+      ...readUsageAnalysisFilter(window.localStorage),
+      range: 'custom',
+      customFrom: nextFrom,
+      customTo: nextTo
+    })
   }
 
   useEffect(() => {
@@ -237,6 +271,14 @@ export default function RequestLogs() {
     setProjectSearch('')
     setCommittedProjectSearch('')
     setPage(1)
+    writeUsageAnalysisFilter(window.localStorage, {
+      range: '30d',
+      source: 'all',
+      modelContains: '',
+      projectContains: '',
+      customFrom: '',
+      customTo: ''
+    })
   }
 
   /** 切换排序字段与方向 */
@@ -264,8 +306,8 @@ export default function RequestLogs() {
     )
     const sorted = [...filtered].sort((a, b) => {
       if (sortKey === 'cost') {
-        const av = a.cost ?? 0
-        const bv = b.cost ?? 0
+        const av = a.costCny ?? 0
+        const bv = b.costCny ?? 0
         return sortDesc ? bv - av : av - bv
       }
       // time
@@ -358,6 +400,11 @@ export default function RequestLogs() {
                 className="font-mono font-medium text-text-primary"
               />{' '}
               条
+              {spend ? (
+                <span className="ml-2 font-mono font-medium text-text-primary">
+                  · {fmtMoney(spend.cnyTotal, 'CNY')}
+                </span>
+              ) : null}
             </span>
             <button className="btn btn-outline btn-sm" onClick={handleReset}>
               <Icon name="fa-rotate-left" /> 重置
@@ -464,8 +511,7 @@ export default function RequestLogs() {
                 value={fromDate}
                 max={toDate}
                 onChange={(e) => {
-                  setFromDate(e.target.value)
-                  setPage(1)
+                  updateCustomDates(e.target.value, toDate)
                 }}
                 className="h-9 w-full rounded-md border border-border-light bg-bg-input px-3 py-1.5 text-[12.5px] text-text-primary focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-accent-dim"
               />
@@ -476,8 +522,7 @@ export default function RequestLogs() {
                 value={toDate}
                 min={fromDate}
                 onChange={(e) => {
-                  setToDate(e.target.value)
-                  setPage(1)
+                  updateCustomDates(fromDate, e.target.value)
                 }}
                 className="h-9 w-full rounded-md border border-border-light bg-bg-input px-3 py-1.5 text-[12.5px] text-text-primary focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-accent-dim"
               />
@@ -588,8 +633,18 @@ export default function RequestLogs() {
                     <td className="whitespace-nowrap px-3 py-3 text-right font-mono tabular-nums">
                       {r.cacheCreationTokens !== undefined ? fmtCount(r.cacheCreationTokens) : '—'}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular-nums">
-                      {r.cost !== undefined ? fmtMoney(r.cost, r.currency ?? 'CNY') : '—'}
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-right font-mono font-medium tabular-nums"
+                      title={costBasisDescription(r)}
+                    >
+                      <span className="block">
+                        {r.costCny !== undefined ? fmtMoney(r.costCny, 'CNY') : '—'}
+                      </span>
+                      <span className="block text-[10px] font-normal text-text-muted">
+                        {r.cost !== undefined && r.currency && r.currency !== 'CNY'
+                          ? `${fmtMoney(r.cost, r.currency)} · ${costBasisLabel(r)}`
+                          : costBasisLabel(r)}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -686,6 +741,18 @@ export default function RequestLogs() {
               k="Cost"
               v={detail.cost !== undefined ? fmtMoney(detail.cost, detail.currency ?? 'CNY') : '—'}
             />
+            <DetailRow
+              k="折算人民币"
+              v={detail.costCny !== undefined ? fmtMoney(detail.costCny, 'CNY') : '—'}
+            />
+            <DetailRow k="成本口径" v={costBasisDescription(detail)} />
+            {detail.priceSnapshot ? (
+              <DetailRow
+                k="价格快照"
+                v={`${detail.priceSnapshot.currency} · ${detail.priceSnapshot.pricingUpdatedAt ?? '版本时间未知'}`}
+                mono
+              />
+            ) : null}
           </MotionGroup>
           <div className="mt-4 flex items-center justify-between">
             <span className="text-[11.5px] text-text-muted">{copied ? '已复制' : 'JSON 快照'}</span>
@@ -746,6 +813,32 @@ function SourceFilterButton({
 /** 将内部来源枚举转换为用户可读中文 */
 function sourceLabel(source: UsageSource): string {
   return source === 'vendor-api' ? 'API 调用' : 'CLI 会话'
+}
+
+function costBasisLabel(record: UsageRecord): string {
+  switch (record.costBasis) {
+    case 'provider':
+      return '供应商实价'
+    case 'price-snapshot':
+      return '发生时价格'
+    case 'current-estimate':
+      return '当前估算'
+    default:
+      return '未计价'
+  }
+}
+
+function costBasisDescription(record: UsageRecord): string {
+  switch (record.costBasis) {
+    case 'provider':
+      return '供应商返回的发生时成本'
+    case 'price-snapshot':
+      return '按请求发生时保存的价格快照计算'
+    case 'current-estimate':
+      return '历史记录无价格快照，按当前价格配置估算'
+    default:
+      return '缺少可用价格，尚未计价'
+  }
 }
 
 /** 详情行:标签 + 值,可选等宽字体 */

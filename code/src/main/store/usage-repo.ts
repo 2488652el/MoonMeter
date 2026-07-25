@@ -12,6 +12,7 @@ import type {
   KeySpendSummary,
   ModelSpendAggregate,
   UsageAnalysisFilter,
+  UsageCostBasis,
   UsageLogFilter
 } from '@shared/types/usage'
 import { normalizeBillingScope, resolveBillingScope } from '@shared/pricing-scope'
@@ -42,6 +43,14 @@ interface DbRow {
   total_tokens: number | null
   cost: number | null
   currency: string | null
+  cost_basis?: UsageCostBasis
+  pricing_entry_id?: number | null
+  pricing_updated_at?: string | null
+  snapshot_prompt_price?: number | null
+  snapshot_completion_price?: number | null
+  snapshot_cache_read_price?: number | null
+  snapshot_cache_creation_price?: number | null
+  snapshot_currency?: string | null
   source: string
   upstream_dimension: string
   session_id: string | null
@@ -61,6 +70,8 @@ interface SpendGroupRow {
   cct: number
   n: number
   stored_cost?: number | null | undefined
+  currency?: string | null | undefined
+  cost_basis?: UsageCostBasis | undefined
 }
 
 /** 待定价的用量分组(含 token 数量与已存储成本、首选币种)。 */
@@ -74,6 +85,7 @@ interface PricedUsageGroup {
   storedCost?: number | null | undefined
   preferredCurrency?: string | null | undefined
   billingScope?: string | null | undefined
+  costBasis?: UsageCostBasis | undefined
 }
 
 type UsageWhereFilter = Pick<
@@ -143,7 +155,17 @@ function priceUsageGroup(group: PricedUsageGroup): {
   cost: number | null
   currency: string | null
   priced: boolean
+  basis: UsageCostBasis
 } {
+  if (group.costBasis === 'provider' || group.costBasis === 'price-snapshot') {
+    return {
+      cost: group.storedCost ?? null,
+      currency: group.preferredCurrency ?? null,
+      priced: group.storedCost !== null && group.storedCost !== undefined,
+      basis: group.costBasis
+    }
+  }
+
   const pricing = findPricingForUsage(
     group.providerId,
     group.model,
@@ -154,7 +176,11 @@ function priceUsageGroup(group: PricedUsageGroup): {
     return {
       cost: group.storedCost ?? null,
       currency: group.preferredCurrency ?? null,
-      priced: false
+      priced: false,
+      basis:
+        group.storedCost !== null && group.storedCost !== undefined
+          ? 'current-estimate'
+          : 'unpriced'
     }
   }
   return {
@@ -169,7 +195,8 @@ function priceUsageGroup(group: PricedUsageGroup): {
       pricing.cacheCreationPricePerMtok
     ),
     currency: pricing.currency,
-    priced: true
+    priced: true,
+    basis: 'current-estimate'
   }
 }
 
@@ -196,11 +223,13 @@ function rowToRecord(r: DbRow, options: { priceFromConfig?: boolean } = {}): Usa
         cacheReadTokens: r.cache_read_tokens ?? 0,
         cacheCreationTokens: r.cache_creation_tokens ?? 0,
         storedCost: r.cost,
-        preferredCurrency: r.currency
+        preferredCurrency: r.currency,
+        costBasis: r.cost_basis ?? 'current-estimate'
       })
     : null
   const cost = priced?.cost ?? r.cost
   const currency = priced?.currency ?? r.currency
+  const costBasis = priced?.basis ?? r.cost_basis ?? 'current-estimate'
   return {
     providerId: r.provider_id,
     billingScope: normalizeBillingScope(r.billing_scope),
@@ -218,10 +247,134 @@ function rowToRecord(r: DbRow, options: { priceFromConfig?: boolean } = {}): Usa
     ...(r.total_tokens !== null ? { totalTokens: r.total_tokens } : {}),
     ...(cost !== null ? { cost } : {}),
     ...(currency !== null ? { currency } : {}),
+    costBasis,
+    ...(r.pricing_updated_at &&
+    r.snapshot_prompt_price !== null &&
+    r.snapshot_prompt_price !== undefined &&
+    r.snapshot_completion_price !== null &&
+    r.snapshot_completion_price !== undefined &&
+    r.snapshot_currency
+      ? {
+          priceSnapshot: {
+            ...(r.pricing_entry_id !== null && r.pricing_entry_id !== undefined
+              ? { pricingEntryId: r.pricing_entry_id }
+              : {}),
+            pricingUpdatedAt: r.pricing_updated_at,
+            promptPricePerMtok: r.snapshot_prompt_price,
+            completionPricePerMtok: r.snapshot_completion_price,
+            ...(r.snapshot_cache_read_price !== null && r.snapshot_cache_read_price !== undefined
+              ? { cacheReadPricePerMtok: r.snapshot_cache_read_price }
+              : {}),
+            ...(r.snapshot_cache_creation_price !== null &&
+            r.snapshot_cache_creation_price !== undefined
+              ? { cacheCreationPricePerMtok: r.snapshot_cache_creation_price }
+              : {}),
+            currency: r.snapshot_currency
+          }
+        }
+      : {}),
     ...(r.upstream_dimension ? { upstreamDimension: r.upstream_dimension } : {}),
     ...(r.session_id !== null ? { sessionId: r.session_id } : {}),
     ...(r.message_id !== null ? { messageId: r.message_id } : {}),
     ...(r.agent_label !== null ? { agentLabel: r.agent_label } : {})
+  }
+}
+
+interface StoredCostSnapshotRow {
+  cost_basis?: UsageCostBasis
+  pricing_entry_id?: number | null
+  pricing_updated_at?: string | null
+  snapshot_prompt_price?: number | null
+  snapshot_completion_price?: number | null
+  snapshot_cache_read_price?: number | null
+  snapshot_cache_creation_price?: number | null
+  snapshot_currency?: string | null
+}
+
+function prepareUsageCost(record: UsageRecord, existing?: StoredCostSnapshotRow): UsageRecord {
+  if (
+    existing?.cost_basis === 'price-snapshot' &&
+    existing.pricing_updated_at &&
+    existing.snapshot_prompt_price !== null &&
+    existing.snapshot_prompt_price !== undefined &&
+    existing.snapshot_completion_price !== null &&
+    existing.snapshot_completion_price !== undefined &&
+    existing.snapshot_currency &&
+    record.costBasis !== 'provider'
+  ) {
+    return {
+      ...record,
+      cost: calcCost(
+        record.promptTokens,
+        record.completionTokens,
+        existing.snapshot_prompt_price,
+        existing.snapshot_completion_price,
+        record.cacheReadTokens,
+        record.cacheCreationTokens,
+        existing.snapshot_cache_read_price ?? undefined,
+        existing.snapshot_cache_creation_price ?? undefined
+      ),
+      currency: existing.snapshot_currency,
+      costBasis: 'price-snapshot',
+      priceSnapshot: {
+        ...(existing.pricing_entry_id !== null && existing.pricing_entry_id !== undefined
+          ? { pricingEntryId: existing.pricing_entry_id }
+          : {}),
+        pricingUpdatedAt: existing.pricing_updated_at,
+        promptPricePerMtok: existing.snapshot_prompt_price,
+        completionPricePerMtok: existing.snapshot_completion_price,
+        ...(existing.snapshot_cache_read_price !== null &&
+        existing.snapshot_cache_read_price !== undefined
+          ? { cacheReadPricePerMtok: existing.snapshot_cache_read_price }
+          : {}),
+        ...(existing.snapshot_cache_creation_price !== null &&
+        existing.snapshot_cache_creation_price !== undefined
+          ? { cacheCreationPricePerMtok: existing.snapshot_cache_creation_price }
+          : {}),
+        currency: existing.snapshot_currency
+      }
+    }
+  }
+
+  if (record.costBasis) return record
+  if (record.cost !== undefined) return { ...record, costBasis: 'provider' }
+
+  const pricing = findPricingForUsage(
+    record.providerId,
+    record.model,
+    record.currency,
+    normalizeBillingScope(record.billingScope)
+  )
+  if (!pricing) return { ...record, costBasis: 'unpriced' }
+
+  const pricingUpdatedAt = pricing.updatedAt ?? record.capturedAt
+  return {
+    ...record,
+    cost: calcCost(
+      record.promptTokens,
+      record.completionTokens,
+      pricing.promptPricePerMtok,
+      pricing.completionPricePerMtok,
+      record.cacheReadTokens,
+      record.cacheCreationTokens,
+      pricing.cacheReadPricePerMtok,
+      pricing.cacheCreationPricePerMtok
+    ),
+    currency: pricing.currency,
+    costBasis: 'price-snapshot',
+    priceSnapshot: {
+      ...(pricing.id !== undefined ? { pricingEntryId: pricing.id } : {}),
+      pricingUpdatedAt,
+      promptPricePerMtok: pricing.promptPricePerMtok,
+      completionPricePerMtok: pricing.completionPricePerMtok,
+      ...(pricing.cacheReadPricePerMtok !== undefined
+        ? { cacheReadPricePerMtok: pricing.cacheReadPricePerMtok }
+        : {}),
+      ...(pricing.cacheCreationPricePerMtok !== undefined
+        ? { cacheCreationPricePerMtok: pricing.cacheCreationPricePerMtok }
+        : {}),
+      currency: pricing.currency
+    }
   }
 }
 
@@ -243,16 +396,20 @@ export function insertUsage(records: UsageRecord[]): {
       api_key_id, provider_id, billing_scope, model, period_start, period_end,
       prompt_tokens, completion_tokens, cache_creation_tokens, cache_read_tokens,
       total_tokens, cost, currency, source, upstream_dimension, session_id,
-      message_id, agent_label, captured_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      message_id, agent_label, captured_at, cost_basis, pricing_entry_id,
+      pricing_updated_at, snapshot_prompt_price, snapshot_completion_price,
+      snapshot_cache_read_price, snapshot_cache_creation_price, snapshot_currency
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   const vendorStmt = db.prepare(`
     INSERT INTO usage_records (
       api_key_id, provider_id, billing_scope, model, period_start, period_end,
       prompt_tokens, completion_tokens, cache_creation_tokens, cache_read_tokens,
       total_tokens, cost, currency, source, upstream_dimension, session_id,
-      message_id, agent_label, captured_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      message_id, agent_label, captured_at, cost_basis, pricing_entry_id,
+      pricing_updated_at, snapshot_prompt_price, snapshot_completion_price,
+      snapshot_cache_read_price, snapshot_cache_creation_price, snapshot_currency
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(
       source, COALESCE(api_key_id, ''), provider_id, billing_scope, model,
       COALESCE(period_start, ''), upstream_dimension
@@ -265,10 +422,21 @@ export function insertUsage(records: UsageRecord[]): {
       total_tokens = excluded.total_tokens,
       cost = excluded.cost,
       currency = excluded.currency,
+      cost_basis = excluded.cost_basis,
+      pricing_entry_id = excluded.pricing_entry_id,
+      pricing_updated_at = excluded.pricing_updated_at,
+      snapshot_prompt_price = excluded.snapshot_prompt_price,
+      snapshot_completion_price = excluded.snapshot_completion_price,
+      snapshot_cache_read_price = excluded.snapshot_cache_read_price,
+      snapshot_cache_creation_price = excluded.snapshot_cache_creation_price,
+      snapshot_currency = excluded.snapshot_currency,
       captured_at = excluded.captured_at
   `)
   const vendorExists = db.prepare(`
-    SELECT 1 FROM usage_records
+    SELECT cost_basis, pricing_entry_id, pricing_updated_at,
+      snapshot_prompt_price, snapshot_completion_price,
+      snapshot_cache_read_price, snapshot_cache_creation_price, snapshot_currency
+    FROM usage_records
     WHERE source = 'vendor-api' AND COALESCE(api_key_id, '') = COALESCE(?, '')
       AND provider_id = ? AND billing_scope = ? AND model = ?
       AND COALESCE(period_start, '') = COALESCE(?, '') AND upstream_dimension = ?
@@ -277,7 +445,20 @@ export function insertUsage(records: UsageRecord[]): {
   let updated = 0
   let skipped = 0
   const tx = db.transaction((rows: UsageRecord[]) => {
-    for (const r of rows) {
+    for (const input of rows) {
+      const inputBillingScope = normalizeBillingScope(input.billingScope)
+      const existed =
+        input.source === 'vendor-api'
+          ? (vendorExists.get(
+              input.apiKeyId ?? null,
+              input.providerId,
+              inputBillingScope,
+              input.model,
+              input.periodStart ?? null,
+              input.upstreamDimension ?? ''
+            ) as StoredCostSnapshotRow | undefined)
+          : undefined
+      const r = prepareUsageCost(input, existed)
       const billingScope = normalizeBillingScope(r.billingScope)
       const params = [
         r.apiKeyId ?? null,
@@ -298,17 +479,17 @@ export function insertUsage(records: UsageRecord[]): {
         r.sessionId ?? null,
         r.messageId ?? null,
         r.agentLabel ?? null,
-        r.capturedAt
+        r.capturedAt,
+        r.costBasis ?? 'unpriced',
+        r.priceSnapshot?.pricingEntryId ?? null,
+        r.priceSnapshot?.pricingUpdatedAt ?? null,
+        r.priceSnapshot?.promptPricePerMtok ?? null,
+        r.priceSnapshot?.completionPricePerMtok ?? null,
+        r.priceSnapshot?.cacheReadPricePerMtok ?? null,
+        r.priceSnapshot?.cacheCreationPricePerMtok ?? null,
+        r.priceSnapshot?.currency ?? null
       ]
       if (r.source === 'vendor-api') {
-        const existed = vendorExists.get(
-          r.apiKeyId ?? null,
-          r.providerId,
-          billingScope,
-          r.model,
-          r.periodStart ?? null,
-          r.upstreamDimension ?? ''
-        )
         vendorStmt.run(...params)
         if (existed) updated++
         else inserted++
@@ -376,12 +557,25 @@ export function queryUsagePage(filter: UsageLogFilter): UsageLogPage {
  */
 export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): {
   totalCost: number
+  currency: string
+  byCurrency: Array<{ currency: string; amount: number }>
   totalInputTokens: number
   totalOutputTokens: number
   totalCacheReadTokens: number
   totalRequests: number
-  providers: Array<{ providerId: string; cost: number; tokens: number; pct: number }>
-  daily: Array<{ date: string; cost: number; tokens: number }>
+  providers: Array<{
+    providerId: string
+    cost: number
+    byCurrency: Array<{ currency: string; amount: number }>
+    tokens: number
+    pct: number
+  }>
+  daily: Array<{
+    date: string
+    cost: number
+    byCurrency: Array<{ currency: string; amount: number }>
+    tokens: number
+  }>
 } {
   const db = getDb()
   const { where, args } = buildUsageWhere(normalizeAnalysisFilter(filter))
@@ -407,21 +601,24 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
   const costGroups = db
     .prepare(
       `
-    SELECT provider_id, billing_scope, model,
+    SELECT provider_id, billing_scope, model, currency, cost_basis,
            COALESCE(SUM(prompt_tokens), 0) AS pt,
            COALESCE(SUM(completion_tokens), 0) AS ct,
            COALESCE(SUM(cache_read_tokens), 0) AS crt,
            COALESCE(SUM(cache_creation_tokens), 0) AS cct,
-           COALESCE(SUM(cost), 0) AS stored_cost,
+           SUM(cost) AS stored_cost,
            COUNT(*) AS n
     FROM usage_records ${where}
-    GROUP BY provider_id, billing_scope, model
+    GROUP BY provider_id, billing_scope, model, currency, cost_basis
   `
     )
     .all(...args) as SpendGroupRow[]
 
-  const providerTotals = new Map<string, { cost: number; tokens: number }>()
-  let totalCost = 0
+  const providerTotals = new Map<
+    string,
+    { cost: number; byCurrency: Map<string, number>; tokens: number }
+  >()
+  const totalByCurrency = new Map<string, number>()
   for (const g of costGroups) {
     const priced = priceUsageGroup({
       providerId: g.provider_id,
@@ -431,22 +628,38 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
       completionTokens: g.ct,
       cacheReadTokens: g.crt,
       cacheCreationTokens: g.cct,
-      storedCost: g.stored_cost
+      storedCost: g.stored_cost,
+      preferredCurrency: g.currency,
+      costBasis: g.cost_basis
     })
     const cost = priced.cost ?? 0
-    totalCost += cost
-    const cur = providerTotals.get(g.provider_id) ?? { cost: 0, tokens: 0 }
+    if (priced.currency && priced.cost !== null) {
+      totalByCurrency.set(priced.currency, (totalByCurrency.get(priced.currency) ?? 0) + cost)
+    }
+    const cur = providerTotals.get(g.provider_id) ?? {
+      cost: 0,
+      byCurrency: new Map<string, number>(),
+      tokens: 0
+    }
     cur.cost += cost
+    if (priced.currency && priced.cost !== null) {
+      cur.byCurrency.set(priced.currency, (cur.byCurrency.get(priced.currency) ?? 0) + cost)
+    }
     cur.tokens += g.pt + g.ct
     providerTotals.set(g.provider_id, cur)
   }
 
+  const primaryTotal = primaryCurrencyAmount(totalByCurrency)
   const providers = [...providerTotals.entries()]
     .map(([providerId, p]) => ({
       providerId,
       cost: p.cost,
+      byCurrency: [...p.byCurrency.entries()].map(([currency, amount]) => ({
+        currency,
+        amount
+      })),
       tokens: p.tokens,
-      pct: computeProviderPct(p.cost, totalCost)
+      pct: computeProviderPct(p.cost, primaryTotal.total)
     }))
     .sort((a, b) => b.cost - a.cost)
 
@@ -457,18 +670,23 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
            provider_id,
            billing_scope,
            model,
+           currency,
+           cost_basis,
            COALESCE(SUM(prompt_tokens), 0) AS pt,
            COALESCE(SUM(completion_tokens), 0) AS ct,
            COALESCE(SUM(cache_read_tokens), 0) AS crt,
            COALESCE(SUM(cache_creation_tokens), 0) AS cct,
-           COALESCE(SUM(cost), 0) AS stored_cost
+           SUM(cost) AS stored_cost
     FROM usage_records ${where}
-    GROUP BY date, provider_id, billing_scope, model ORDER BY date ASC
+    GROUP BY date, provider_id, billing_scope, model, currency, cost_basis ORDER BY date ASC
   `
     )
     .all(...args) as Array<SpendGroupRow & { date: string }>
 
-  const dailyMap = new Map<string, { date: string; cost: number; tokens: number }>()
+  const dailyMap = new Map<
+    string,
+    { date: string; cost: number; byCurrency: Map<string, number>; tokens: number }
+  >()
   for (const g of dailyGroups) {
     const priced = priceUsageGroup({
       providerId: g.provider_id,
@@ -478,18 +696,43 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
       completionTokens: g.ct,
       cacheReadTokens: g.crt,
       cacheCreationTokens: g.cct,
-      storedCost: g.stored_cost
+      storedCost: g.stored_cost,
+      preferredCurrency: g.currency,
+      costBasis: g.cost_basis
     })
-    const cur = dailyMap.get(g.date) ?? { date: g.date, cost: 0, tokens: 0 }
+    const cur = dailyMap.get(g.date) ?? {
+      date: g.date,
+      cost: 0,
+      byCurrency: new Map<string, number>(),
+      tokens: 0
+    }
     cur.cost += priced.cost ?? 0
+    if (priced.currency && priced.cost !== null) {
+      cur.byCurrency.set(priced.currency, (cur.byCurrency.get(priced.currency) ?? 0) + priced.cost)
+    }
     cur.tokens += g.pt + g.ct
     dailyMap.set(g.date, cur)
   }
 
-  const daily = [...dailyMap.values()].sort((a, b) => a.date.localeCompare(b.date))
+  const daily = [...dailyMap.values()]
+    .map((row) => ({
+      date: row.date,
+      cost: row.cost,
+      byCurrency: [...row.byCurrency.entries()].map(([currency, amount]) => ({
+        currency,
+        amount
+      })),
+      tokens: row.tokens
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   return {
-    totalCost,
+    totalCost: primaryTotal.total,
+    currency: primaryTotal.currency,
+    byCurrency: [...totalByCurrency.entries()].map(([currency, amount]) => ({
+      currency,
+      amount
+    })),
     totalInputTokens: totals.totalInputTokens,
     totalOutputTokens: totals.totalOutputTokens,
     totalCacheReadTokens: totals.totalCacheReadTokens,
@@ -500,12 +743,8 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
 }
 
 /**
- * On-demand total spend computed from raw request logs × current pricing config
- * (rather than the stored `cost` column, which is 0 when pricing wasn't applied
- * at ingest time). Groups usage by (provider, model), prices each group via
- * findPricing + calcCost, and aggregates by currency. The "primary" currency is
- * whichever accumulates the largest amount (default 'CNY' when nothing priced).
- * 按原始用量×当前定价实时计算总消费(而非入库时存储的 cost 列),按币种汇总;主币种为金额最大者。
+ * New rows use immutable provider/snapshot costs. Only legacy or previously
+ * unpriced rows are evaluated with the current catalog and counted as estimates.
  */
 export function computeTotalSpend(filter: number | UsageAnalysisFilter = 30): TotalSpendSummary {
   const db = getDb()
@@ -514,14 +753,15 @@ export function computeTotalSpend(filter: number | UsageAnalysisFilter = 30): To
   const groups = db
     .prepare(
       `
-    SELECT provider_id, billing_scope, model,
+    SELECT provider_id, billing_scope, model, currency, cost_basis,
            COALESCE(SUM(prompt_tokens), 0) AS pt,
            COALESCE(SUM(completion_tokens), 0) AS ct,
            COALESCE(SUM(cache_read_tokens), 0) AS crt,
            COALESCE(SUM(cache_creation_tokens), 0) AS cct,
+           SUM(cost) AS stored_cost,
            COUNT(*) AS n
     FROM usage_records ${where}
-    GROUP BY provider_id, billing_scope, model
+    GROUP BY provider_id, billing_scope, model, currency, cost_basis
   `
     )
     .all(...args) as Array<{
@@ -533,32 +773,42 @@ export function computeTotalSpend(filter: number | UsageAnalysisFilter = 30): To
     crt: number
     cct: number
     n: number
+    currency: string | null
+    cost_basis: UsageCostBasis
+    stored_cost: number
   }>
 
   const byCurrency = new Map<string, number>()
   let pricedRequests = 0
+  let providerCostRequests = 0
+  let snapshotCostRequests = 0
+  let estimatedRequests = 0
   let unpricedRequests = 0
   let totalRequests = 0
 
   for (const g of groups) {
     totalRequests += g.n
-    const p = findPricingForUsage(g.provider_id, g.model, undefined, g.billing_scope)
-    if (!p) {
+    const priced = priceUsageGroup({
+      providerId: g.provider_id,
+      billingScope: g.billing_scope,
+      model: g.model,
+      promptTokens: g.pt,
+      completionTokens: g.ct,
+      cacheReadTokens: g.crt,
+      cacheCreationTokens: g.cct,
+      storedCost: g.stored_cost,
+      preferredCurrency: g.currency,
+      costBasis: g.cost_basis
+    })
+    if (priced.cost === null || !priced.currency) {
       unpricedRequests += g.n
       continue
     }
-    const cost = calcCost(
-      g.pt,
-      g.ct,
-      p.promptPricePerMtok,
-      p.completionPricePerMtok,
-      g.crt,
-      g.cct,
-      p.cacheReadPricePerMtok,
-      p.cacheCreationPricePerMtok
-    )
-    byCurrency.set(p.currency, (byCurrency.get(p.currency) ?? 0) + cost)
+    byCurrency.set(priced.currency, (byCurrency.get(priced.currency) ?? 0) + priced.cost)
     pricedRequests += g.n
+    if (priced.basis === 'provider') providerCostRequests += g.n
+    else if (priced.basis === 'price-snapshot') snapshotCostRequests += g.n
+    else estimatedRequests += g.n
   }
 
   const sorted = [...byCurrency.entries()]
@@ -573,6 +823,9 @@ export function computeTotalSpend(filter: number | UsageAnalysisFilter = 30): To
     byCurrency: sorted,
     ...conversion,
     pricedRequests,
+    providerCostRequests,
+    snapshotCostRequests,
+    estimatedRequests,
     unpricedRequests,
     totalRequests
   }
@@ -583,35 +836,23 @@ export function computeTotalSpend(filter: number | UsageAnalysisFilter = 30): To
  * @param filter 时间范围过滤(可选 fromISO/toISO)
  * @returns 按总成本降序排列的模型消费聚合数组
  */
-export function computeModelSpend(
-  filter: { fromISO?: string; toISO?: string } = {}
-): ModelSpendAggregate[] {
+export function computeModelSpend(filter: UsageAnalysisFilter = {}): ModelSpendAggregate[] {
   const db = getDb()
-  const clauses: string[] = []
-  const args: unknown[] = []
-  if (filter.fromISO) {
-    clauses.push('captured_at >= ?')
-    args.push(filter.fromISO)
-  }
-  if (filter.toISO) {
-    clauses.push('captured_at <= ?')
-    args.push(filter.toISO)
-  }
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+  const { where, args } = buildUsageWhere(filter)
 
   const groups = db
     .prepare(
       `
-    SELECT provider_id, billing_scope, model,
+    SELECT provider_id, billing_scope, model, currency, cost_basis,
            COALESCE(SUM(prompt_tokens), 0) AS pt,
            COALESCE(SUM(completion_tokens), 0) AS ct,
            COALESCE(SUM(cache_read_tokens), 0) AS crt,
            COALESCE(SUM(cache_creation_tokens), 0) AS cct,
            COALESCE(SUM(total_tokens), 0) AS tt,
-           COALESCE(SUM(cost), 0) AS stored_cost,
+           SUM(cost) AS stored_cost,
            COUNT(*) AS n
     FROM usage_records ${where}
-    GROUP BY provider_id, billing_scope, model
+    GROUP BY provider_id, billing_scope, model, currency, cost_basis
   `
     )
     .all(...args) as Array<SpendGroupRow & { tt: number }>
@@ -662,7 +903,9 @@ export function computeModelSpend(
       completionTokens: g.ct,
       cacheReadTokens: g.crt,
       cacheCreationTokens: g.cct,
-      storedCost: g.stored_cost
+      storedCost: g.stored_cost,
+      preferredCurrency: g.currency,
+      costBasis: g.cost_basis
     })
     if (priced.priced && priced.currency) {
       row.byCurrency.set(
@@ -729,15 +972,16 @@ export function computeSpendByKey(apiKeyId: string, days = 30): KeySpendSummary 
   let groups = db
     .prepare(
       `
-    SELECT provider_id, billing_scope, model,
+    SELECT provider_id, billing_scope, model, currency, cost_basis,
            COALESCE(SUM(prompt_tokens), 0) AS pt,
            COALESCE(SUM(completion_tokens), 0) AS ct,
            COALESCE(SUM(cache_read_tokens), 0) AS crt,
            COALESCE(SUM(cache_creation_tokens), 0) AS cct,
+           SUM(cost) AS stored_cost,
            COUNT(*) AS n
     FROM usage_records
     WHERE api_key_id = ? AND captured_at >= ?
-    GROUP BY provider_id, billing_scope, model
+    GROUP BY provider_id, billing_scope, model, currency, cost_basis
   `
     )
     .all(apiKeyId, since) as SpendGroupRow[]
@@ -755,10 +999,12 @@ export function computeSpendByKey(apiKeyId: string, days = 30): KeySpendSummary 
         .prepare(
           `
       SELECT ? AS provider_id, ? AS billing_scope, model,
+             NULL AS currency, 'current-estimate' AS cost_basis,
              COALESCE(SUM(prompt_tokens), 0) AS pt,
              COALESCE(SUM(completion_tokens), 0) AS ct,
              COALESCE(SUM(cache_read_tokens), 0) AS crt,
              COALESCE(SUM(cache_creation_tokens), 0) AS cct,
+             NULL AS stored_cost,
              COUNT(*) AS n
       FROM usage_records
       WHERE api_key_id IS NULL
@@ -796,22 +1042,23 @@ export function computeSpendByKey(apiKeyId: string, days = 30): KeySpendSummary 
   for (const g of groups) {
     totalRequests += g.n
     modelSet.add(g.model)
-    const p = findPricingForUsage(g.provider_id, g.model, undefined, g.billing_scope)
-    if (!p) {
+    const priced = priceUsageGroup({
+      providerId: g.provider_id,
+      billingScope: g.billing_scope,
+      model: g.model,
+      promptTokens: g.pt,
+      completionTokens: g.ct,
+      cacheReadTokens: g.crt,
+      cacheCreationTokens: g.cct,
+      storedCost: g.stored_cost,
+      preferredCurrency: g.currency,
+      costBasis: g.cost_basis
+    })
+    if (priced.cost === null || !priced.currency) {
       unpricedRequests += g.n
       continue
     }
-    const cost = calcCost(
-      g.pt,
-      g.ct,
-      p.promptPricePerMtok,
-      p.completionPricePerMtok,
-      g.crt,
-      g.cct,
-      p.cacheReadPricePerMtok,
-      p.cacheCreationPricePerMtok
-    )
-    byCurrency.set(p.currency, (byCurrency.get(p.currency) ?? 0) + cost)
+    byCurrency.set(priced.currency, (byCurrency.get(priced.currency) ?? 0) + priced.cost)
     pricedRequests += g.n
   }
 

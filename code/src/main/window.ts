@@ -11,7 +11,7 @@ import { openAllowedExternalUrl } from './platform/external-links'
  * 开发环境加载 Vite dev server,生产环境加载打包后的 HTML 文件;
  * 窗口内新窗口打开请求会转交系统浏览器处理。
  */
-export function createWindow(): void {
+export function createWindow(): BrowserWindow {
   const isDev = !app.isPackaged
   const devIconPath = join(app.getAppPath(), 'design', 'assets', 'icon.png')
 
@@ -54,4 +54,5 @@ export function createWindow(): void {
     const indexPath = join(app.getAppPath(), 'demo', 'out', 'renderer', 'index.html')
     void win.loadFile(indexPath)
   }
+  return win
 }

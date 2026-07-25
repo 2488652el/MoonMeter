@@ -16,6 +16,9 @@ function spend(overrides: Partial<TotalSpendSummary> = {}): TotalSpendSummary {
     exchangeRateSource: 'none',
     unconvertedCurrencies: [],
     pricedRequests: 8,
+    providerCostRequests: 0,
+    snapshotCostRequests: 0,
+    estimatedRequests: 8,
     unpricedRequests: 2,
     totalRequests: 10,
     ...overrides

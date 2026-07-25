@@ -5,7 +5,7 @@
   <p>面向多模型开发者的本地优先 LLM 用量、余额与成本工作台。</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.2.4-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.2.52-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -36,15 +36,15 @@
 
 | 能力          | 说明                                                         |
 | ------------- | ------------------------------------------------------------ |
-| 使用统计      | 汇总 API 请求与本地 CLI 会话，展示输入、输出、缓存与费用趋势 |
+| 使用统计      | 汇总 API 请求与本地 CLI 会话，支持本月至今与自定义账期       |
 | 项目分析      | 按项目查看 Token、模型构成、活跃日期和折算后的统一成本       |
 | Provider 汇总 | 聚合不同服务商的请求量、Token、费用与模型分布                |
 | 模型对比      | 对比费用排名、Provider、Token 构成、单次均值与计价覆盖       |
 | API Key 管理  | 使用 Electron `safeStorage` 本地加密，界面只显示 Key 尾号    |
 | 余额与套餐    | 查询 API 余额、Coding Plan、Token 包、组织用量及聚合网关额度 |
-| 请求日志      | 筛选、分页、检查并导出请求级 CSV，支持 API 与本地会话来源    |
+| 请求日志      | 区分发生时成本与旧记录当前估算，并导出请求级价格口径         |
 | 模型价格      | 搜索和筛选官方或自定义价格，支持币种换算、范围与变更审核     |
-| 用量告警      | 按余额、剩余比例或消耗状态配置提醒规则                       |
+| 用量告警      | 原生系统通知、事件历史、已读状态与恢复后再次触发             |
 | 多设备同步    | 可选同步设置、价格和余额快照，并支持本地备份及自托管服务     |
 
 ## 月光纸感界面
@@ -64,7 +64,7 @@ MoonMeter 采用米白纸面、黑白对比、发丝线和克制金色数据强�
 - API Key 由 Electron 主进程使用系统 `safeStorage` 加密，Renderer 不接触明文凭据。
 - Renderer 保持沙箱隔离，不能访问 Node.js、文件系统、SQLite 或原始 IPC。
 - 所有 Renderer → Main 输入均通过共享 schema 校验。
-- Claude Code 与 Codex CLI 日志仅做只读增量解析。
+- Claude Code、Codex CLI 与 Kimi Code 日志仅做只读增量解析。
 - 默认不发送遥测；云端同步为可选功能，可使用自己的服务器。
 - SQLite 数据库位于 Electron 用户数据目录，不会写进安装目录。
 
@@ -100,13 +100,13 @@ npm run build
 ### Windows 打包
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.2.4" --model "release"
+npm run dist:win -- --change "MoonMeter-1.2.52" --model "release"
 ```
 
 输出目录：
 
 ```text
-demo/moonmeter-1.2.4-MoonMeter-1.2.4-release/
+demo/moonmeter-1.2.52-MoonMeter-1.2.52-release/
 ```
 
 macOS 可使用 `npm run dist:mac:x64`、`npm run dist:mac:arm64` 或 `npm run dist:mac`。正式构建与历史版本请前往 [GitHub Releases](https://github.com/2488652el/MoonMeter/releases)。
@@ -119,6 +119,7 @@ macOS 可使用 `npm run dist:mac:x64`、`npm run dist:mac:arm64` 或 `npm run d
 
 - Claude Code：读取用户目录下的项目 JSONL 会话。
 - Codex CLI：读取按日期组织的本地 session JSONL。
+- Kimi Code：读取本地会话 JSONL，并按消息增量入库。
 - 日志按增量解析并去重，不修改原始文件。
 
 ## 数据与升级兼容
@@ -171,4 +172,4 @@ Electron 31 · React 19 · TypeScript · Vite · Tailwind CSS · Recharts · Zus
 
 ## 版本
 
-当前源码版本：**MoonMeter 1.2.4**。本版升级首页核心指标布局，并新增可跨首页与请求日志复用的来源、模型、项目/Agent 统一筛选。详见 [CHANGELOG.md](./CHANGELOG.md)。
+当前源码版本：**MoonMeter 1.2.52**。本版加入原生告警闭环、请求发生时价格快照，以及跨首页、Provider、模型和日志复用的本月至今/自定义账期筛选。详见 [CHANGELOG.md](./CHANGELOG.md)。

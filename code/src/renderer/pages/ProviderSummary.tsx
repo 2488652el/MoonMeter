@@ -4,7 +4,7 @@
  */
 import { Icon } from '../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CartesianGrid,
   Line,
@@ -28,6 +28,11 @@ import {
   topModelsForProvider
 } from '../../shared/utils/provider-aggregation'
 import type { DashboardSummary, ModelSpendAggregate, UsageRecord } from '../../shared/types/usage'
+import {
+  readUsageAnalysisFilter,
+  usageAnalysisFilterToQuery,
+  usageRangeLabel
+} from '../../shared/utils/usage-analysis-filter'
 
 /** 8-color palette — derived from tailwind status colors. */
 // 供应商配色:8 色调色板,源自 tailwind 状态色。
@@ -44,15 +49,6 @@ const PROVIDER_PALETTE = [
 
 /** 标签页类型:按供应商 / 按模型 / 按费用趋势 */
 type TabKey = 'provider' | 'model' | 'trend'
-/** 时间范围类型 */
-type RangeKey = 'month' | 'week' | 'today'
-
-/** 时间范围选项:key、显示文案、对应天数(today 为特殊值) */
-const RANGE_OPTIONS: { key: RangeKey; label: string; days: number | 'today' }[] = [
-  { key: 'month', label: '本月', days: 30 },
-  { key: 'week', label: '本周', days: 7 },
-  { key: 'today', label: '今日', days: 'today' }
-]
 
 /** 标签页定义列表 */
 const TAB_DEFS: TabDef<TabKey>[] = [
@@ -243,39 +239,18 @@ function DailyCostLineChart({
   )
 }
 
-/** date-range radio filter — defaults to "本月". */
-// 时间范围单选筛选器:本月/本周/今日。
-function RangeFilter({ value, onChange }: { value: RangeKey; onChange: (v: RangeKey) => void }) {
-  return (
-    <div className="inline-flex items-center border border-border-light rounded-md overflow-hidden text-[12.5px]">
-      {RANGE_OPTIONS.map((opt) => {
-        const selected = value === opt.key
-        return (
-          <button
-            key={opt.key}
-            onClick={() => onChange(opt.key)}
-            className={
-              selected
-                ? 'px-3 py-1.5 bg-accent-dim text-accent-text font-medium'
-                : 'px-3 py-1.5 text-text-muted hover:bg-bg-base'
-            }
-          >
-            {opt.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 /**
  * 供应商汇总页面组件。
  * 根据时间范围拉取仪表盘、日志与模型消费数据,按标签页渲染不同视图。
  */
 export default function ProviderSummary() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const requestedProvider = searchParams.get('provider')
   const [tab, setTab] = useState<TabKey>('provider')
-  const [range, setRange] = useState<RangeKey>('month')
+  const analysisFilter = useMemo(() => readUsageAnalysisFilter(window.localStorage), [])
+  const analysisQuery = useMemo(() => usageAnalysisFilterToQuery(analysisFilter), [analysisFilter])
+  const rangeLabel = usageRangeLabel(analysisFilter)
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [logs, setLogs] = useState<UsageRecord[]>([])
@@ -284,32 +259,29 @@ export default function ProviderSummary() {
   const [refreshing, setRefreshing] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
-  // range → IPC args. today uses 1-day window so the dashboard
-  // call stays cheap; the logs call uses explicit fromISO/toISO bounds to
-  // keep the per-model aggregation honest about "today".
-  const days = useMemo(() => {
-    const opt = RANGE_OPTIONS.find((o) => o.key === range)!
-    return opt.days === 'today' ? 1 : opt.days
-  }, [range])
-
   const now = useMemo(() => new Date(), [])
+
+  useEffect(() => {
+    if (!requestedProvider || loading) return
+    setTab('provider')
+    document
+      .getElementById(`provider-${encodeURIComponent(requestedProvider)}`)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [loading, requestedProvider])
 
   useEffect(() => {
     let alive = true
     setLoading(true)
 
-    const toISO = now.toISOString()
-    const fromMs = now.getTime() - days * 86_400_000
-    const fromDate = new Date(fromMs)
-    const filter: Parameters<typeof window.api.usage.getLogs>[0] =
-      range === 'today'
-        ? { fromISO: fromDate.toISOString(), toISO }
-        : { fromISO: fromDate.toISOString(), toISO, limit: 5000 }
+    const filter: Parameters<typeof window.api.usage.getLogs>[0] = {
+      ...analysisQuery,
+      limit: 5000
+    }
 
     Promise.all([
-      window.api.usage.getDashboard(days),
+      window.api.usage.getDashboard(analysisQuery),
       window.api.usage.getLogs(filter),
-      window.api.usage.getModelSpend({ fromISO: filter.fromISO, toISO: filter.toISO })
+      window.api.usage.getModelSpend(analysisQuery)
     ])
       .then(([d, l, m]) => {
         if (!alive) return
@@ -330,7 +302,7 @@ export default function ProviderSummary() {
     return () => {
       alive = false
     }
-  }, [days, range, now, reloadKey])
+  }, [analysisQuery, reloadKey])
 
   /** 刷新已入库的用量并触发重新加载 */
   async function handleRefresh() {
@@ -362,9 +334,7 @@ export default function ProviderSummary() {
   // Top-5 ranking kept from Phase E
   const topProviders = [...providers].sort((a, b) => b.cost - a.cost).slice(0, 5)
 
-  const subtitleFor = (k: RangeKey) =>
-    k === 'month' ? '最近 30 天' : k === 'week' ? '最近 7 天' : '今日'
-  const trendDays = range === 'month' ? 30 : range === 'week' ? 7 : 1
+  const trendDays = Math.max(summary?.daily.length ?? 0, 1)
 
   return (
     <div className="page-content">
@@ -373,7 +343,9 @@ export default function ProviderSummary() {
         desc="按供应商维度聚合费用与用量数据"
         action={
           <div className="flex items-center gap-2">
-            <RangeFilter value={range} onChange={setRange} />
+            <span className="rounded-full border border-border-light bg-bg-card px-3 py-1.5 text-[12px] text-text-secondary">
+              统一筛选：{rangeLabel}
+            </span>
             <button
               className="btn btn-outline btn-sm"
               onClick={handleRefresh}
@@ -415,11 +387,11 @@ export default function ProviderSummary() {
             <Card
               title="费用占比"
               icon="fa-chart-pie"
-              subtitle={`${subtitleFor(range)}各 Provider 费用占比`}
+              subtitle={`${rangeLabel}各 Provider 费用占比`}
             >
               <DonutChart providers={providers} />
             </Card>
-            <Card title="费用 Top 5" icon="fa-fire" subtitle={`${subtitleFor(range)} — 按费用降序`}>
+            <Card title="费用 Top 5" icon="fa-fire" subtitle={`${rangeLabel} — 按费用降序`}>
               <MotionGroup className="space-y-2">
                 {topProviders.map((p, i) => (
                   <li key={p.providerId} className="text-[13px]">
@@ -448,7 +420,7 @@ export default function ProviderSummary() {
           <Card
             title="Provider 明细"
             icon="fa-server"
-            subtitle={`${subtitleFor(range)} — 趋势按最近 7 天 vs 上 7 天对比`}
+            subtitle={`${rangeLabel} — 趋势按最近 7 天 vs 上 7 天对比`}
           >
             <div className="overflow-x-auto">
               <table className="w-full text-[13px]">
@@ -470,7 +442,13 @@ export default function ProviderSummary() {
                     const arrow =
                       trend === null ? '—' : trend > 0.5 ? '▲' : trend < -0.5 ? '▼' : '·'
                     return (
-                      <tr key={p.providerId} className="border-t border-border-light align-top">
+                      <tr
+                        id={`provider-${encodeURIComponent(p.providerId)}`}
+                        key={p.providerId}
+                        className={`border-t border-border-light align-top ${
+                          requestedProvider === p.providerId ? 'bg-accent-dim/40' : ''
+                        }`}
+                      >
                         <td className="py-2">{p.providerId}</td>
                         <td className="py-2 text-right font-mono">{fmtMoney(p.cost)}</td>
                         <td className="py-2 text-right font-mono">
@@ -513,7 +491,7 @@ export default function ProviderSummary() {
         <Card
           title="模型聚合"
           icon="fa-cubes"
-          subtitle={`${subtitleFor(range)} — 跨 Provider 按 model 聚合`}
+          subtitle={`${rangeLabel} — 跨 Provider 按 model 聚合`}
         >
           {modelSpend.length === 0 ? (
             <EmptyState icon="fa-cubes" title="暂无可用模型记录" hint="等数据回流后会自动出现" />
@@ -564,7 +542,7 @@ export default function ProviderSummary() {
         <Card
           title="每日费用趋势"
           icon="fa-arrow-trend-up"
-          subtitle={`${subtitleFor(range)} 每日成本 — 红色为最高 / 琥珀为最低`}
+          subtitle={`${rangeLabel}每日成本 — 红色为最高 / 琥珀为最低`}
         >
           {summary && summary.daily.length > 0 ? (
             <DailyCostLineChart daily={summary.daily} days={trendDays} now={now} />

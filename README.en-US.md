@@ -5,7 +5,7 @@
   <p>A local-first LLM usage, balance, and cost workspace for multi-model developers.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.2.4-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.2.52-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -34,18 +34,18 @@ It is not another chat client. It is a focused dashboard for three questions:
 
 ## Core capabilities
 
-| Capability         | What it does                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| Usage overview     | Combines API requests and local CLI sessions into input, output, cache, and cost trends       |
-| Project analytics  | Shows tokens, model mix, active dates, and normalized cost by coding project                  |
-| Provider summary   | Aggregates requests, tokens, spend, and model distribution across providers                   |
-| Model comparison   | Compares spend ranking, providers, token composition, request averages, and pricing coverage  |
-| API key management | Encrypts credentials locally with Electron `safeStorage`; the UI only sees key tails          |
-| Balances and plans | Reads API balances, coding plans, token packages, organization usage, and gateway quota       |
-| Request logs       | Filters, paginates, inspects, and exports request-level CSV for API and local-session sources |
-| Model pricing      | Searches official and custom prices with currency conversion, scopes, and change review       |
-| Usage alerts       | Evaluates rules based on remaining balance, percentage, or consumption state                  |
-| Multi-device sync  | Optionally syncs settings, prices, and balance snapshots with local backup support            |
+| Capability         | What it does                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| Usage overview     | Combines API and local CLI usage with month-to-date and custom billing periods               |
+| Project analytics  | Shows tokens, model mix, active dates, and normalized cost by coding project                 |
+| Provider summary   | Aggregates requests, tokens, spend, and model distribution across providers                  |
+| Model comparison   | Compares spend ranking, providers, token composition, request averages, and pricing coverage |
+| API key management | Encrypts credentials locally with Electron `safeStorage`; the UI only sees key tails         |
+| Balances and plans | Reads API balances, coding plans, token packages, organization usage, and gateway quota      |
+| Request logs       | Separates occurrence-time cost from legacy current-price estimates in detail and CSV         |
+| Model pricing      | Searches official and custom prices with currency conversion, scopes, and change review      |
+| Usage alerts       | Sends native notifications with event history, read state, and recovery-based re-triggering  |
+| Multi-device sync  | Optionally syncs settings, prices, and balance snapshots with local backup support           |
 
 ## Moonlit paper interface
 
@@ -64,7 +64,7 @@ MoonMeter uses warm paper surfaces, black-and-white contrast, hairline borders, 
 - API keys are encrypted by the Electron main process with the operating system's `safeStorage` facility.
 - The sandboxed renderer cannot access Node.js, the filesystem, SQLite, raw IPC, or plaintext secrets.
 - Renderer-to-main payloads are validated through shared schemas.
-- Claude Code and Codex CLI logs are parsed incrementally and read-only.
+- Claude Code, Codex CLI, and Kimi Code logs are parsed incrementally and read-only.
 - No telemetry is added by default. Cloud sync is optional and can be self-hosted.
 - The SQLite database lives under Electron's user-data directory, outside the installation directory.
 
@@ -100,13 +100,13 @@ npm run build
 ### Package for Windows
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.2.4" --model "release"
+npm run dist:win -- --change "MoonMeter-1.2.52" --model "release"
 ```
 
 Output:
 
 ```text
-demo/moonmeter-1.2.4-MoonMeter-1.2.4-release/
+demo/moonmeter-1.2.52-MoonMeter-1.2.52-release/
 ```
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
@@ -119,6 +119,7 @@ Local session sources:
 
 - Claude Code project JSONL sessions under the user's home directory.
 - Codex CLI session JSONL organized by date.
+- Kimi Code local session JSONL with incremental message ingestion.
 - Incremental, deduplicated parsing that never modifies source logs.
 
 ## Data and upgrade compatibility
@@ -171,4 +172,4 @@ Run at least `typecheck`, `test`, `lint`, and `format:check` before submitting a
 
 ## Version
 
-Current source version: **MoonMeter 1.2.4**. This release upgrades the dashboard metric layout and adds shared source, model, and project/agent filters across the dashboard and request logs. See [CHANGELOG.md](./CHANGELOG.md).
+Current source version: **MoonMeter 1.2.52**. This release adds native alert delivery, occurrence-time pricing snapshots, and shared month-to-date/custom billing-period filters across the dashboard, provider, model, and log views. See [CHANGELOG.md](./CHANGELOG.md).

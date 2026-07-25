@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 import { describe, expect, it } from 'vitest'
 
 const require = createRequire(import.meta.url)
-const { buildNodeCliCommand, buildReleaseOutputDirectory, sanitizeSegment } =
+const { buildNodeCliCommand, buildReleaseOutputDirectory, needsAsciiProjectRoot, sanitizeSegment } =
   require('../../../code/scripts/package-release.cjs') as {
     buildNodeCliCommand: (
       cliPath: string,
@@ -14,6 +14,7 @@ const { buildNodeCliCommand, buildReleaseOutputDirectory, sanitizeSegment } =
       change: string
       model: string
     }) => string
+    needsAsciiProjectRoot: (platform: string, root: string) => boolean
     sanitizeSegment: (value: string, label: string) => string
   }
 
@@ -23,6 +24,12 @@ describe('release output directory', () => {
       command: 'node.exe',
       args: ['C:\\npm\\npm-cli.js', 'run', 'build']
     })
+  })
+
+  it('uses an ASCII project entry for NSIS when the Windows checkout path is Unicode', () => {
+    expect(needsAsciiProjectRoot('win32', 'D:\\开发\\tokengirl')).toBe(true)
+    expect(needsAsciiProjectRoot('win32', 'D:\\work\\moonmeter')).toBe(false)
+    expect(needsAsciiProjectRoot('darwin', '/Users/dev/开发/moonmeter')).toBe(false)
   })
 
   it('uses version, change summary, and execution model under demo', () => {

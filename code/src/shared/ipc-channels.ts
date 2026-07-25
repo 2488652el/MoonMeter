@@ -57,6 +57,12 @@ export const IPC = {
   settingsChooseDirectory: 'settings:choose-directory',
   alertsList: 'alerts:list',
   alertsAdd: 'alerts:add',
+  alertsUpdate: 'alerts:update',
   alertsToggle: 'alerts:toggle',
-  alertsDelete: 'alerts:delete'
+  alertsDelete: 'alerts:delete',
+  alertsListEvents: 'alerts:list-events',
+  alertsMarkEventRead: 'alerts:mark-event-read',
+  alertsMarkAllRead: 'alerts:mark-all-read',
+  alertsNotificationStatus: 'alerts:notification-status',
+  alertsOpenDestination: 'subscribe:alerts-open-destination'
 } as const

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { _electron as electron, type ElectronApplication } from 'playwright'
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -13,9 +14,33 @@ function executablePath(appPath: string): string {
   return appPath.endsWith('.app') ? join(appPath, 'Contents', 'MacOS', 'MoonMeter') : appPath
 }
 
+function verifyMacCodeSignature(appPath: string): void {
+  if (!appPath.endsWith('.app')) {
+    throw new Error('MOONMETER_PACKAGED_APP must point to the signed MoonMeter.app bundle')
+  }
+  const verification = spawnSync('codesign', ['--verify', '--deep', '--strict', appPath], {
+    encoding: 'utf8'
+  })
+  if (verification.status !== 0) {
+    throw new Error(`macOS code-sign verification failed: ${verification.stderr.trim()}`)
+  }
+  const inspection = spawnSync('codesign', ['-dv', '--verbose=4', appPath], {
+    encoding: 'utf8'
+  })
+  const details = `${inspection.stdout}\n${inspection.stderr}`
+  if (
+    inspection.status !== 0 ||
+    details.includes('Signature=adhoc') ||
+    !details.includes('Authority=')
+  ) {
+    throw new Error('MoonMeter.app must use an Apple identity; ad-hoc signatures are not accepted')
+  }
+}
+
 test('starts the packaged macOS app with an isolated profile', async () => {
   test.skip(process.platform !== 'darwin', 'macOS packaged smoke test')
   test.skip(!appBundle, 'MOONMETER_PACKAGED_APP is required')
+  verifyMacCodeSignature(appBundle!)
 
   const configuredRoot =
     process.env['MOONMETER_TEST_USER_DATA'] ?? process.env['TOKENLUB_TEST_USER_DATA']
@@ -43,6 +68,50 @@ test('starts the packaged macOS app with an isolated profile', async () => {
     await expect(window).toHaveTitle('MoonMeter')
     await expect(window.locator('body')).not.toBeEmpty()
     await expect(window.evaluate(() => window.api.version)).resolves.toBe(packageVersion)
+
+    const nativeNotifications = await app.evaluate(async ({ BrowserWindow, Notification }) => {
+      const win = BrowserWindow.getAllWindows()[0]
+      if (!win) throw new Error('MoonMeter main window is missing')
+
+      const deliver = (state: string) =>
+        new Promise<string>((resolve, reject) => {
+          const notification = new Notification({
+            title: `MoonMeter packaged notification · ${state}`,
+            body: 'Automated macOS acceptance notification; safe to ignore.'
+          })
+          const timer = setTimeout(
+            () => reject(new Error(`${state} notification delivery timeout`)),
+            5_000
+          )
+          notification.once('show', () => {
+            clearTimeout(timer)
+            resolve(state)
+          })
+          notification.once('failed', (_event, error) => {
+            clearTimeout(timer)
+            reject(new Error(String(error)))
+          })
+          notification.show()
+        })
+
+      if (!Notification.isSupported()) {
+        return { supported: false, delivered: [] as string[] }
+      }
+      win.show()
+      win.focus()
+      const foreground = await deliver('foreground')
+      win.minimize()
+      const minimized = await deliver('minimized')
+      win.restore()
+      win.hide()
+      const background = await deliver('background')
+      win.show()
+      return { supported: true, delivered: [foreground, minimized, background] }
+    })
+    expect(nativeNotifications).toEqual({
+      supported: true,
+      delivered: ['foreground', 'minimized', 'background']
+    })
 
     const locations = await window.evaluate(() => window.api.log.locations())
     expect(isAbsolute(locations.claudeProjects)).toBe(true)

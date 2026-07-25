@@ -15,7 +15,10 @@ import {
   pricingCatalogApplyInputSchema,
   pricingExchangePolicySetInputSchema,
   alertAddInputSchema,
+  alertEventIdInputSchema,
+  alertEventListInputSchema,
   alertToggleInputSchema,
+  alertUpdateInputSchema,
   settingsSetInputSchema,
   keysSetUsageQueryInputSchema,
   logOpenFolderInputSchema,
@@ -26,7 +29,8 @@ import {
 } from '@shared/ipc-schemas'
 import type { ApiKeyCreateInput, ApiKeyUpdateInput } from '@shared/types/api-key'
 import type { PricingEntry } from '@shared/types/pricing'
-import type { AlertRule } from '@shared/types/alert'
+import type { AlertRuleInput } from '@shared/types/alert'
+import type { UsageAnalysisFilter } from '@shared/types/usage'
 import {
   listKeys,
   addKey,
@@ -48,7 +52,17 @@ import {
   computeSpendByKey
 } from '../store/usage-repo'
 import { listPricing, listPricingHistory, setPricing, deletePricing } from '../store/pricing-repo'
-import { listAlerts, addAlert, toggleAlert, deleteAlert } from '../store/alerts-repo'
+import {
+  addAlert,
+  deleteAlert,
+  listAlertEvents,
+  listAlerts,
+  markAlertEventRead,
+  markAllAlertEventsRead,
+  toggleAlert,
+  updateAlert
+} from '../store/alerts-repo'
+import { getAlertNotificationStatus } from '../services/alert-notifications'
 import { setSetting, getAllSettings } from '../store/settings-store'
 import { SYNC_BACKUP_DIRECTORY_SETTING_KEY } from '@shared/sync-v2'
 import { listProviders, getProvider } from '../providers/registry'
@@ -71,6 +85,9 @@ import {
   getCnyRateQuote,
   getPricingExchangePolicy,
   setPricingExchangePolicy,
+  withCnyDashboardConversion,
+  withCnyModelSpendConversion,
+  withCnyUsageRecordsConversion,
   withCnySpendConversion
 } from '../services/exchange-rate'
 import { syncAllSessions, discoverAllSessions } from '../log-parsers/sync'
@@ -106,11 +123,9 @@ function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
 }
 
 /** 仪表盘 IPC 兼容旧版数字天数，同时统一走对象 schema 校验。 */
-function parseUsageAnalysisFilter(input: unknown): Parameters<typeof getDashboardSummary>[0] {
+function parseUsageAnalysisFilter(input: unknown): UsageAnalysisFilter {
   const candidate = typeof input === 'number' ? { days: input } : (input ?? { days: 30 })
-  return stripUndefined(usageAnalysisFilterSchema.parse(candidate)) as Parameters<
-    typeof getDashboardSummary
-  >[0]
+  return stripUndefined(usageAnalysisFilterSchema.parse(candidate)) as UsageAnalysisFilter
 }
 
 /**
@@ -194,30 +209,29 @@ export function registerIpcHandlers(): void {
   })
 
   // usage
-  ipcMain.handle(IPC.usageGetDashboard, (_e, filter) =>
-    getDashboardSummary(parseUsageAnalysisFilter(filter))
+  ipcMain.handle(IPC.usageGetDashboard, async (_e, filter) =>
+    withCnyDashboardConversion(getDashboardSummary(parseUsageAnalysisFilter(filter)))
   )
   ipcMain.handle(IPC.usageGetTotalSpend, async (_e, filter) =>
     withCnySpendConversion(computeTotalSpend(parseUsageAnalysisFilter(filter)))
   )
-  ipcMain.handle(IPC.usageGetModelSpend, (_e, filter) => {
-    const parsed = stripUndefined(usageFilterSchema.parse(filter ?? {})) as unknown as {
-      fromISO?: string
-      toISO?: string
-    }
-    return computeModelSpend(parsed)
+  ipcMain.handle(IPC.usageGetModelSpend, async (_e, filter) => {
+    return withCnyModelSpendConversion(
+      computeModelSpend(parseUsageAnalysisFilter(filter ?? { days: 30 }))
+    )
   })
-  ipcMain.handle(IPC.usageGetLogs, (_e, filter) => {
+  ipcMain.handle(IPC.usageGetLogs, async (_e, filter) => {
     const parsed = stripUndefined(usageFilterSchema.parse(filter ?? {})) as unknown as Parameters<
       typeof queryUsage
     >[0]
-    return queryUsage(parsed)
+    return withCnyUsageRecordsConversion(queryUsage(parsed))
   })
-  ipcMain.handle(IPC.usageGetLogsPage, (_e, filter) => {
+  ipcMain.handle(IPC.usageGetLogsPage, async (_e, filter) => {
     const parsed = stripUndefined(usageFilterSchema.parse(filter ?? {})) as unknown as Parameters<
       typeof queryUsagePage
     >[0]
-    return queryUsagePage(parsed)
+    const page = queryUsagePage(parsed)
+    return { ...page, rows: await withCnyUsageRecordsConversion(page.rows) }
   })
   ipcMain.handle(IPC.usageGetKeySpend, (_e, args: { apiKeyId: string; days?: number }) => {
     // Per-key spend estimate. The schema check is intentionally light — the
@@ -338,11 +352,18 @@ export function registerIpcHandlers(): void {
   // alerts
   ipcMain.handle(IPC.alertsList, () => listAlerts())
   ipcMain.handle(IPC.alertsAdd, (_e, input) => {
-    const parsed = stripUndefined(alertAddInputSchema.parse(input)) as unknown as Omit<
-      AlertRule,
-      'id' | 'createdAt' | 'enabled' | 'lastTriggeredAt'
-    > & { enabled?: boolean }
+    const parsed = stripUndefined(alertAddInputSchema.parse(input)) as AlertRuleInput
     return addAlert(parsed)
+  })
+  ipcMain.handle(IPC.alertsUpdate, (_e, input) => {
+    const parsed = stripUndefined(alertUpdateInputSchema.parse(input))
+    const ruleInput: AlertRuleInput = {
+      scope: parsed.scope,
+      threshold: parsed.threshold,
+      metric: parsed.metric,
+      ...(parsed.providerId ? { providerId: parsed.providerId } : {})
+    }
+    return updateAlert(parsed.id, ruleInput)
   })
   ipcMain.handle(IPC.alertsToggle, (_e, args: { id: string; enabled: boolean }) => {
     const parsed = alertToggleInputSchema.parse(args)
@@ -350,9 +371,24 @@ export function registerIpcHandlers(): void {
     return { ok: true }
   })
   ipcMain.handle(IPC.alertsDelete, (_e, id: string) => {
-    deleteAlert(id)
+    const parsed = alertEventIdInputSchema.parse({ id })
+    deleteAlert(parsed.id)
     return { ok: true }
   })
+  ipcMain.handle(IPC.alertsListEvents, (_e, input) => {
+    const parsed = alertEventListInputSchema.parse(input ?? {})
+    return listAlertEvents(parsed.limit)
+  })
+  ipcMain.handle(IPC.alertsMarkEventRead, (_e, input) => {
+    const parsed = alertEventIdInputSchema.parse(input)
+    markAlertEventRead(parsed.id)
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.alertsMarkAllRead, () => {
+    markAllAlertEventsRead()
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.alertsNotificationStatus, () => getAlertNotificationStatus())
 
   // balance
   ipcMain.handle(IPC.balanceListLatest, () => latestBalances())

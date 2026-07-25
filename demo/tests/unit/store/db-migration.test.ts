@@ -137,7 +137,7 @@ describe('PR-1: db v5 migration contract', () => {
     const versionRow = fresh
       .prepare('SELECT MAX(version) AS v FROM schema_version')
       .get() as SchemaVersionRow
-    expect(versionRow.v).toBe(18)
+    expect(versionRow.v).toBe(21)
     expect(readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')).toContain('model_pricing')
 
     // Both new columns should be visible via PRAGMA table_info(api_keys).
@@ -269,6 +269,34 @@ describe('PR-1: db v5 migration contract', () => {
     )
   })
 
+  it('v19 persists alert delivery history and per-account recovery state', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(19)")
+    expect(sql).toContain("notification_status TEXT NOT NULL DEFAULT 'pending'")
+    expect(sql).toContain('read_at TEXT')
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS alert_rule_states\s*\(/)
+    expect(sql).toContain('PRIMARY KEY (rule_id, provider_id, api_key_id)')
+  })
+
+  it('v20 stores immutable price snapshots and marks legacy rows as estimates', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(20)")
+    expect(sql).toContain("cost_basis TEXT NOT NULL DEFAULT 'current-estimate'")
+    expect(sql).toContain('pricing_updated_at TEXT')
+    expect(sql).toContain('snapshot_prompt_price REAL')
+    expect(sql).toContain('snapshot_completion_price REAL')
+    expect(sql).toContain('snapshot_currency TEXT')
+  })
+
+  it('v21 persists consecutive breach samples for alert debounce', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(21)")
+    expect(sql).toContain('ADD COLUMN breach_count INTEGER NOT NULL DEFAULT 0')
+  })
+
   it('v2 usage_records rebuild preserves agent_label while copying legacy rows', () => {
     const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
 
@@ -315,7 +343,7 @@ describe('PR-1: db v5 migration contract', () => {
     expect(state.columns.filter((c) => c.name === 'usage_query_enabled').length).toBe(1)
     expect(state.columns.filter((c) => c.name === 'query_mode').length).toBe(1)
     // Re-running an up-to-date database must not bump the schema version.
-    expect(state.version).toBe(18)
+    expect(state.version).toBe(21)
   })
 
   it('v8 migration maps existing pricing rows without creating duplicate identities', () => {
@@ -338,7 +366,7 @@ describe('PR-1: db v5 migration contract', () => {
     }
 
     applyMigrationsForTest(fakeDb as unknown as Parameters<typeof applyMigrationsForTest>[0])
-    expect(state.version).toBe(18)
+    expect(state.version).toBe(21)
     expect(maps).toHaveLength(2)
     expect(maps.every((map) => map.startsWith('model_pricing:'))).toBe(true)
   })

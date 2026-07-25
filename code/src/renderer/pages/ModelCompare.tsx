@@ -13,6 +13,11 @@ import { AnimatedNumber, MotionGroup } from '../components/motion'
 import { fmtCount } from '../../shared/utils/money'
 import { buildModelCompareSummary } from '../../shared/utils/model-compare'
 import type { ModelSpendAggregate } from '../../shared/types/usage'
+import {
+  readUsageAnalysisFilter,
+  usageAnalysisFilterToQuery,
+  usageRangeLabel
+} from '../../shared/utils/usage-analysis-filter'
 
 const MAX_VISIBLE_MODELS = 12
 
@@ -22,12 +27,14 @@ const MAX_VISIBLE_MODELS = 12
  */
 export default function ModelCompare() {
   const [models, setModels] = useState<ModelSpendAggregate[] | null>(null)
+  const analysisFilter = useMemo(() => readUsageAnalysisFilter(window.localStorage), [])
+  const analysisQuery = useMemo(() => usageAnalysisFilterToQuery(analysisFilter), [analysisFilter])
   const summary = useMemo(() => buildModelCompareSummary(models ?? []), [models])
 
   useEffect(() => {
     let alive = true
     window.api.usage
-      .getModelSpend()
+      .getModelSpend(analysisQuery)
       .then((rows) => {
         if (alive) setModels(rows)
       })
@@ -37,7 +44,7 @@ export default function ModelCompare() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [analysisQuery])
 
   return (
     <div className="page-content">
@@ -47,7 +54,7 @@ export default function ModelCompare() {
         action={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-border bg-accent-dim px-2.5 py-1 text-[11px] font-medium text-accent-text">
             <Icon name="fa-layer-group" className="text-[9px]" />
-            模型画像
+            {usageRangeLabel(analysisFilter)}
           </span>
         }
       />
