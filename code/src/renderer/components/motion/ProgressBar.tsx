@@ -2,14 +2,15 @@ import { useEffect, useState, type CSSProperties } from 'react'
 import clsx from 'clsx'
 import { useReducedMotion } from '../../hooks/useReducedMotion'
 
-type ProgressTone = 'accent' | 'blue' | 'amber' | 'purple' | 'red'
+type ProgressTone = 'accent' | 'blue' | 'amber' | 'purple' | 'red' | 'green'
 
 const TONE_CLASS: Record<ProgressTone, string> = {
   accent: 'bg-accent',
   blue: 'bg-status-blue',
   amber: 'bg-status-amber',
   purple: 'bg-status-purple',
-  red: 'bg-status-red'
+  red: 'bg-status-red',
+  green: 'bg-emerald-500'
 }
 
 export type ProgressBarProps = {

@@ -51,7 +51,7 @@ function QuotaRow({
     <div className="rounded-md border border-border-light bg-bg-base/40 px-3.5 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-accent-dim text-accent-text">
             <Icon name={icon} className="text-[11px]" />
           </span>
           <div className="min-w-0">
@@ -115,9 +115,11 @@ export function CodexQuotaPanel({
             {usage?.planType || (loading ? '正在读取…' : 'ChatGPT')}
           </div>
         </div>
-        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-right">
-          <div className="text-[10px] text-emerald-700/70">下次重置</div>
-          <div className="mt-0.5 font-mono text-[11px] font-medium text-emerald-800">{resetAt}</div>
+        <div className="rounded-lg border border-border-light bg-bg-hover/55 px-3 py-2 text-right">
+          <div className="text-[10px] text-text-muted">下次重置</div>
+          <div className="mt-0.5 font-mono text-[11px] font-medium text-text-primary">
+            {resetAt}
+          </div>
         </div>
       </div>
 
@@ -140,7 +142,7 @@ export function CodexQuotaPanel({
         <p className="mt-3 text-[11.5px] text-text-muted">正在读取 Codex 登录额度…</p>
       )}
       {error && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[11.5px] text-status-red">
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-status-red/20 bg-status-red-dim px-3 py-2 text-[11.5px] text-status-red">
           <Icon name="fa-circle-exclamation" className="mt-0.5" />
           <p className="break-words">{error}</p>
         </div>

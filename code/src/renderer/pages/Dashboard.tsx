@@ -934,8 +934,8 @@ function OverviewMetricCard({
             value={progress}
             label={`${label}进度`}
             className="mt-auto pt-3"
-            trackClassName="bg-border-light"
-            fillClassName="bg-accent"
+            trackClassName="bg-bg-hover"
+            tone="green"
           />
           <div className="mt-2 truncate text-[11px] text-text-secondary" title={sub}>
             {sub}
