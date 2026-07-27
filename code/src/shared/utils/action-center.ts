@@ -86,6 +86,8 @@ export function abnormalBurnAction(
 
 export function sourceHealthAction(source: SourceHealth): ActionCenterItem | null {
   if (source.status === 'healthy') return null
+  const providerName = source.providerId ?? providerFromSourceId(source.sourceId)
+  const sourceName = source.accountAlias ? `${providerName} · ${source.accountAlias}` : providerName
   const target =
     source.sourceType === 'codex' && source.accountRef === 'codex-local'
       ? `/?focus=source&source=${encodeURIComponent(source.sourceId)}`
@@ -101,7 +103,7 @@ export function sourceHealthAction(source: SourceHealth): ActionCenterItem | nul
     rootCauseId: `source:${source.sourceId}`,
     kind: 'source-unhealthy',
     severity: source.status === 'error' ? 'warning' : 'info',
-    title: source.status === 'stale' ? '来源数据已过期' : '来源需要处理',
+    title: source.status === 'stale' ? `${sourceName} 数据已过期` : `${sourceName} 需要处理`,
     basis: source.errorMessage ?? source.errorCode ?? source.status,
     sampleStart: source.lastAttemptAt ?? source.updatedAt,
     sampleEnd: source.updatedAt,

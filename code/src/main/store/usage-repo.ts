@@ -8,6 +8,7 @@ import { calcCost, convertSpendToCny } from '@shared/utils/money'
 import type {
   UsageRecord,
   UsageLogPage,
+  SessionUsageSummary,
   TotalSpendSummary,
   KeySpendSummary,
   ModelSpendAggregate,
@@ -576,6 +577,69 @@ export function queryUsagePage(filter: UsageLogFilter): UsageLogPage {
     limit,
     offset
   }
+}
+
+/**
+ * 汇总已入库的本机会话日志，供 API Keys 首屏展示。
+ *
+ * 这里在 SQLite 中完成聚合，避免将成千上万条 UsageRecord 经 IPC 发送到渲染进程后再统计。
+ */
+export function querySessionUsageSummaries(): SessionUsageSummary[] {
+  return getDb()
+    .prepare(
+      `
+        SELECT
+          provider_id,
+          COUNT(*) AS requests,
+          COALESCE(SUM(prompt_tokens), 0) AS input_tokens,
+          COALESCE(SUM(completion_tokens), 0) AS output_tokens,
+          COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
+          COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
+          COALESCE(
+            SUM(
+              COALESCE(
+                total_tokens,
+                COALESCE(prompt_tokens, 0) + COALESCE(completion_tokens, 0)
+              )
+            ),
+            0
+          ) AS total_tokens,
+          COUNT(DISTINCT NULLIF(session_id, '')) AS sessions,
+          COUNT(DISTINCT NULLIF(model, '')) AS models,
+          MAX(captured_at) AS last_captured_at
+        FROM usage_records
+        WHERE source = 'session-log'
+          AND provider_id IN ('claude-code', 'codex', 'kimi-coding', 'gemini-cli', 'opencode')
+        GROUP BY provider_id
+      `
+    )
+    .all()
+    .map((row) => {
+      const value = row as {
+        provider_id: string
+        requests: number
+        input_tokens: number
+        output_tokens: number
+        cache_read_tokens: number
+        cache_creation_tokens: number
+        total_tokens: number
+        sessions: number
+        models: number
+        last_captured_at: string | null
+      }
+      return {
+        providerId: value.provider_id,
+        requests: value.requests,
+        inputTokens: value.input_tokens,
+        outputTokens: value.output_tokens,
+        cacheReadTokens: value.cache_read_tokens,
+        cacheCreationTokens: value.cache_creation_tokens,
+        totalTokens: value.total_tokens,
+        sessions: value.sessions,
+        models: value.models,
+        ...(value.last_captured_at ? { lastCapturedAt: value.last_captured_at } : {})
+      }
+    })
 }
 
 /**

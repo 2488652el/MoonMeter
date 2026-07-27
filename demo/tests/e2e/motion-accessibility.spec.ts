@@ -486,7 +486,7 @@ test.describe.serial('Electron motion and accessibility', () => {
         window,
         ROUTES.find((item) => item.path === '/')!
       )
-      const refresh = window.getByRole('button', { name: '刷新', exact: true })
+      const refresh = window.getByRole('button', { name: '刷新', exact: true }).first()
       await refresh.click()
       await expect(refresh).toBeEnabled()
       await expect(metrics).toHaveCount(8)

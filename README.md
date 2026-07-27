@@ -5,7 +5,7 @@
   <p>面向多模型开发者的本地优先 LLM 用量、余额与成本工作台。</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.2.53-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.2.54-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -100,13 +100,13 @@ npm run build
 ### Windows 打包
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.2.53" --model "release"
+npm run dist:win -- --change "MoonMeter-1.2.54" --model "release"
 ```
 
 输出目录：
 
 ```text
-demo/moonmeter-1.2.53-MoonMeter-1.2.53-release/
+demo/moonmeter-1.2.54-MoonMeter-1.2.54-release/
 ```
 
 macOS 可使用 `npm run dist:mac:x64`、`npm run dist:mac:arm64` 或 `npm run dist:mac`。正式构建与历史版本请前往 [GitHub Releases](https://github.com/2488652el/MoonMeter/releases)。
@@ -172,4 +172,4 @@ Electron 31 · React 19 · TypeScript · Vite · Tailwind CSS · Recharts · Zus
 
 ## 版本
 
-当前源码版本：**MoonMeter 1.2.53**。本版加入额度规划、托盘快速查看、软预算与周期报告、透明建议，以及多账户身份视图。详见 [CHANGELOG.md](./CHANGELOG.md)。
+当前源码版本：**MoonMeter 1.2.54**。本版优化 API Keys 首次打开性能，并按“范围、概览、异常、分析、管理”重构首页信息架构。详见 [CHANGELOG.md](./CHANGELOG.md)。

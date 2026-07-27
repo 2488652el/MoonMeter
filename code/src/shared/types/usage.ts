@@ -72,6 +72,23 @@ export interface UsageLogPage {
   offset: number
 }
 
+/**
+ * 本机会话日志按来源的轻量汇总。
+ * API Keys 首屏仅需要这些聚合值，避免把大量原始请求记录跨进程传输。
+ */
+export interface SessionUsageSummary {
+  providerId: string
+  requests: number
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreationTokens: number
+  totalTokens: number
+  sessions: number
+  models: number
+  lastCapturedAt?: string
+}
+
 /** 总花费汇总:跨币种归一为 CNY,含定价匹配统计。 */
 export interface TotalSpendSummary {
   total: number // amount in the primary currency

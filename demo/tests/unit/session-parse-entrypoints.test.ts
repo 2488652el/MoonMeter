@@ -14,7 +14,7 @@ describe('session parse renderer entrypoints', () => {
     }
   )
 
-  it('opening API Keys only loads settings and existing statistics', () => {
+  it('opening API Keys only loads settings and compact existing statistics', () => {
     const source = readRendererPage('ApiKeys')
     const panelLoad = source.slice(
       source.indexOf('const loadSessionPanel'),
@@ -22,6 +22,8 @@ describe('session parse renderer entrypoints', () => {
     )
 
     expect(panelLoad).not.toContain('window.api.log.sync(')
+    expect(source).toContain('window.api.usage.getSessionSummaries()')
+    expect(source).not.toContain('window.api.usage.getLogs(')
     expect(source.match(/window\.api\.log\.sync\(/g)).toHaveLength(1)
   })
 })

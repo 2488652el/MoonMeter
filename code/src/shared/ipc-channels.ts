@@ -35,6 +35,7 @@ export const IPC = {
   usageGetDashboard: 'usage:get-dashboard',
   usageGetLogs: 'usage:get-logs',
   usageGetLogsPage: 'usage:get-logs-page',
+  usageGetSessionSummaries: 'usage:get-session-summaries',
   usageGetTotalSpend: 'usage:get-total-spend',
   usageGetModelSpend: 'usage:get-model-spend',
   usageGetKeySpend: 'usage:get-key-spend',

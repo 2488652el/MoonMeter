@@ -120,6 +120,25 @@ describe('action center', () => {
     expect(providerFromSourceId('cli:kimi-code')).toBe('kimi-coding')
   })
 
+  it('names the affected source instead of repeating a generic refresh warning', () => {
+    const action = sourceHealthAction({
+      sourceId: 'provider:minimax',
+      sourceType: 'provider',
+      accountRef: 'key-id',
+      accountAlias: '个人 Coding Plan',
+      providerId: 'minimax',
+      permission: 'unknown',
+      status: 'error',
+      errorMessage: '来源刷新失败，请重试或检查配置',
+      updatedAt: window.capturedAt
+    })
+
+    expect(action).toMatchObject({
+      title: 'minimax · 个人 Coding Plan 需要处理',
+      basis: '来源刷新失败，请重试或检查配置'
+    })
+  })
+
   it('derives stale health from the last successful sample time', () => {
     const now = new Date('2026-07-25T10:30:00.001Z')
     expect(sourceStatusWithFreshness('healthy', '2026-07-25T10:00:00.000Z', now, 30 * 60_000)).toBe(

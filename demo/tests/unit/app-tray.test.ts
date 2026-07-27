@@ -52,7 +52,7 @@ function sample(overrides: Partial<QuotaWindow> = {}): QuotaWindow {
     quotaKind: 'hard-quota',
     unit: 'percent',
     capturedAt: '2026-07-27T08:00:00.000Z',
-    freshUntil: '2026-07-27T09:00:00.000Z',
+    freshUntil: '2099-07-27T09:00:00.000Z',
     confidence: 'measured',
     usedPercent: 20,
     ...overrides

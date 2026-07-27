@@ -19,7 +19,7 @@ import { useCodexUsage } from '../hooks/useCodexUsage'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { fmtCount } from '../../shared/utils/money'
 import type { ApiKeyCreateInput, ApiKeyRecord, ApiKeyUpdateInput } from '../../shared/types/api-key'
-import type { UsageRecord } from '../../shared/types/usage'
+import type { SessionUsageSummary } from '../../shared/types/usage'
 import type { BalanceSnapshot, ProviderManifest } from '../../shared/types/provider'
 import type { ProviderCatalogEntry } from '../../shared/provider-catalog'
 import type { CliDisplayPaths } from '../../shared/types/platform'
@@ -204,11 +204,11 @@ export default function ApiKeys() {
 
   /** 刷新 Session 统计:发现会话文件并重新构建用量统计 */
   const refreshSessionStats = useCallback(async () => {
-    const [files, logs] = await Promise.all([
+    const [files, summaries] = await Promise.all([
       window.api.log
         .discover()
         .catch(() => ({ claude: [], codex: [], kimiCode: [], gemini: [], opencode: [] })),
-      window.api.usage.getLogs({ source: 'session-log', limit: 10000 }).catch(() => [])
+      window.api.usage.getSessionSummaries().catch(() => [])
     ])
     setSessionCounts({
       claude: files.claude.length,
@@ -217,7 +217,7 @@ export default function ApiKeys() {
       gemini: files.gemini?.length ?? 0,
       opencode: files.opencode?.length ?? 0
     })
-    setSessionStats(buildSessionStats(logs))
+    setSessionStats(buildSessionStats(summaries))
   }, [])
 
   /** 同步指定来源的 Session 日志:发现文件、触发解析、更新统计 */
@@ -810,7 +810,7 @@ export default function ApiKeys() {
 }
 
 /** 从请求日志构建按来源汇总的 Session 用量统计 */
-function buildSessionStats(rows: UsageRecord[]): SessionStats {
+function buildSessionStats(summaries: SessionUsageSummary[]): SessionStats {
   const out: SessionStats = {
     'claude-code': { ...EMPTY_SESSION_STATS['claude-code'] },
     codex: { ...EMPTY_SESSION_STATS.codex },
@@ -818,52 +818,30 @@ function buildSessionStats(rows: UsageRecord[]): SessionStats {
     'gemini-cli': { ...EMPTY_SESSION_STATS['gemini-cli'] },
     opencode: { ...EMPTY_SESSION_STATS.opencode }
   }
-  const sessions: Record<SessionSource, Set<string>> = {
-    'claude-code': new Set(),
-    codex: new Set(),
-    'kimi-code': new Set(),
-    'gemini-cli': new Set(),
-    opencode: new Set()
-  }
-  const models: Record<SessionSource, Set<string>> = {
-    'claude-code': new Set(),
-    codex: new Set(),
-    'kimi-code': new Set(),
-    'gemini-cli': new Set(),
-    opencode: new Set()
-  }
-
-  for (const row of rows) {
+  for (const summary of summaries) {
     const source: SessionSource | null =
-      row.providerId === 'claude-code'
+      summary.providerId === 'claude-code'
         ? 'claude-code'
-        : row.providerId === 'codex'
+        : summary.providerId === 'codex'
           ? 'codex'
-          : row.providerId === 'kimi-coding'
+          : summary.providerId === 'kimi-coding'
             ? 'kimi-code'
-            : row.providerId === 'gemini-cli'
+            : summary.providerId === 'gemini-cli'
               ? 'gemini-cli'
-              : row.providerId === 'opencode'
+              : summary.providerId === 'opencode'
                 ? 'opencode'
                 : null
     if (!source) continue
     const stat = out[source]
-    stat.requests++
-    stat.inputTokens += row.promptTokens ?? 0
-    stat.outputTokens += row.completionTokens ?? 0
-    stat.cacheReadTokens += row.cacheReadTokens ?? 0
-    stat.cacheCreationTokens += row.cacheCreationTokens ?? 0
-    stat.tokens += row.totalTokens ?? (row.promptTokens ?? 0) + (row.completionTokens ?? 0)
-    if (row.sessionId) sessions[source].add(row.sessionId)
-    if (row.model) models[source].add(row.model)
-    if (!stat.lastCapturedAt || Date.parse(row.capturedAt) > Date.parse(stat.lastCapturedAt)) {
-      stat.lastCapturedAt = row.capturedAt
-    }
-  }
-
-  for (const source of Object.keys(out) as SessionSource[]) {
-    out[source].sessions = sessions[source].size
-    out[source].models = models[source].size
+    stat.requests = summary.requests
+    stat.inputTokens = summary.inputTokens
+    stat.outputTokens = summary.outputTokens
+    stat.cacheReadTokens = summary.cacheReadTokens
+    stat.cacheCreationTokens = summary.cacheCreationTokens
+    stat.tokens = summary.totalTokens
+    stat.sessions = summary.sessions
+    stat.models = summary.models
+    if (summary.lastCapturedAt) stat.lastCapturedAt = summary.lastCapturedAt
   }
 
   return out

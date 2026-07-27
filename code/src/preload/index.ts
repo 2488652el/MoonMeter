@@ -9,6 +9,7 @@ import type { ApiKeyCreateInput, ApiKeyRecord, ApiKeyUpdateInput } from '../shar
 import type {
   UsageRecord,
   UsageLogPage,
+  SessionUsageSummary,
   DashboardSummary,
   RefreshAllResult,
   TotalSpendSummary,
@@ -62,7 +63,7 @@ window.addEventListener('online', () => {
  * the same zod schema before dispatching. Validating twice is YAGNI.
  */
 const api = {
-  version: '1.2.53',
+  version: '1.2.54',
 
   keys: {
     list: (): Promise<ApiKeyRecord[]> => ipcRenderer.invoke(IPC.keysList),
@@ -94,6 +95,8 @@ const api = {
       ipcRenderer.invoke(IPC.usageGetLogs, filter ?? {}),
     getLogsPage: (filter?: UsageLogFilter): Promise<UsageLogPage> =>
       ipcRenderer.invoke(IPC.usageGetLogsPage, filter ?? {}),
+    getSessionSummaries: (): Promise<SessionUsageSummary[]> =>
+      ipcRenderer.invoke(IPC.usageGetSessionSummaries),
     refreshAll: (): Promise<RefreshAllResult> => ipcRenderer.invoke(IPC.usageRefreshAll),
     /**
      * Per-key spend estimate. Backed by `computeSpendByKey` in

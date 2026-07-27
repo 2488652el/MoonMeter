@@ -55,6 +55,7 @@ import { latestBalances } from '../store/balance-repo'
 import {
   queryUsage,
   queryUsagePage,
+  querySessionUsageSummaries,
   getDashboardSummary,
   computeTotalSpend,
   computeModelSpend,
@@ -269,6 +270,7 @@ export function registerIpcHandlers(): void {
     const page = queryUsagePage(parsed)
     return { ...page, rows: await withCnyUsageRecordsConversion(page.rows) }
   })
+  ipcMain.handle(IPC.usageGetSessionSummaries, () => querySessionUsageSummaries())
   ipcMain.handle(IPC.usageGetKeySpend, (_e, args: { apiKeyId: string; days?: number }) => {
     // Per-key spend estimate. The schema check is intentionally light — the
     // renderer passes a uuid + an optional positive days integer, both of

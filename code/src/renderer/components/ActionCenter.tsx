@@ -31,26 +31,26 @@ export function ActionCenter({ actions }: { actions: ActionCenterItem[] }) {
   return (
     <Card
       title="行动中心"
-      subtitle="最多展示 3 条可追溯、可直接处理的信息"
+      subtitle="按优先级展示最多 3 条可追溯、可直接处理的异常"
       action={
         <span className="rounded-full bg-bg-base px-2.5 py-1 text-[11px] text-text-secondary">
           {actions.length} 条
         </span>
       }
     >
-      <div className="grid grid-cols-3 gap-3 max-xl:grid-cols-1">
+      <div className="grid grid-cols-3 gap-2.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
         {actions.slice(0, 3).map((action) => {
           const meta = ACTION_META[action.severity]
           return (
             <button
               key={action.id}
               type="button"
-              className="rounded-lg border border-border-light bg-bg-base/45 p-4 text-left transition-colors hover:border-border-focus hover:bg-bg-hover"
+              className="rounded-lg border border-border-light bg-bg-base/45 p-3 text-left transition-colors hover:border-border-focus hover:bg-bg-hover"
               onClick={() => navigate(action.target)}
             >
               <div className="flex items-start gap-3">
                 <span
-                  className={`flex h-9 w-9 flex-none items-center justify-center rounded-lg ${meta.iconClass}`}
+                  className={`flex h-8 w-8 flex-none items-center justify-center rounded-lg ${meta.iconClass}`}
                 >
                   <Icon name={meta.icon} />
                 </span>
@@ -61,10 +61,10 @@ export function ActionCenter({ actions }: { actions: ActionCenterItem[] }) {
                       {meta.badge}
                     </span>
                   </span>
-                  <span className="mt-1.5 block text-[12px] leading-5 text-text-secondary">
+                  <span className="mt-1 block text-[12px] leading-5 text-text-secondary">
                     {action.basis}
                   </span>
-                  <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-accent-text">
+                  <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-accent-text">
                     查看依据与处理
                     <Icon name="fa-arrow-right" className="text-[9px]" />
                   </span>

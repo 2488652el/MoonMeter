@@ -535,32 +535,6 @@ export default function Dashboard() {
             </div>
           </section>
 
-          <ActionCenter actions={quotaPlanning.overview?.actions ?? []} />
-          <QuotaPlanningPanel overview={quotaPlanning.overview} />
-          <BudgetPlanningPanel
-            overview={budgetPlanning.overview}
-            loading={budgetPlanning.loading}
-            error={budgetPlanning.error}
-            onRefresh={() => budgetPlanning.refresh()}
-          />
-          <LocalReportPanel
-            overview={localReports.overview}
-            loading={localReports.loading}
-            error={localReports.error}
-            periodKind={localReports.periodKind}
-            onPeriodKindChange={localReports.setPeriodKind}
-            onRefresh={() => localReports.refresh()}
-            onSetEnabled={localReports.setEnabled}
-            onSetRecommendationsEnabled={localReports.setRecommendationsEnabled}
-          />
-          <SourceActivation
-            overview={quotaPlanning.overview}
-            loading={quotaPlanning.loading}
-            error={quotaPlanning.error}
-            onRefresh={() => void quotaPlanning.refresh()}
-            compact
-          />
-
           <div data-usage-filter-bar>
             <Card
               title="统一筛选"
@@ -855,6 +829,8 @@ export default function Dashboard() {
             ) : null}
           </section>
 
+          <ActionCenter actions={quotaPlanning.overview?.actions ?? []} />
+
           <section className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
@@ -985,6 +961,42 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          </section>
+
+          <section
+            data-dashboard-management
+            className="space-y-6 border-t border-border-light pt-2"
+          >
+            <div>
+              <h2 className="text-[16px] font-semibold text-text-primary">规划与管理</h2>
+              <p className="mt-1 text-[12px] text-text-muted">
+                在看完当前用量与异常后，再配置额度、预算、周期报告和数据来源。
+              </p>
+            </div>
+            <QuotaPlanningPanel overview={quotaPlanning.overview} />
+            <BudgetPlanningPanel
+              overview={budgetPlanning.overview}
+              loading={budgetPlanning.loading}
+              error={budgetPlanning.error}
+              onRefresh={() => budgetPlanning.refresh()}
+            />
+            <LocalReportPanel
+              overview={localReports.overview}
+              loading={localReports.loading}
+              error={localReports.error}
+              periodKind={localReports.periodKind}
+              onPeriodKindChange={localReports.setPeriodKind}
+              onRefresh={() => localReports.refresh()}
+              onSetEnabled={localReports.setEnabled}
+              onSetRecommendationsEnabled={localReports.setRecommendationsEnabled}
+            />
+            <SourceActivation
+              overview={quotaPlanning.overview}
+              loading={quotaPlanning.loading}
+              error={quotaPlanning.error}
+              onRefresh={() => void quotaPlanning.refresh()}
+              compact
+            />
           </section>
         </MotionGroup>
       )}
