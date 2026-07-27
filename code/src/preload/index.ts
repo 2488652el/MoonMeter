@@ -40,6 +40,14 @@ import type { SyncMode } from '../shared/sync-mode'
 import type { SyncPreview } from '../shared/sync-preview'
 import type { AppUpdateStatus } from '../shared/types/app-update'
 import type { CodexUsageSnapshot } from '../shared/types/codex-usage'
+import type { QuotaPlanningOverview } from '../shared/types/quota-planning'
+import type { BudgetOverview, BudgetRule, BudgetRuleInput } from '../shared/types/budget'
+import type { LocalReportOverview, LocalReportPeriodKind } from '../shared/types/local-report'
+import type { SanitizedDiagnosticPack } from '../shared/types/diagnostics'
+import type {
+  AccountIdentityOverview,
+  AccountIdentityPreferences
+} from '../shared/types/account-identity'
 
 window.addEventListener('online', () => {
   void ipcRenderer.invoke(IPC.syncOnline).catch(() => undefined)
@@ -54,7 +62,7 @@ window.addEventListener('online', () => {
  * the same zod schema before dispatching. Validating twice is YAGNI.
  */
 const api = {
-  version: '1.2.52',
+  version: '1.2.53',
 
   keys: {
     list: (): Promise<ApiKeyRecord[]> => ipcRenderer.invoke(IPC.keysList),
@@ -99,6 +107,48 @@ const api = {
 
   codex: {
     usage: (): Promise<CodexUsageSnapshot> => ipcRenderer.invoke(IPC.codexUsage)
+  },
+
+  quotaPlanning: {
+    overview: (): Promise<QuotaPlanningOverview> => ipcRenderer.invoke(IPC.quotaPlanningOverview)
+  },
+
+  budgets: {
+    overview: (): Promise<BudgetOverview> => ipcRenderer.invoke(IPC.budgetsOverview),
+    add: (input: BudgetRuleInput): Promise<BudgetRule> => ipcRenderer.invoke(IPC.budgetsAdd, input),
+    update: (input: BudgetRuleInput & { id: string }): Promise<BudgetRule> =>
+      ipcRenderer.invoke(IPC.budgetsUpdate, input),
+    toggle: (id: string, enabled: boolean): Promise<{ ok: true }> =>
+      ipcRenderer.invoke(IPC.budgetsToggle, { id, enabled }),
+    delete: (id: string): Promise<{ ok: true }> => ipcRenderer.invoke(IPC.budgetsDelete, id),
+    markEventRead: (id: string): Promise<{ ok: true }> =>
+      ipcRenderer.invoke(IPC.budgetsMarkEventRead, { id })
+  },
+
+  localReports: {
+    get: (kind: LocalReportPeriodKind): Promise<LocalReportOverview> =>
+      ipcRenderer.invoke(IPC.localReportsGet, kind),
+    setEnabled: (enabled: boolean): Promise<{ ok: true }> =>
+      ipcRenderer.invoke(IPC.localReportsSetEnabled, { enabled })
+  },
+
+  localRecommendations: {
+    setEnabled: (enabled: boolean): Promise<{ ok: true }> =>
+      ipcRenderer.invoke(IPC.localRecommendationsSetEnabled, { enabled })
+  },
+
+  diagnostics: {
+    getSanitized: (): Promise<SanitizedDiagnosticPack> =>
+      ipcRenderer.invoke(IPC.diagnosticsGetSanitized)
+  },
+
+  accountIdentities: {
+    overview: (): Promise<AccountIdentityOverview> =>
+      ipcRenderer.invoke(IPC.accountIdentitiesOverview),
+    savePreferences: (
+      preferences: AccountIdentityPreferences
+    ): Promise<AccountIdentityPreferences> =>
+      ipcRenderer.invoke(IPC.accountIdentitiesSavePreferences, preferences)
   },
 
   sync: {
@@ -218,15 +268,23 @@ const api = {
   },
 
   log: {
-    discover: (): Promise<{ claude: string[]; codex: string[]; kimiCode: string[] }> =>
-      ipcRenderer.invoke(IPC.logDiscover),
+    discover: (): Promise<{
+      claude: string[]
+      codex: string[]
+      kimiCode: string[]
+      gemini: string[]
+      opencode: string[]
+    }> => ipcRenderer.invoke(IPC.logDiscover),
     locations: (): Promise<{
       claudeProjects: string
       codexSessions: string
       kimiCodeSessions: string
+      geminiTemp: string
+      opencodeMessages: string
     }> => ipcRenderer.invoke(IPC.logLocations),
-    sync: (source: 'claude-code' | 'codex' | 'kimi-code'): Promise<{ started: boolean }> =>
-      ipcRenderer.invoke(IPC.logSync, { source }),
+    sync: (
+      source: 'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode'
+    ): Promise<{ started: boolean }> => ipcRenderer.invoke(IPC.logSync, { source }),
     detectCodexKey: (): Promise<{ found: boolean; maskedKey?: string; path?: string }> =>
       ipcRenderer.invoke(IPC.logDetectCodexKey),
     detectClaudeKey: (): Promise<{ found: boolean; maskedKey?: string; path?: string }> =>

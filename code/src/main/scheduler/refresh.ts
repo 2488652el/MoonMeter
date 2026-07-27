@@ -17,13 +17,17 @@ import {
   setAlertRuleState,
   updateAlertEventNotification
 } from '../store/alerts-repo'
-import { showAlertNotification } from '../services/alert-notifications'
+import { areAlertNotificationsMuted, showAlertNotification } from '../services/alert-notifications'
 import type { AlertRule } from '@shared/types/alert'
 import type { BalanceSnapshot, UsageSlice } from '@shared/types/provider'
 import type { RefreshFailure, UsageRecord } from '@shared/types/usage'
 import type { PricingEntry } from '@shared/types/pricing'
 import { calcCost } from '@shared/utils/money'
 import { resolveBillingScope } from '@shared/pricing-scope'
+import { recordSourceFailure, recordSourceSuccess } from '../store/source-health-repo'
+import { persistQuotaWindows } from '../store/quota-repo'
+import { adaptKimiQuota, adaptMiniMaxQuota } from '@shared/utils/quota-adapters'
+import { evaluateBudgetReminders } from '../services/budget-planning'
 
 export const ALERT_DEBOUNCE_SAMPLES = 2
 
@@ -151,9 +155,13 @@ export function evaluateAlerts(now: Date = new Date()): { fired: number; skipped
           nowISO,
           breachCount
         )
-        showAlertNotification(event, (delivery) => {
-          updateAlertEventNotification(event.id, delivery.status, delivery.error)
-        })
+        if (areAlertNotificationsMuted(now)) {
+          updateAlertEventNotification(event.id, 'muted')
+        } else {
+          showAlertNotification(event, (delivery) => {
+            updateAlertEventNotification(event.id, delivery.status, delivery.error)
+          })
+        }
         ruleFired = true
       } catch (e) {
         console.error('[alerts] failed to insert event:', (e as Error).message)
@@ -313,12 +321,20 @@ async function refreshAllImpl(): Promise<RefreshResult> {
   const now = new Date()
   const toISO = now.toISOString()
   const fromISO = new Date(now.getTime() - 30 * 24 * 3600 * 1000).toISOString()
+  const refreshIntervalMs = (getSetting<number>('refresh_interval_min') ?? 30) * 60_000
   for (const k of keys) {
     const p = getProvider(k.providerId)
     if (!p) continue
     // PR-2: skip keys whose usage query is disabled. Uses strict `=== false`
     // so older fixtures (where usageQueryEnabled is undefined) still refresh.
     if (k.usageQueryEnabled === false) continue
+    const sourceIdentity = {
+      sourceId: `provider:${k.providerId}`,
+      accountRef: k.id,
+      sourceKind: 'provider' as const,
+      providerId: k.providerId,
+      displayName: k.alias
+    }
     try {
       const apiKey = getDecryptedKey(k.id)
       const extra = getDecryptedExtraCredentials(k.id)
@@ -327,6 +343,19 @@ async function refreshAllImpl(): Promise<RefreshResult> {
       if (p.hasBalanceApi && caps.balance) {
         const snap = await caps.balance()
         insertBalance({ ...snap, apiKeyId: k.id })
+        const context = {
+          sourceId: `provider:${k.providerId}`,
+          accountRef: k.id,
+          capturedAt: snap.capturedAt,
+          refreshIntervalMs
+        }
+        const quotaWindows =
+          k.providerId === 'kimi-coding'
+            ? adaptKimiQuota(snap.raw, context)
+            : k.providerId === 'minimax'
+              ? adaptMiniMaxQuota(snap.raw, context)
+              : []
+        persistQuotaWindows(quotaWindows, k.providerId, k.alias, now)
         didRefresh = true
       }
       if (p.hasUsageApi && caps.usage) {
@@ -345,11 +374,23 @@ async function refreshAllImpl(): Promise<RefreshResult> {
         usageSkipped += result.skipped
         didRefresh = true
       }
-      if (didRefresh) refreshed++
+      if (didRefresh) {
+        refreshed++
+        try {
+          recordSourceSuccess(sourceIdentity, now)
+        } catch (error) {
+          console.error('[refresh] source health update failed:', (error as Error).message)
+        }
+      }
     } catch (e) {
       const message = (e as Error).message
       console.error(`[refresh] ${k.alias} (${k.providerId}) failed:`, message)
       failures.push({ alias: k.alias, providerId: k.providerId, error: message })
+      try {
+        recordSourceFailure(sourceIdentity, e, now)
+      } catch (error) {
+        console.error('[refresh] source health update failed:', (error as Error).message)
+      }
       failed++
     }
   }
@@ -358,6 +399,11 @@ async function refreshAllImpl(): Promise<RefreshResult> {
     evaluateAlerts()
   } catch (e) {
     console.error('[refresh] alert evaluation failed:', (e as Error).message)
+  }
+  try {
+    evaluateBudgetReminders()
+  } catch (e) {
+    console.error('[refresh] budget evaluation failed:', (e as Error).message)
   }
   setSetting('last_refresh_at', new Date().toISOString())
   if (refreshed > 0) scheduleSyncAfterChange()

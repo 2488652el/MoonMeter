@@ -698,4 +698,95 @@ function applyMigrations(db: Database.Database): void {
     `)
     db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(21)
   }
+
+  // --- v22: local-only quota planning samples and source health ---
+  if (currentVersion < 22) {
+    db.exec('BEGIN')
+    try {
+      db.exec(`
+        CREATE TABLE quota_samples (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          source_id TEXT NOT NULL,
+          provider_id TEXT NOT NULL,
+          account_ref TEXT NOT NULL,
+          account_label TEXT NOT NULL,
+          quota_kind TEXT NOT NULL,
+          window_type TEXT NOT NULL,
+          window_key TEXT NOT NULL,
+          window_seconds INTEGER,
+          used_percent REAL,
+          used REAL,
+          remaining REAL,
+          limit_value REAL,
+          unit TEXT NOT NULL,
+          reset_at TEXT,
+          captured_at TEXT NOT NULL,
+          fresh_until TEXT NOT NULL,
+          confidence TEXT NOT NULL,
+          UNIQUE (source_id, account_ref, window_key, captured_at)
+        );
+        CREATE INDEX idx_quota_samples_series
+          ON quota_samples(source_id, account_ref, window_key, captured_at DESC);
+        CREATE INDEX idx_quota_samples_retention
+          ON quota_samples(captured_at);
+
+        CREATE TABLE source_health (
+          source_id TEXT NOT NULL,
+          account_ref TEXT NOT NULL,
+          source_kind TEXT NOT NULL,
+          provider_id TEXT,
+          display_name TEXT NOT NULL,
+          permission_status TEXT NOT NULL DEFAULT 'unknown',
+          status TEXT NOT NULL,
+          last_attempt_at TEXT,
+          last_success_at TEXT,
+          error_code TEXT,
+          error_message TEXT,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (source_id, account_ref)
+        );
+        CREATE INDEX idx_source_health_status
+          ON source_health(status, updated_at DESC);
+      `)
+      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(22)
+      db.exec('COMMIT')
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw e
+    }
+  }
+
+  // --- v23: local soft-budget rules and threshold events ---
+  if (currentVersion < 23) {
+    db.exec(`
+      CREATE TABLE budget_rules (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        period_kind TEXT NOT NULL,
+        custom_cycle_start_day INTEGER,
+        scope TEXT NOT NULL,
+        scope_value TEXT,
+        limit_cny REAL NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE budget_events (
+        id TEXT PRIMARY KEY,
+        rule_id TEXT NOT NULL,
+        period_start TEXT NOT NULL,
+        period_end TEXT NOT NULL,
+        threshold_percent INTEGER NOT NULL,
+        spent_cny REAL NOT NULL,
+        limit_cny REAL NOT NULL,
+        message TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        read_at TEXT,
+        UNIQUE (rule_id, period_start, threshold_percent),
+        FOREIGN KEY (rule_id) REFERENCES budget_rules(id) ON DELETE CASCADE
+      );
+      CREATE INDEX idx_budget_events_recent ON budget_events(created_at DESC);
+    `)
+    db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(23)
+  }
 }

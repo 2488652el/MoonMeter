@@ -4,6 +4,7 @@
  */
 import { Icon } from '../components/Icon'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
@@ -21,6 +22,7 @@ import {
   usageRangeToLocalDates,
   writeUsageAnalysisFilter
 } from '../../shared/utils/usage-analysis-filter'
+import { providerFromSourceId } from '../../shared/utils/action-center'
 
 /** 排序字段类型:按时间或按费用 */
 type SortKey = 'time' | 'cost'
@@ -87,6 +89,7 @@ function downloadCsv(rows: UsageRecord[]) {
  * 拉取供应商与分页日志,提供筛选、排序、分页、导出与详情查看。
  */
 export default function RequestLogs() {
+  const [searchParams] = useSearchParams()
   const persistedFilter = useMemo(() => readUsageAnalysisFilter(window.localStorage), [])
   const [providers, setProviders] = useState<ProviderManifest[]>([])
   const [logs, setLogs] = useState<UsageRecord[]>([])
@@ -107,18 +110,27 @@ export default function RequestLogs() {
       ),
     [persistedFilter]
   )
-  const [providerFilter, setProviderFilter] = useState<string>('all')
-  const [sourceFilter, setSourceFilter] = useState<UsageSource | 'all'>(persistedFilter.source)
+  const [providerFilter, setProviderFilter] = useState<string>(() => {
+    const provider = searchParams.get('provider')
+    if (provider) return provider
+    const source = searchParams.get('source')
+    return source ? providerFromSourceId(source) : 'all'
+  })
+  const [sourceFilter, setSourceFilter] = useState<UsageSource | 'all'>(
+    searchParams.has('source') ? 'session-log' : persistedFilter.source
+  )
   const [fromDate, setFromDate] = useState<string>(init.from)
   const [toDate, setToDate] = useState<string>(init.to)
   const [search, setSearch] = useState<string>(persistedFilter.modelContains)
-  const [projectSearch, setProjectSearch] = useState<string>(persistedFilter.projectContains)
+  const [projectSearch, setProjectSearch] = useState<string>(
+    searchParams.get('project') ?? persistedFilter.projectContains
+  )
   // server-side model filter is debounced so we don't hammer the
   // main process on every keystroke. The local `search` still drives the
   // instant client-side highlight.
   const [committedSearch, setCommittedSearch] = useState<string>(persistedFilter.modelContains)
   const [committedProjectSearch, setCommittedProjectSearch] = useState<string>(
-    persistedFilter.projectContains
+    searchParams.get('project') ?? persistedFilter.projectContains
   )
   const [sortKey, setSortKey] = useState<SortKey>('time')
   const [sortDesc, setSortDesc] = useState(true)

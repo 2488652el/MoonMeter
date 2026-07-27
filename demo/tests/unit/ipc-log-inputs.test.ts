@@ -131,7 +131,9 @@ describe('log IPC input validation', () => {
       expect.objectContaining({
         claudeProjects: expect.any(String),
         codexSessions: expect.any(String),
-        kimiCodeSessions: expect.any(String)
+        kimiCodeSessions: expect.any(String),
+        geminiTemp: expect.any(String),
+        opencodeMessages: expect.any(String)
       })
     )
     expect(result).not.toHaveProperty('codexAuthFile')

@@ -21,6 +21,7 @@ vi.mock('../../../../code/src/main/store/alerts-repo', () => ({
   updateAlertEventNotification: vi.fn(() => {})
 }))
 vi.mock('../../../../code/src/main/services/alert-notifications', () => ({
+  areAlertNotificationsMuted: vi.fn(() => false),
   showAlertNotification: vi.fn(
     (
       _event: unknown,
@@ -66,7 +67,10 @@ import {
   updateAlertEventNotification
 } from '../../../../code/src/main/store/alerts-repo'
 import { latestBalances } from '../../../../code/src/main/store/balance-repo'
-import { showAlertNotification } from '../../../../code/src/main/services/alert-notifications'
+import {
+  areAlertNotificationsMuted,
+  showAlertNotification
+} from '../../../../code/src/main/services/alert-notifications'
 
 function makeRule(over: Record<string, unknown> = {}): AlertRule {
   const base: Record<string, unknown> = {
@@ -240,6 +244,7 @@ describe('usageSliceToRecord (pure)', () => {
 describe('evaluateAlerts (integration with mocked store)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(areAlertNotificationsMuted).mockReturnValue(false)
     vi.mocked(getAlertRuleState).mockReturnValue({ active: false, breachCount: 1 })
     vi.mocked(setAlertRuleState).mockImplementation(() => undefined)
   })
@@ -314,6 +319,19 @@ describe('evaluateAlerts (integration with mocked store)', () => {
       'failed',
       'permission denied'
     )
+  })
+
+  it('records a muted event without delivering a native notification', () => {
+    const rule = makeRule({ metric: 'remaining_amount', threshold: 10 })
+    vi.mocked(listAlerts).mockReturnValue([rule])
+    vi.mocked(latestBalances).mockReturnValue([
+      { ...makeSnap({ remaining: 5 }), id: 1, apiKeyId: 'k1' }
+    ])
+    vi.mocked(areAlertNotificationsMuted).mockReturnValue(true)
+
+    expect(evaluateAlerts(new Date('2026-07-06T12:00:00Z')).fired).toBe(1)
+    expect(showAlertNotification).not.toHaveBeenCalled()
+    expect(updateAlertEventNotification).toHaveBeenCalledWith('event-1', 'muted')
   })
 
   it('does not repeat while the same provider/account remains breached', () => {

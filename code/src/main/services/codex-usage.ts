@@ -92,6 +92,11 @@ function readCodexUsageAuth(): CodexAuth {
   return extractCodexUsageAuth(parsed)
 }
 
+/** Returns only the local account identity; credentials remain private to main. */
+export function readCodexUsageAccountId(): string {
+  return readCodexUsageAuth().accountId
+}
+
 function parseRawWindow(value: unknown): RawUsageWindow | null {
   const row = asRecord(value)
   if (!row) return null
@@ -166,9 +171,13 @@ export function parseCodexUsagePayload(value: unknown, fetchedAt = new Date()): 
 async function requestUsage(
   url: string,
   auth: CodexAuth,
-  fetchImpl: FetchLike
+  fetchImpl: FetchLike,
+  outerSignal?: AbortSignal
 ): Promise<CodexUsageSnapshot> {
   const controller = new AbortController()
+  const abortFromOuter = (): void => controller.abort()
+  if (outerSignal?.aborted) controller.abort()
+  else outerSignal?.addEventListener('abort', abortFromOuter, { once: true })
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
     const response = await fetchImpl(url, {
@@ -184,19 +193,39 @@ async function requestUsage(
     return parseCodexUsagePayload(await response.json())
   } finally {
     clearTimeout(timer)
+    outerSignal?.removeEventListener('abort', abortFromOuter)
   }
 }
 
-/** 按兼容性顺序请求内部用量端点；错误中不包含响应正文或任何凭据。 */
-export async function fetchCodexUsage(fetchImpl: FetchLike = fetch): Promise<CodexUsageSnapshot> {
+/** 主进程内部使用的额度结果；账户原值绝不跨 IPC。 */
+export interface CodexUsageWithIdentity {
+  snapshot: CodexUsageSnapshot
+  accountId: string
+}
+
+/** 按兼容性顺序请求内部用量端点，并仅在主进程内保留账户身份。 */
+export async function fetchCodexUsageWithIdentity(
+  fetchImpl: FetchLike = fetch,
+  signal?: AbortSignal
+): Promise<CodexUsageWithIdentity> {
   const auth = readCodexUsageAuth()
   const failures: string[] = []
   for (const url of USAGE_URLS) {
+    if (signal?.aborted) throw new Error('timeout')
     try {
-      return await requestUsage(url, auth, fetchImpl)
+      return {
+        snapshot: await requestUsage(url, auth, fetchImpl, signal),
+        accountId: auth.accountId
+      }
     } catch (error) {
+      if (signal?.aborted) throw new Error('timeout')
       failures.push(`${new URL(url).pathname}: ${(error as Error).message}`)
     }
   }
   throw new Error(`ChatGPT 额度查询失败（${failures.join('；')}）`)
+}
+
+/** 按兼容性顺序请求内部用量端点；错误中不包含响应正文或任何凭据。 */
+export async function fetchCodexUsage(fetchImpl: FetchLike = fetch): Promise<CodexUsageSnapshot> {
+  return (await fetchCodexUsageWithIdentity(fetchImpl)).snapshot
 }

@@ -10,6 +10,10 @@ vi.mock('../../../../code/src/main/log-parsers/sync', () => ({
   syncAllSessions: vi.fn()
 }))
 
+vi.mock('../../../../code/src/main/services/budget-planning', () => ({
+  evaluateBudgetReminders: vi.fn(() => [])
+}))
+
 describe('session auto-parse scheduler', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -49,6 +53,8 @@ describe('session auto-parse scheduler', () => {
     expect(syncAllSessions).toHaveBeenNthCalledWith(1, 'claude-code')
     expect(syncAllSessions).toHaveBeenNthCalledWith(2, 'codex')
     expect(syncAllSessions).toHaveBeenNthCalledWith(3, 'kimi-code')
+    expect(syncAllSessions).toHaveBeenNthCalledWith(4, 'gemini-cli')
+    expect(syncAllSessions).toHaveBeenNthCalledWith(5, 'opencode')
 
     vi.mocked(syncAllSessions).mockClear()
     await vi.advanceTimersByTimeAsync(15 * 60 * 1000)
@@ -56,6 +62,8 @@ describe('session auto-parse scheduler', () => {
     expect(syncAllSessions).toHaveBeenNthCalledWith(1, 'claude-code')
     expect(syncAllSessions).toHaveBeenNthCalledWith(2, 'codex')
     expect(syncAllSessions).toHaveBeenNthCalledWith(3, 'kimi-code')
+    expect(syncAllSessions).toHaveBeenNthCalledWith(4, 'gemini-cli')
+    expect(syncAllSessions).toHaveBeenNthCalledWith(5, 'opencode')
   })
 
   it('stops future parsing after the switch is disabled', async () => {

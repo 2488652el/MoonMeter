@@ -239,6 +239,19 @@ export async function withCnySpendConversion(
   return { ...summary, ...conversion }
 }
 
+/** Converts a standalone multi-currency amount collection using the shared exchange policy. */
+export async function withCnyAmounts(
+  byCurrency: Array<{ currency: string; amount: number }>
+): Promise<ReturnType<typeof convertSpendToCny>> {
+  const context = await resolveCnyRateContext(byCurrency)
+  return convertSpendToCny({
+    byCurrency,
+    ratesToCny: context.rates,
+    rateSource: context.source,
+    updatedAt: context.updatedAt
+  })
+}
+
 export async function withCnyDashboardConversion(
   summary: DashboardSummary
 ): Promise<DashboardSummary> {

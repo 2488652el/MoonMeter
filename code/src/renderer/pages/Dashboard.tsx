@@ -24,8 +24,16 @@ import {
 } from 'recharts'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
+import { ActionCenter } from '../components/ActionCenter'
+import { QuotaPlanningPanel } from '../components/QuotaPlanningPanel'
+import { BudgetPlanningPanel } from '../components/BudgetPlanningPanel'
+import { LocalReportPanel } from '../components/LocalReportPanel'
+import { SourceActivation } from '../components/SourceActivation'
 import { AnimatedNumber, MotionGroup, ProgressBar } from '../components/motion'
 import { useReducedMotion } from '../hooks/useReducedMotion'
+import { useQuotaPlanning } from '../hooks/useQuotaPlanning'
+import { useBudgetPlanning } from '../hooks/useBudgetPlanning'
+import { useLocalReports } from '../hooks/useLocalReports'
 import { fmtCount, fmtMoney } from '../../shared/utils/money'
 import type {
   DashboardSummary,
@@ -269,6 +277,9 @@ function ModelTooltip({
  */
 export default function Dashboard() {
   const initialFilter = useMemo(() => readUsageAnalysisFilter(window.localStorage), [])
+  const quotaPlanning = useQuotaPlanning()
+  const budgetPlanning = useBudgetPlanning()
+  const localReports = useLocalReports()
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [balances, setBalances] = useState<
     Array<BalanceSnapshot & { id: number; apiKeyId?: string }>
@@ -333,7 +344,12 @@ export default function Dashboard() {
     try {
       const result = await window.api.usage.refreshAll()
       setRefreshResult(result)
-      await load()
+      await Promise.all([
+        load(),
+        quotaPlanning.refresh(true),
+        budgetPlanning.refresh(true),
+        localReports.refresh(true)
+      ])
     } catch (error) {
       setLoadError((error as Error).message || '刷新失败')
     } finally {
@@ -432,22 +448,47 @@ export default function Dashboard() {
           />
         </Card>
       ) : isEmpty ? (
-        <Card className="border-border-light bg-bg-card shadow-sm">
-          <EmptyState
-            icon="fa-chart-simple"
-            title="暂无用量数据"
-            hint="先在 API Keys 添加 Key 并刷新一次"
-            action={
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={handleRefresh}
-                disabled={refreshing}
-              >
-                <Icon name="fa-arrows-rotate" /> 立即刷新
-              </button>
-            }
+        <MotionGroup className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-6">
+          <SourceActivation
+            overview={quotaPlanning.overview}
+            loading={quotaPlanning.loading}
+            error={quotaPlanning.error}
+            onRefresh={() => void quotaPlanning.refresh()}
           />
-        </Card>
+          <QuotaPlanningPanel overview={quotaPlanning.overview} />
+          <BudgetPlanningPanel
+            overview={budgetPlanning.overview}
+            loading={budgetPlanning.loading}
+            error={budgetPlanning.error}
+            onRefresh={() => budgetPlanning.refresh()}
+          />
+          <LocalReportPanel
+            overview={localReports.overview}
+            loading={localReports.loading}
+            error={localReports.error}
+            periodKind={localReports.periodKind}
+            onPeriodKindChange={localReports.setPeriodKind}
+            onRefresh={() => localReports.refresh()}
+            onSetEnabled={localReports.setEnabled}
+            onSetRecommendationsEnabled={localReports.setRecommendationsEnabled}
+          />
+          <Card className="border-border-light bg-bg-card shadow-sm">
+            <EmptyState
+              icon="fa-chart-simple"
+              title="等待首个有效数据"
+              hint="完成上方任一来源连接后，额度、用量和成本会自动显示在这里"
+              action={
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                >
+                  <Icon name="fa-arrows-rotate" /> 刷新全部来源
+                </button>
+              }
+            />
+          </Card>
+        </MotionGroup>
       ) : (
         <MotionGroup className="mx-auto flex min-w-0 max-w-[1440px] flex-col gap-6">
           <section className="flex flex-wrap items-end justify-between gap-4">
@@ -493,6 +534,32 @@ export default function Dashboard() {
               </button>
             </div>
           </section>
+
+          <ActionCenter actions={quotaPlanning.overview?.actions ?? []} />
+          <QuotaPlanningPanel overview={quotaPlanning.overview} />
+          <BudgetPlanningPanel
+            overview={budgetPlanning.overview}
+            loading={budgetPlanning.loading}
+            error={budgetPlanning.error}
+            onRefresh={() => budgetPlanning.refresh()}
+          />
+          <LocalReportPanel
+            overview={localReports.overview}
+            loading={localReports.loading}
+            error={localReports.error}
+            periodKind={localReports.periodKind}
+            onPeriodKindChange={localReports.setPeriodKind}
+            onRefresh={() => localReports.refresh()}
+            onSetEnabled={localReports.setEnabled}
+            onSetRecommendationsEnabled={localReports.setRecommendationsEnabled}
+          />
+          <SourceActivation
+            overview={quotaPlanning.overview}
+            loading={quotaPlanning.loading}
+            error={quotaPlanning.error}
+            onRefresh={() => void quotaPlanning.refresh()}
+            compact
+          />
 
           <div data-usage-filter-bar>
             <Card

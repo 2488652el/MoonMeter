@@ -74,6 +74,10 @@ vi.mock('../../../../code/src/main/store/db', () => ({
   getDb: vi.fn()
 }))
 
+vi.mock('../../../../code/src/main/services/budget-planning', () => ({
+  evaluateBudgetReminders: vi.fn(() => [])
+}))
+
 // refreshAll 用量刷新:透传额外凭证并插入已定价的 usage 记录
 describe('scheduler refreshAll usage refresh', () => {
   beforeEach(() => {

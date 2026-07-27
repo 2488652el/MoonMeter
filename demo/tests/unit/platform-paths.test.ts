@@ -16,7 +16,10 @@ describe('resolveCliPaths', () => {
       codexAuthFile: '/Users/tester/.codex/auth.json',
       kimiCodeHome: '/Users/tester/.kimi-code',
       kimiCodeSessions: '/Users/tester/.kimi-code/sessions',
-      kimiCodeSessionIndex: '/Users/tester/.kimi-code/session_index.jsonl'
+      kimiCodeSessionIndex: '/Users/tester/.kimi-code/session_index.jsonl',
+      geminiTemp: '/Users/tester/.gemini/tmp',
+      opencodeStorage: '/Users/tester/.local/share/opencode/storage',
+      opencodeMessages: '/Users/tester/.local/share/opencode/storage/message'
     })
   })
 
@@ -25,6 +28,10 @@ describe('resolveCliPaths', () => {
     expect(result.claudeProjects).toBe('C:\\Users\\Best Z\\.claude\\projects')
     expect(result.codexSessions).toBe('C:\\Users\\Best Z\\.codex\\sessions')
     expect(result.kimiCodeSessions).toBe('C:\\Users\\Best Z\\.kimi-code\\sessions')
+    expect(result.geminiTemp).toBe('C:\\Users\\Best Z\\.gemini\\tmp')
+    expect(result.opencodeMessages).toBe(
+      'C:\\Users\\Best Z\\.local\\share\\opencode\\storage\\message'
+    )
   })
 
   it('preserves unicode characters in macOS home paths', () => {

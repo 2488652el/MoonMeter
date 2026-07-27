@@ -4,6 +4,7 @@
  */
 import { Icon } from '../components/Icon'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
@@ -41,13 +42,14 @@ type DisplayCurrency = 'CNY' | 'USD'
  * 拉取价格条目与供应商列表,提供筛选、增删改与恢复官方价功能。
  */
 export default function PricingConfig() {
+  const [searchParams] = useSearchParams()
   const [entries, setEntries] = useState<PricingEntry[]>([])
   const [providers, setProviders] = useState<ProviderManifest[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PricingEntry | null>(null)
   const [filter, setFilter] = useState<PricingViewFilter>({
-    providerId: null,
+    providerId: searchParams.get('provider'),
     currency: null,
     billingScope: null,
     source: null,

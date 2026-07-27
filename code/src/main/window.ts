@@ -6,6 +6,11 @@ import { BrowserWindow, app } from 'electron'
 import { join } from 'path'
 import { openAllowedExternalUrl } from './platform/external-links'
 
+let appIsQuitting = false
+export function allowWindowCloseForQuit(): void {
+  appIsQuitting = true
+}
+
 /**
  * 创建并配置应用主窗口。
  * 开发环境加载 Vite dev server,生产环境加载打包后的 HTML 文件;
@@ -35,6 +40,12 @@ export function createWindow(): BrowserWindow {
   })
 
   win.on('ready-to-show', () => win.show())
+  win.on('close', (event) => {
+    if (!appIsQuitting) {
+      event.preventDefault()
+      win.hide()
+    }
+  })
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     void openAllowedExternalUrl(url)

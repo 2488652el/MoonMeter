@@ -1,11 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { _electron as electron, type ElectronApplication } from 'playwright'
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
 const packagedApp = process.env['MOONMETER_PACKAGED_APP']
 const legacyProfileSource = process.env['MOONMETER_LEGACY_PROFILE_SOURCE']
+const packageVersion = (createRequire(__filename)('../../../package.json') as { version: string })
+  .version
 
 test('starts the packaged app with the TokenLub safeStorage profile after rebranding', async () => {
   test.skip(process.platform !== 'win32', 'Windows packaged upgrade smoke test')
@@ -42,7 +45,7 @@ test('starts the packaged app with the TokenLub safeStorage profile after rebran
 
     await expect(window).toHaveTitle('MoonMeter')
     await expect(window.locator('body')).not.toBeEmpty()
-    await expect(window.evaluate(() => window.api.version)).resolves.toBe('1.2.1')
+    await expect(window.evaluate(() => window.api.version)).resolves.toBe(packageVersion)
     const selectedUserData = await app.evaluate(({ app: electronApp }) =>
       electronApp.getPath('userData')
     )

@@ -12,6 +12,8 @@ import { useTheme, type ThemeMode } from '../theme'
 import type { SyncMode } from '../../shared/sync-mode'
 import { SYNC_BACKUP_DIRECTORY_SETTING_KEY } from '../../shared/sync-v2'
 import type { AppUpdateStatus } from '../../shared/types/app-update'
+import type { SanitizedDiagnosticPack } from '../../shared/types/diagnostics'
+import type { AccountIdentityOverview } from '../../shared/types/account-identity'
 
 // scheduler reads `refresh_interval_min` (number, minutes).
 // 0 means "关闭" - refresh.ts treats intervalMin <= 0 as a no-op.
@@ -25,6 +27,8 @@ const REFRESH_OPTIONS: Array<{ value: number; label: string }> = [
 ]
 /** 自动刷新间隔的设置 key */
 const REFRESH_KEY = 'refresh_interval_min'
+const FEEDBACK_ISSUES_URL = 'https://github.com/2488652el/MoonMeter/issues'
+const FEEDBACK_NEW_ISSUE_URL = 'https://github.com/2488652el/MoonMeter/issues/new/choose'
 const APPEARANCE_OPTIONS: Array<{ value: ThemeMode; label: string; icon: string }> = [
   { value: 'system', label: '跟随系统', icon: 'fa-display' },
   { value: 'light', label: '浅色', icon: 'fa-sun' },
@@ -60,6 +64,7 @@ const UPDATE_PHASE_META: Record<
 type SyncStatus = Awaited<ReturnType<typeof window.api.sync.status>>
 type SyncPreview = Awaited<ReturnType<typeof window.api.sync.preview>>
 type SyncDevice = Awaited<ReturnType<typeof window.api.sync.devices>>[number]
+type AccountIdentity = AccountIdentityOverview['identities'][number]
 type SyncLogin = {
   baseUrl: string
   email: string
@@ -104,6 +109,18 @@ const SYNC_STATE_META: Record<
   }
 }
 
+function downloadDiagnosticPack(pack: SanitizedDiagnosticPack) {
+  const blob = new Blob([JSON.stringify(pack, null, 2)], { type: 'application/json;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `moonmeter-diagnostics-${pack.generatedAt.slice(0, 10)}.json`
+  document.body.appendChild(anchor)
+  anchor.click()
+  document.body.removeChild(anchor)
+  URL.revokeObjectURL(url)
+}
+
 /**
  * 设置页面组件。
  * 读取并持久化余额自动刷新间隔设置。
@@ -124,6 +141,12 @@ export default function Settings() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [syncError, setSyncError] = useState<string | null>(null)
   const [backupDirectory, setBackupDirectory] = useState<string | null>(null)
+  const [diagnosticPack, setDiagnosticPack] = useState<SanitizedDiagnosticPack | null>(null)
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false)
+  const [diagnosticError, setDiagnosticError] = useState<string | null>(null)
+  const [accountIdentities, setAccountIdentities] = useState<AccountIdentityOverview | null>(null)
+  const [accountIdentityLoading, setAccountIdentityLoading] = useState(false)
+  const [accountIdentityError, setAccountIdentityError] = useState<string | null>(null)
   const [login, setLogin] = useState<SyncLogin>({
     baseUrl: '',
     email: '',
@@ -167,6 +190,10 @@ export default function Settings() {
         setSyncError(`无法读取同步状态：${(error as Error).message}`)
       })
       .finally(() => setSyncStatusInitialized(true))
+  }, [])
+
+  useEffect(() => {
+    void refreshAccountIdentities()
   }, [])
 
   useEffect(() => {
@@ -287,6 +314,66 @@ export default function Settings() {
     } finally {
       setRevokingDeviceId(null)
     }
+  }
+
+  async function createDiagnosticPreview() {
+    setDiagnosticLoading(true)
+    setDiagnosticError(null)
+    try {
+      setDiagnosticPack(await window.api.diagnostics.getSanitized())
+    } catch (error) {
+      setDiagnosticError((error as Error).message || '无法生成脱敏诊断包')
+    } finally {
+      setDiagnosticLoading(false)
+    }
+  }
+
+  async function refreshAccountIdentities() {
+    setAccountIdentityLoading(true)
+    setAccountIdentityError(null)
+    try {
+      setAccountIdentities(await window.api.accountIdentities.overview())
+    } catch (error) {
+      setAccountIdentityError((error as Error).message || '无法读取账户身份')
+    } finally {
+      setAccountIdentityLoading(false)
+    }
+  }
+
+  async function saveAccountIdentityPreferences(next: AccountIdentityOverview['preferences']) {
+    setAccountIdentityLoading(true)
+    setAccountIdentityError(null)
+    try {
+      await window.api.accountIdentities.savePreferences(next)
+      await refreshAccountIdentities()
+    } catch (error) {
+      setAccountIdentityError((error as Error).message || '无法保存账户身份设置')
+    } finally {
+      setAccountIdentityLoading(false)
+    }
+  }
+
+  function renameAccountIdentity(identity: AccountIdentity) {
+    if (!accountIdentities || accountIdentityLoading) return
+    const alias = window.prompt('设置显示别名（留空将恢复原名称）', identity.label)
+    if (alias === null) return
+    const aliasById = { ...accountIdentities.preferences.aliasById }
+    if (alias.trim()) aliasById[identity.id] = alias.trim()
+    else delete aliasById[identity.id]
+    void saveAccountIdentityPreferences({
+      ...accountIdentities.preferences,
+      aliasById
+    })
+  }
+
+  function moveAccountIdentity(identity: AccountIdentity, direction: -1 | 1) {
+    if (!accountIdentities || accountIdentityLoading) return
+    const order = accountIdentities.identities.map((entry) => entry.id)
+    const index = order.indexOf(identity.id)
+    const nextIndex = index + direction
+    if (index < 0 || nextIndex < 0 || nextIndex >= order.length) return
+    ;[order[index], order[nextIndex]] = [order[nextIndex]!, order[index]!]
+    void saveAccountIdentityPreferences({ ...accountIdentities.preferences, order })
   }
 
   const statusMeta = syncStatus ? SYNC_STATE_META[syncStatus.state] : null
@@ -748,6 +835,188 @@ export default function Settings() {
             </div>
           </div>
         )}
+      </Card>
+
+      <Card className="mt-4" title="账户身份" icon="fa-user-tag" motionOrder={4}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-text-primary">
+              各 Key、来源和同步设备独立显示
+            </p>
+            <p className="form-hint mt-1">
+              此处仅管理本机显示别名和顺序；不会合并额度百分比、余额或成本，也不会修改凭据。
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm shrink-0"
+            onClick={() => void refreshAccountIdentities()}
+            disabled={accountIdentityLoading}
+          >
+            <Icon
+              name={accountIdentityLoading ? 'fa-circle-notch' : 'fa-rotate'}
+              className={accountIdentityLoading && !reducedMotion ? 'icon-spin' : ''}
+            />
+            刷新
+          </button>
+        </div>
+        {accountIdentityError && (
+          <p className="mt-3 text-[12px] text-red-600" role="alert">
+            {accountIdentityError}
+          </p>
+        )}
+        {accountIdentities && (
+          <div className="mt-4 space-y-2">
+            {accountIdentities.identities.length === 0 ? (
+              <p className="rounded-lg border border-dashed border-border-light px-3 py-4 text-[12px] text-text-muted">
+                尚未发现可独立跟踪的 Key、来源或同步设备。
+              </p>
+            ) : (
+              accountIdentities.identities.map((identity, index) => (
+                <div
+                  key={identity.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border-light bg-bg-base/45 px-3.5 py-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-text-primary">{identity.label}</span>
+                      <span className="rounded-full bg-bg-card px-2 py-0.5 text-[10px] text-text-secondary">
+                        {identity.providerId ?? identity.sourceLabel ?? identity.kind}
+                      </span>
+                      {identity.status && (
+                        <span className="text-[10px] text-text-muted">{identity.status}</span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-text-muted">
+                      {identity.sourceLabel ?? identity.kind}
+                      {identity.lastSeenAt
+                        ? ` · 最近记录 ${new Date(identity.lastSeenAt).toLocaleString()}`
+                        : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      title="上移"
+                      disabled={index === 0 || accountIdentityLoading}
+                      onClick={() => moveAccountIdentity(identity, -1)}
+                    >
+                      <Icon name="fa-arrow-up" />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      title="下移"
+                      disabled={
+                        index === accountIdentities.identities.length - 1 || accountIdentityLoading
+                      }
+                      onClick={() => moveAccountIdentity(identity, 1)}
+                    >
+                      <Icon name="fa-arrow-down" />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-xs"
+                      disabled={accountIdentityLoading}
+                      onClick={() => renameAccountIdentity(identity)}
+                    >
+                      <Icon name="fa-pen-to-square" /> 别名
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </Card>
+
+      <Card className="mt-4" title="脱敏诊断包" icon="fa-shield-halved" motionOrder={5}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-text-primary">生成前可预览，默认不上传</p>
+            <p className="form-hint mt-1">
+              仅包含版本、来源状态、错误码、计价覆盖和数量；不包含
+              Key、账号别名、路径、Prompt、原始错误或请求内容。
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm shrink-0"
+            onClick={() => void createDiagnosticPreview()}
+            disabled={diagnosticLoading}
+          >
+            <Icon
+              name={diagnosticLoading ? 'fa-circle-notch' : 'fa-file-shield'}
+              className={diagnosticLoading && !reducedMotion ? 'icon-spin' : ''}
+            />
+            {diagnosticLoading ? '生成中…' : '生成预览'}
+          </button>
+        </div>
+        {diagnosticError && (
+          <p className="mt-3 text-[12px] text-red-600" role="alert">
+            {diagnosticError}
+          </p>
+        )}
+        {diagnosticPack && (
+          <div className="mt-4 rounded-lg border border-border-light bg-bg-base/45 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[12px] text-text-secondary">
+                {diagnosticPack.appVersion} · {diagnosticPack.sources.length} 个来源 ·{' '}
+                {diagnosticPack.counts.usageRecordCount} 条请求
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  onClick={() => downloadDiagnosticPack(diagnosticPack)}
+                >
+                  <Icon name="fa-download" /> 下载 JSON
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-xs"
+                  onClick={() => setDiagnosticPack(null)}
+                >
+                  清除预览
+                </button>
+              </div>
+            </div>
+            <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md bg-bg-card p-3 text-[11px] leading-5 text-text-secondary">
+              {JSON.stringify(diagnosticPack, null, 2)}
+            </pre>
+          </div>
+        )}
+      </Card>
+
+      <Card className="mt-4" title="反馈与功能投票" icon="fa-comments" motionOrder={6}>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-text-primary">由你决定下一项优先级</p>
+            <p className="form-hint mt-1">
+              反馈会在浏览器中由你本人提交；本应用不会自动附加诊断包、账户信息或行为数据。
+              如需关联环境，请先预览并下载上方脱敏 JSON，再由你自行选择是否附加到反馈。
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a
+              className="btn btn-outline btn-sm"
+              href={FEEDBACK_ISSUES_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Icon name="fa-arrow-up-right-from-square" /> 查看 / 投票
+            </a>
+            <a
+              className="btn btn-primary btn-sm"
+              href={FEEDBACK_NEW_ISSUE_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Icon name="fa-pen-to-square" /> 提交反馈
+            </a>
+          </div>
+        </div>
       </Card>
     </div>
   )

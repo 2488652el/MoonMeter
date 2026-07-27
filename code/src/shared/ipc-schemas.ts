@@ -3,6 +3,7 @@
  * 在主进程 handle 入口处统一校验,防止非法输入写入数据库。
  */
 import { z } from 'zod'
+import { isInternalSettingKey } from './settings'
 
 // API key
 /** 创建 API Key 入参校验。 */
@@ -94,10 +95,62 @@ export const alertEventListInputSchema = z.object({
   limit: z.number().int().positive().max(500).default(100)
 })
 
+// Soft budgets
+const budgetRuleFields = {
+  name: z.string().trim().min(1).max(80),
+  periodKind: z.enum(['calendar-month', 'custom-cycle']),
+  customCycleStartDay: z.number().int().min(1).max(28).optional(),
+  scope: z.enum(['total', 'provider', 'project']),
+  scopeValue: z.string().trim().min(1).max(200).optional(),
+  limitCny: z.number().positive().max(10_000_000),
+  enabled: z.boolean().optional()
+} as const
+
+function refineBudgetRule<T extends z.ZodTypeAny>(schema: T): z.ZodEffects<T> {
+  return schema.superRefine((value, context) => {
+    const rule = value as z.infer<z.ZodObject<typeof budgetRuleFields>>
+    if (rule.periodKind === 'custom-cycle' && rule.customCycleStartDay === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['customCycleStartDay'],
+        message: 'required'
+      })
+    }
+    if (rule.scope !== 'total' && !rule.scopeValue) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['scopeValue'], message: 'required' })
+    }
+  })
+}
+
+export const budgetAddInputSchema = refineBudgetRule(z.object(budgetRuleFields))
+export const budgetUpdateInputSchema = refineBudgetRule(
+  z.object({ ...budgetRuleFields, id: z.string().uuid() })
+)
+export const budgetToggleInputSchema = z.object({ id: z.string().uuid(), enabled: z.boolean() })
+export const budgetEventIdInputSchema = z.object({ id: z.string().uuid() })
+
+// Local reports
+export const localReportPeriodInputSchema = z.enum(['week', 'month'])
+export const localReportsSetEnabledInputSchema = z.object({ enabled: z.boolean() })
+export const localRecommendationsSetEnabledInputSchema = z.object({ enabled: z.boolean() })
+
+// Read-only AccountIdentity display preferences. The identities themselves are
+// derived by the main process; renderer input can only rename or order them.
+export const accountIdentityPreferencesInputSchema = z.object({
+  order: z.array(z.string().min(1).max(300)).max(500),
+  aliasById: z.record(z.string().min(1).max(300), z.string().trim().min(1).max(100))
+})
+
 // Settings
 /** 设置项写入入参校验。 */
 export const settingsSetInputSchema = z.object({
-  key: z.string().min(1).max(64),
+  key: z
+    .string()
+    .min(1)
+    .max(64)
+    .refine((key) => !isInternalSettingKey(key), {
+      message: 'internal settings cannot be changed through IPC'
+    }),
   value: z.unknown()
 })
 
@@ -116,7 +169,7 @@ export const syncDeviceIdInputSchema = z.object({ deviceId: z.string().min(1) })
 // Log sync (Phase D2)
 /** 会话日志同步入参校验。 */
 export const logSyncInputSchema = z.object({
-  source: z.enum(['claude-code', 'codex', 'kimi-code'])
+  source: z.enum(['claude-code', 'codex', 'kimi-code', 'gemini-cli', 'opencode'])
 })
 
 /** 打开日志文件夹入参校验。 */

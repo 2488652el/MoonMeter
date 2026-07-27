@@ -137,7 +137,7 @@ describe('PR-1: db v5 migration contract', () => {
     const versionRow = fresh
       .prepare('SELECT MAX(version) AS v FROM schema_version')
       .get() as SchemaVersionRow
-    expect(versionRow.v).toBe(21)
+    expect(versionRow.v).toBe(23)
     expect(readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')).toContain('model_pricing')
 
     // Both new columns should be visible via PRAGMA table_info(api_keys).
@@ -297,6 +297,27 @@ describe('PR-1: db v5 migration contract', () => {
     expect(sql).toContain('ADD COLUMN breach_count INTEGER NOT NULL DEFAULT 0')
   })
 
+  it('v22 creates local-only quota samples and source health in one transaction', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(22)")
+    expect(sql).toMatch(/CREATE TABLE quota_samples\s*\(/)
+    expect(sql).toMatch(/CREATE TABLE source_health\s*\(/)
+    expect(sql).toContain('UNIQUE (source_id, account_ref, window_key, captured_at)')
+    expect(sql).toContain('idx_quota_samples_series')
+    expect(sql).toMatch(/if \(currentVersion < 22\) \{\s+db\.exec\('BEGIN'\)/)
+    expect(sql).toContain("db.exec('ROLLBACK')")
+  })
+
+  it('v23 creates local soft-budget rules with one threshold event per period', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(23)")
+    expect(sql).toMatch(/CREATE TABLE budget_rules\s*\(/)
+    expect(sql).toMatch(/CREATE TABLE budget_events\s*\(/)
+    expect(sql).toContain('UNIQUE (rule_id, period_start, threshold_percent)')
+  })
+
   it('v2 usage_records rebuild preserves agent_label while copying legacy rows', () => {
     const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
 
@@ -343,7 +364,7 @@ describe('PR-1: db v5 migration contract', () => {
     expect(state.columns.filter((c) => c.name === 'usage_query_enabled').length).toBe(1)
     expect(state.columns.filter((c) => c.name === 'query_mode').length).toBe(1)
     // Re-running an up-to-date database must not bump the schema version.
-    expect(state.version).toBe(21)
+    expect(state.version).toBe(23)
   })
 
   it('v8 migration maps existing pricing rows without creating duplicate identities', () => {
@@ -366,7 +387,7 @@ describe('PR-1: db v5 migration contract', () => {
     }
 
     applyMigrationsForTest(fakeDb as unknown as Parameters<typeof applyMigrationsForTest>[0])
-    expect(state.version).toBe(21)
+    expect(state.version).toBe(23)
     expect(maps).toHaveLength(2)
     expect(maps.every((map) => map.startsWith('model_pricing:'))).toBe(true)
   })

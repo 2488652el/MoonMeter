@@ -16,7 +16,7 @@ const repoRoot = process.cwd()
 const builtMain = join(repoRoot, 'demo', 'out', 'main', 'index.js')
 
 const ROUTES = [
-  { path: '/', marker: /使用统计|暂无用量数据/ },
+  { path: '/', marker: /使用统计|连接来源，开始看到可信数据/ },
   { path: '/agents', marker: '项目用量' },
   { path: '/providers', marker: 'Provider 汇总' },
   { path: '/models', marker: '模型对比' },
@@ -150,7 +150,7 @@ function seedSyntheticModelUsage(databasePath: string): void {
     `const fixtures=${JSON.stringify(fixtures)};`,
     "const pricing=db.prepare(`INSERT OR REPLACE INTO pricing_entries (provider_id,billing_scope,model,prompt_price_per_mtok,completion_price_per_mtok,cache_read_price_per_mtok,cache_creation_price_per_mtok,currency,source,catalog_active,updated_at) VALUES (@providerId,'default',@model,@promptPrice,@completionPrice,0.1,0.5,'USD','user',1,@capturedAt)`);",
     "const usage=db.prepare(`INSERT INTO usage_records (provider_id,billing_scope,model,prompt_tokens,completion_tokens,cache_creation_tokens,cache_read_tokens,total_tokens,cost,currency,source,upstream_dimension,message_id,agent_label,captured_at) VALUES (@providerId,'default',@model,@input,@output,@cacheWrite,@cacheRead,@total,0,'USD','session-log','',@messageId,@agentLabel,@capturedAt)`);",
-    'const insert=db.transaction((rows)=>{for(const [index,row] of rows.entries()){const capturedAt=new Date(Date.UTC(2026,6,20,8,index)).toISOString();pricing.run({...row,capturedAt});usage.run({...row,total:row.input+row.output,messageId:`model-card-${index}`,agentLabel:index%2===0?`tokenlub`:`vibe-cafe`,capturedAt});}});',
+    'const insert=db.transaction((rows)=>{for(const [index,row] of rows.entries()){const capturedAt=new Date(Date.now()-(index+1)*60*60*1000).toISOString();pricing.run({...row,capturedAt});usage.run({...row,total:row.input+row.output,messageId:`model-card-${index}`,agentLabel:index%2===0?`tokenlub`:`vibe-cafe`,capturedAt});}});',
     'insert(fixtures);',
     "const extraPricing=db.prepare(`INSERT OR REPLACE INTO pricing_entries (provider_id,billing_scope,model,prompt_price_per_mtok,completion_price_per_mtok,currency,source,catalog_active,updated_at) VALUES ('manual','default',?,1,2,'USD','catalog',1,?)`);",
     "const seedPricing=db.transaction(()=>{for(let index=0;index<60;index++){extraPricing.run(`pricing-e2e-${String(index).padStart(2,'0')}`,'2026-07-20T08:00:00.000Z');}});",
@@ -532,6 +532,7 @@ test.describe.serial('Electron motion and accessibility', () => {
     if (!window) throw new Error('Electron window was not created')
 
     await window.emulateMedia({ reducedMotion: 'reduce' })
+    await expectSettled(window)
     for (const route of ROUTES) {
       await navigateTo(window, route)
       await window.waitForTimeout(50)

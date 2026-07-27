@@ -5,7 +5,7 @@
   <p>A local-first LLM usage, balance, and cost workspace for multi-model developers.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.2.52-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.2.53-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -100,13 +100,13 @@ npm run build
 ### Package for Windows
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.2.52" --model "release"
+npm run dist:win -- --change "MoonMeter-1.2.53" --model "release"
 ```
 
 Output:
 
 ```text
-demo/moonmeter-1.2.52-MoonMeter-1.2.52-release/
+demo/moonmeter-1.2.53-MoonMeter-1.2.53-release/
 ```
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
@@ -172,4 +172,4 @@ Run at least `typecheck`, `test`, `lint`, and `format:check` before submitting a
 
 ## Version
 
-Current source version: **MoonMeter 1.2.52**. This release adds native alert delivery, occurrence-time pricing snapshots, and shared month-to-date/custom billing-period filters across the dashboard, provider, model, and log views. See [CHANGELOG.md](./CHANGELOG.md).
+Current source version: **MoonMeter 1.2.53**. This release adds quota planning, tray quick view, soft budgets and periodic reports, transparent recommendations, and a multi-account identity view. See [CHANGELOG.md](./CHANGELOG.md).

@@ -5,14 +5,14 @@
 import { statSync, readFileSync } from 'node:fs'
 import { getDb } from '../store/db'
 import { insertUsage } from '../store/usage-repo'
-import { discoverClaudeSessions, syncClaudeFile, deriveClaudeAgentLabel } from './claude'
-import { discoverCodexSessions, syncCodexFile, deriveCodexAgentLabel } from './codex'
+import { discoverClaudeSessions, deriveClaudeAgentLabel } from './claude'
+import { discoverCodexSessions, deriveCodexAgentLabel } from './codex'
 import {
   discoverKimiCodeSessions,
-  syncKimiCodeFile,
   deriveKimiCodeAgentLabel,
   deriveKimiCodeSessionId
 } from './kimi-code'
+import { discoverCliLogSessions, getCliLogSource, type CliLogSourceId } from './registry'
 import type { UsageRecord } from '@shared/types/usage'
 
 /** 单文件同步进度回调载荷。 */
@@ -34,9 +34,6 @@ interface SyncStateRow {
   byte_offset: number | null
   mtime_ms: number | null
 }
-
-const CODEX_SYNC_STATE_SOURCE = 'codex:v2'
-const KIMI_CODE_SYNC_STATE_SOURCE = 'kimi-code:v1'
 
 /** 读取指定来源+文件路径在 log_sync_state 中的字节偏移与 mtime。 */
 function readSyncState(source: string, filePath: string): { byteOffset: number; mtimeMs: number } {
@@ -118,44 +115,48 @@ export function syncFiles(
 
 /** 同步所有 Claude Code 会话文件,返回汇总结果。 */
 export function syncClaudeSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
-  return syncFiles('claude-code', discoverClaudeSessions(), syncClaudeFile, onProgress)
+  return syncCliLogSource('claude-code', onProgress)
 }
 
 /** 同步所有 Codex 会话文件,返回汇总结果(进度来源名统一为 'codex')。 */
 export function syncCodexSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
-  const result = syncFiles(
-    CODEX_SYNC_STATE_SOURCE,
-    discoverCodexSessions(),
-    syncCodexFile,
-    onProgress
-      ? (p) => {
-          onProgress({ ...p, source: 'codex' })
-        }
-      : undefined
-  )
-  return { source: 'codex', totals: result.totals }
+  return syncCliLogSource('codex', onProgress)
 }
 
 /** 同步 Kimi Code CLI 的 wire.jsonl 用量事件。 */
 export function syncKimiCodeSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
+  return syncCliLogSource('kimi-code', onProgress)
+}
+
+/** 同步 Gemini CLI 的本地会话记录。 */
+export function syncGeminiSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
+  return syncCliLogSource('gemini-cli', onProgress)
+}
+
+/** 同步 OpenCode 持久化的 assistant 消息记录。 */
+export function syncOpenCodeSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
+  return syncCliLogSource('opencode', onProgress)
+}
+
+function syncCliLogSource(
+  sourceId: CliLogSourceId,
+  onProgress?: (p: SyncProgress) => void
+): SyncResult {
+  const source = getCliLogSource(sourceId)
   const result = syncFiles(
-    KIMI_CODE_SYNC_STATE_SOURCE,
-    discoverKimiCodeSessions(),
-    syncKimiCodeFile,
-    onProgress
-      ? (p) => {
-          onProgress({ ...p, source: 'kimi-code' })
-        }
-      : undefined
+    source.syncStateSource,
+    source.discover(),
+    source.syncFile,
+    onProgress ? (progress) => onProgress({ ...progress, source: source.id }) : undefined
   )
-  return { source: 'kimi-code', totals: result.totals }
+  return { source: source.id, totals: result.totals }
 }
 
 /**
  * 按指定来源(claude-code 或 codex)同步会话文件,并在完成后尽力回填历史数据的 agent 标签。
  */
 export function syncAllSessions(
-  source: 'claude-code' | 'codex' | 'kimi-code',
+  source: CliLogSourceId,
   onProgress?: (p: SyncProgress) => void
 ): SyncResult {
   const result =
@@ -163,7 +164,11 @@ export function syncAllSessions(
       ? syncClaudeSessions(onProgress)
       : source === 'codex'
         ? syncCodexSessions(onProgress)
-        : syncKimiCodeSessions(onProgress)
+        : source === 'kimi-code'
+          ? syncKimiCodeSessions(onProgress)
+          : source === 'gemini-cli'
+            ? syncGeminiSessions(onProgress)
+            : syncOpenCodeSessions(onProgress)
   // Best-effort: label historical rows that predate the agent_label column so
   // the UI can show a project name. Guarded internally so it never breaks sync.
   // 尽力而为:为早于 agent_label 列的历史行补充标签,内部已做防护,失败不影响同步。
@@ -261,10 +266,8 @@ export function discoverAllSessions(): {
   claude: string[]
   codex: string[]
   kimiCode: string[]
+  gemini: string[]
+  opencode: string[]
 } {
-  return {
-    claude: discoverClaudeSessions(),
-    codex: discoverCodexSessions(),
-    kimiCode: discoverKimiCodeSessions()
-  }
+  return discoverCliLogSessions()
 }

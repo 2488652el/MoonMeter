@@ -1,6 +1,6 @@
 {
   "name": "moonmeter",
-  "version": "1.2.52",
+  "version": "1.2.53",
   "description": "MoonMeter - unified LLM token usage & cost aggregator for Windows and macOS",
   "main": "demo/out/main/index.js",
   "author": "bestzuge@gmail.com",
@@ -123,7 +123,12 @@
       "demo/out/renderer/**/*",
       "package.json"
     ],
-    "extraResources": [],
+    "extraResources": [
+      {
+        "from": "design/assets/icon.png",
+        "to": "moonmeter-tray.png"
+      }
+    ],
     "asar": true,
     "asarUnpack": [
       "**/node_modules/better-sqlite3/**"

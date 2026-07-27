@@ -7,7 +7,7 @@
 export type AlertMetric = 'remaining_amount' | 'remaining_pct'
 /** 告警作用域:单个供应商(provider)或全局(global)。 */
 export type AlertScope = 'provider' | 'global'
-export type AlertNotificationDelivery = 'pending' | 'shown' | 'unsupported' | 'failed'
+export type AlertNotificationDelivery = 'pending' | 'shown' | 'unsupported' | 'failed' | 'muted'
 
 export interface AlertRuleInput {
   scope: AlertScope

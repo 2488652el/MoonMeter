@@ -3,6 +3,7 @@
  * 并用紧凑热力图和多项目趋势图展示每日变化。
  */
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   CartesianGrid,
   Line,
@@ -328,6 +329,7 @@ function ProjectTokenTrendChart({
 
 /** 项目用量页面组件，默认查询并展示最近 30 天。 */
 export default function AgentDetail() {
+  const [searchParams] = useSearchParams()
   const [rangeDays, setRangeDays] = useState<ProjectUsageRangeDays>(30)
   const [logs, setLogs] = useState<UsageRecord[] | null>(null)
 
@@ -374,7 +376,13 @@ export default function AgentDetail() {
     )
   }
 
-  const report = buildProjectUsage(logs, rangeDays)
+  const requestedProject = searchParams.get('project')?.trim().toLowerCase()
+  const scopedLogs = requestedProject
+    ? logs.filter((record) =>
+        (record.agentLabel ?? record.sessionId ?? '').toLowerCase().includes(requestedProject)
+      )
+    : logs
+  const report = buildProjectUsage(scopedLogs, rangeDays)
   const totalCost = report.projects.reduce((sum, project) => sum + project.cost, 0)
   const totalTokens = report.projects.reduce((sum, project) => sum + project.totalTokens, 0)
   const totalRequests = report.projects.reduce((sum, project) => sum + project.requests, 0)
