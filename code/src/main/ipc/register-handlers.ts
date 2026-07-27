@@ -4,7 +4,7 @@
  * 本地日志解析与 CLI 密钥导入等)转发到对应的 store/provider/log-parsers 层,
  * 并使用 zod schema 进行入参校验。
  */
-import { ipcMain, BrowserWindow, dialog, net, shell } from 'electron'
+import { app, ipcMain, BrowserWindow, dialog, net, shell } from 'electron'
 import { IPC } from '@shared/ipc-channels'
 import {
   apiKeyCreateInputSchema,
@@ -19,6 +19,14 @@ import {
   alertEventListInputSchema,
   alertToggleInputSchema,
   alertUpdateInputSchema,
+  budgetAddInputSchema,
+  budgetEventIdInputSchema,
+  budgetToggleInputSchema,
+  budgetUpdateInputSchema,
+  localReportPeriodInputSchema,
+  accountIdentityPreferencesInputSchema,
+  localRecommendationsSetEnabledInputSchema,
+  localReportsSetEnabledInputSchema,
   settingsSetInputSchema,
   keysSetUsageQueryInputSchema,
   logOpenFolderInputSchema,
@@ -30,6 +38,7 @@ import {
 import type { ApiKeyCreateInput, ApiKeyUpdateInput } from '@shared/types/api-key'
 import type { PricingEntry } from '@shared/types/pricing'
 import type { AlertRuleInput } from '@shared/types/alert'
+import type { BudgetRuleInput } from '@shared/types/budget'
 import type { UsageAnalysisFilter } from '@shared/types/usage'
 import {
   listKeys,
@@ -81,6 +90,31 @@ import {
   SESSION_AUTO_PARSE_SETTING_KEY
 } from '../scheduler/session-auto-parse'
 import { fetchCodexUsage } from '../services/codex-usage'
+import { getQuotaPlanningOverview } from '../services/quota-planning'
+import { getBudgetOverview, evaluateBudgetReminders } from '../services/budget-planning'
+import { createSanitizedDiagnosticPack } from '../services/diagnostic-pack'
+import {
+  getAccountIdentityOverview,
+  saveAccountIdentityPreferences
+} from '../services/account-identities'
+import {
+  getLocalReportOverview,
+  setLocalRecommendationsEnabled,
+  setLocalReportsEnabled
+} from '../services/local-report'
+import {
+  addBudgetRule,
+  deleteBudgetRule,
+  markBudgetEventRead,
+  toggleBudgetRule,
+  updateBudgetRule
+} from '../store/budget-repo'
+import { getCliLogSource } from '../log-parsers/registry'
+import {
+  deleteSourceHealth,
+  recordSourceFailure,
+  recordSourceSuccess
+} from '../store/source-health-repo'
 import {
   getCnyRateQuote,
   getPricingExchangePolicy,
@@ -154,7 +188,9 @@ export function registerIpcHandlers(): void {
     return updateKey(parsed)
   })
   ipcMain.handle(IPC.keysDelete, (_e, id: string) => {
+    const existing = getKey(id)
     deleteKey(id)
+    if (existing) deleteSourceHealth(`provider:${existing.providerId}`, id)
     return { ok: true }
   })
   ipcMain.handle(IPC.keysTest, async (_e, id: string) => {
@@ -252,6 +288,63 @@ export function registerIpcHandlers(): void {
   // Electron net.fetch follows Chromium's system proxy configuration. Node's
   // global fetch does not, which breaks ChatGPT usage lookup on proxied desktops.
   ipcMain.handle(IPC.codexUsage, () => fetchCodexUsage(net.fetch))
+  let quotaOverviewInFlight: ReturnType<typeof getQuotaPlanningOverview> | null = null
+  ipcMain.handle(IPC.quotaPlanningOverview, () => {
+    if (!quotaOverviewInFlight) {
+      quotaOverviewInFlight = getQuotaPlanningOverview(net.fetch).finally(() => {
+        quotaOverviewInFlight = null
+      })
+    }
+    return quotaOverviewInFlight
+  })
+  ipcMain.handle(IPC.localReportsGet, (_e, kind) =>
+    getLocalReportOverview(localReportPeriodInputSchema.parse(kind))
+  )
+  ipcMain.handle(IPC.localReportsSetEnabled, (_e, input) => {
+    const { enabled } = localReportsSetEnabledInputSchema.parse(input)
+    setLocalReportsEnabled(enabled)
+    return { ok: true as const }
+  })
+  ipcMain.handle(IPC.localRecommendationsSetEnabled, (_e, input) => {
+    const { enabled } = localRecommendationsSetEnabledInputSchema.parse(input)
+    setLocalRecommendationsEnabled(enabled)
+    return { ok: true as const }
+  })
+  ipcMain.handle(IPC.diagnosticsGetSanitized, () => createSanitizedDiagnosticPack(app.getVersion()))
+  ipcMain.handle(IPC.budgetsOverview, () => getBudgetOverview())
+  ipcMain.handle(IPC.budgetsAdd, (_e, input) => {
+    const parsed = stripUndefined(budgetAddInputSchema.parse(input)) as BudgetRuleInput
+    const rule = addBudgetRule(parsed)
+    evaluateBudgetReminders()
+    return rule
+  })
+  ipcMain.handle(IPC.budgetsUpdate, (_e, input) => {
+    const parsed = stripUndefined(budgetUpdateInputSchema.parse(input))
+    const { id, ...ruleInput } = parsed
+    const rule = updateBudgetRule(id, ruleInput as BudgetRuleInput)
+    evaluateBudgetReminders()
+    return rule
+  })
+  ipcMain.handle(IPC.budgetsToggle, (_e, input) => {
+    const parsed = budgetToggleInputSchema.parse(input)
+    toggleBudgetRule(parsed.id, parsed.enabled)
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.budgetsDelete, (_e, id) => {
+    const parsed = budgetEventIdInputSchema.parse({ id })
+    deleteBudgetRule(parsed.id)
+    return { ok: true }
+  })
+  ipcMain.handle(IPC.budgetsMarkEventRead, (_e, input) => {
+    const parsed = budgetEventIdInputSchema.parse(input)
+    markBudgetEventRead(parsed.id)
+    return { ok: true }
+  })
+
+  ipcMain.handle(IPC.accountIdentitiesOverview, () => getAccountIdentityOverview())
+  ipcMain.handle(IPC.accountIdentitiesSavePreferences, (_e, input) => {
+    return saveAccountIdentityPreferences(accountIdentityPreferencesInputSchema.parse(input))
+  })
 
   // Sync status exposes only non-sensitive state; tokens stay in main.
   ipcMain.handle(IPC.syncStatus, () => getSyncStatus())
@@ -408,6 +501,13 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC.logSync, (_e, input) => {
     const parsed = logSyncInputSchema.parse(input)
     const win = BrowserWindow.getAllWindows()[0]
+    const sourceDefinition = getCliLogSource(parsed.source)
+    const sourceIdentity = {
+      sourceId: `cli:${parsed.source}`,
+      accountRef: `cli:${parsed.source}`,
+      sourceKind: 'cli' as const,
+      displayName: sourceDefinition.displayName
+    }
     let result: {
       source: string
       totals: { lines: number; tokens: number; inserted: number }
@@ -417,6 +517,8 @@ export function registerIpcHandlers(): void {
       result = syncAllSessions(parsed.source, (p) => {
         win?.webContents.send(IPC.logSyncProgress, p)
       })
+      recordSourceSuccess(sourceIdentity)
+      evaluateBudgetReminders()
     } catch (e) {
       // Never leave the renderer's progress UI hanging — always emit a done
       // event even when sync threw (DB locked, disk error, parse crash).
@@ -425,6 +527,7 @@ export function registerIpcHandlers(): void {
         totals: { lines: 0, tokens: 0, inserted: 0 },
         error: (e as Error).message
       }
+      recordSourceFailure(sourceIdentity, e)
     }
     win?.webContents.send(IPC.logSyncDone, result)
     return { started: true }

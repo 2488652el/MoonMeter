@@ -7,9 +7,25 @@ import type {
   AlertOpenDestination
 } from '@shared/types/alert'
 import { listAlertEvents } from '../store/alerts-repo'
+import { getSetting, setSetting } from '../store/settings-store'
 import { createWindow } from '../window'
 
 const activeNotifications = new Set<Notification>()
+export const ALERT_NOTIFICATIONS_MUTE_UNTIL_SETTING = 'alert_notifications_mute_until'
+
+export function areAlertNotificationsMuted(now = new Date()): boolean {
+  const mutedUntil = getSetting<string>(ALERT_NOTIFICATIONS_MUTE_UNTIL_SETTING)
+  const mutedUntilMs = mutedUntil ? Date.parse(mutedUntil) : NaN
+  return Number.isFinite(mutedUntilMs) && mutedUntilMs > now.getTime()
+}
+
+export function muteAlertNotificationsFor(durationMs: number, now = new Date()): void {
+  const safeDuration = Math.max(0, Math.floor(durationMs))
+  setSetting(
+    ALERT_NOTIFICATIONS_MUTE_UNTIL_SETTING,
+    new Date(now.getTime() + safeDuration).toISOString()
+  )
+}
 
 export function getAlertNotificationStatus(): AlertNotificationStatus {
   const supported = Notification.isSupported()

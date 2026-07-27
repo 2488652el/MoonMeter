@@ -1,5 +1,7 @@
 import { syncAllSessions } from '../log-parsers/sync'
+import { CLI_LOG_SOURCES } from '../log-parsers/registry'
 import { getSetting } from '../store/settings-store'
+import { evaluateBudgetReminders } from '../services/budget-planning'
 
 export const SESSION_AUTO_PARSE_SETTING_KEY = 'session_auto_parse_enabled'
 
@@ -21,12 +23,17 @@ function getIntervalMs(): number | null {
 export function runSessionAutoParse(): void {
   if (getSetting<boolean>(SESSION_AUTO_PARSE_SETTING_KEY) !== true) return
 
-  for (const source of ['claude-code', 'codex', 'kimi-code'] as const) {
+  for (const source of CLI_LOG_SOURCES) {
     try {
-      syncAllSessions(source)
+      syncAllSessions(source.id)
     } catch (error) {
-      console.error(`[session-auto-parse] ${source} failed:`, (error as Error).message)
+      console.error(`[session-auto-parse] ${source.id} failed:`, (error as Error).message)
     }
+  }
+  try {
+    evaluateBudgetReminders()
+  } catch (error) {
+    console.error('[session-auto-parse] budget evaluation failed:', (error as Error).message)
   }
 }
 

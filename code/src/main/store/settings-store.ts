@@ -4,14 +4,10 @@
  */
 import { getDb } from './db'
 import { SYNCABLE_SETTING_KEYS } from '../../shared/sync-v2'
+import { isInternalSettingKey } from '../../shared/settings'
 import { markSyncV2Dirty } from './sync-v2-repo'
 
 const SYNCABLE_SETTINGS = new Set<string>(SYNCABLE_SETTING_KEYS)
-const INTERNAL_SETTING_PREFIXES = ['pricing_catalog_', 'pricing_exchange_']
-
-function isInternalSetting(key: string): boolean {
-  return INTERNAL_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix))
-}
 
 /**
  * 读取指定键的设置值,值以 JSON 存储,无法反序列化时回退为原始字符串。
@@ -62,7 +58,7 @@ export function getAllSettings(): Record<string, unknown> {
   }>
   const out: Record<string, unknown> = {}
   for (const r of rows) {
-    if (isInternalSetting(r.key)) continue
+    if (isInternalSettingKey(r.key)) continue
     try {
       out[r.key] = JSON.parse(r.value)
     } catch {

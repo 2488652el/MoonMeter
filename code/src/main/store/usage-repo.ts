@@ -59,6 +59,11 @@ interface DbRow {
   captured_at: string
 }
 
+export interface UsageWorkspace {
+  label: string
+  lastSeenAt: string
+}
+
 /** 按供应商+模型分组的聚合行(含各类 token 与存储成本)。 */
 interface SpendGroupRow {
   provider_id: string
@@ -128,6 +133,29 @@ function buildUsageWhere(filter: UsageWhereFilter): { where: string; args: unkno
     where: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '',
     args
   }
+}
+
+/**
+ * Lists locally derived workspace labels without returning a raw session path.
+ * These labels originate in the parsers' cwd/project-name extraction and are
+ * used only for the AccountIdentity display projection.
+ */
+export function listUsageWorkspaces(): UsageWorkspace[] {
+  return getDb()
+    .prepare(
+      `
+        SELECT agent_label AS label, MAX(captured_at) AS last_seen_at
+        FROM usage_records
+        WHERE source = 'session-log' AND agent_label IS NOT NULL AND TRIM(agent_label) <> ''
+        GROUP BY agent_label
+        ORDER BY last_seen_at DESC, agent_label COLLATE NOCASE
+      `
+    )
+    .all()
+    .map((row) => {
+      const value = row as { label: string; last_seen_at: string }
+      return { label: value.label, lastSeenAt: value.last_seen_at }
+    })
 }
 
 /** 聚合接口兼容旧版 days 数值入参，并对对象入参补齐默认 30 天。 */
@@ -829,6 +857,14 @@ export function computeTotalSpend(filter: number | UsageAnalysisFilter = 30): To
     unpricedRequests,
     totalRequests
   }
+}
+
+export function listUsageProviderIds(filter: UsageAnalysisFilter = {}): string[] {
+  const { where, args } = buildUsageWhere(filter)
+  const rows = getDb()
+    .prepare(`SELECT DISTINCT provider_id FROM usage_records ${where} ORDER BY provider_id`)
+    .all(...args) as Array<{ provider_id: string }>
+  return rows.map((row) => row.provider_id)
 }
 
 /**

@@ -12,11 +12,24 @@ import {
   pricingCatalogApplyInputSchema,
   alertAddInputSchema,
   alertToggleInputSchema,
+  budgetAddInputSchema,
+  localReportPeriodInputSchema,
+  localRecommendationsSetEnabledInputSchema,
+  localReportsSetEnabledInputSchema,
   settingsSetInputSchema
 } from '../../../code/src/shared/ipc-schemas'
 
 // ipc-schemas:校验各 IPC 输入 schema 的合法/非法判定
 describe('ipc-schemas', () => {
+  it('accepts only supported local report controls', () => {
+    expect(localReportPeriodInputSchema.safeParse('month').success).toBe(true)
+    expect(localReportPeriodInputSchema.safeParse('quarter').success).toBe(false)
+    expect(localReportsSetEnabledInputSchema.safeParse({ enabled: false }).success).toBe(true)
+    expect(localRecommendationsSetEnabledInputSchema.safeParse({ enabled: true }).success).toBe(
+      true
+    )
+  })
+
   it('accepts a valid api key create input', () => {
     const r = apiKeyCreateInputSchema.safeParse({
       providerId: 'deepseek',
@@ -111,6 +124,27 @@ describe('ipc-schemas', () => {
     expect(r.success).toBe(true)
   })
 
+  it('requires a concrete scope and custom cycle anchor for soft budgets', () => {
+    expect(
+      budgetAddInputSchema.safeParse({
+        name: '项目预算',
+        periodKind: 'custom-cycle',
+        scope: 'project',
+        limitCny: 100
+      }).success
+    ).toBe(false)
+    expect(
+      budgetAddInputSchema.safeParse({
+        name: '项目预算',
+        periodKind: 'custom-cycle',
+        customCycleStartDay: 15,
+        scope: 'project',
+        scopeValue: 'tokenlub',
+        limitCny: 100
+      }).success
+    ).toBe(true)
+  })
+
   // N8: IPC handlers now call schema.parse(input) before forwarding to the
   // store layer. These cases verify the schemas reject the malformed inputs
   // that would previously have reached addKey/setPricing/addAlert directly.
@@ -137,6 +171,18 @@ describe('ipc-schemas', () => {
   it('rejects settings set with empty key', () => {
     const r = settingsSetInputSchema.safeParse({ key: '', value: 1 })
     expect(r.success).toBe(false)
+  })
+
+  it('rejects writes to internal setting namespaces', () => {
+    expect(
+      settingsSetInputSchema.safeParse({ key: 'quota_account_ref_salt', value: 'attacker' }).success
+    ).toBe(false)
+    expect(
+      settingsSetInputSchema.safeParse({ key: 'pricing_catalog_auto_update', value: false }).success
+    ).toBe(false)
+    expect(
+      settingsSetInputSchema.safeParse({ key: 'refresh_interval_min', value: 30 }).success
+    ).toBe(true)
   })
 
   it('rejects alert toggle with non-uuid id', () => {

@@ -4,6 +4,7 @@
  */
 import { Icon } from '../components/Icon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
@@ -23,12 +24,14 @@ import type { BalanceSnapshot, ProviderManifest } from '../../shared/types/provi
 import type { ProviderCatalogEntry } from '../../shared/provider-catalog'
 import type { CliDisplayPaths } from '../../shared/types/platform'
 
-type SessionSource = 'claude-code' | 'codex' | 'kimi-code'
+type SessionSource = 'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode'
 
 type SessionCounts = {
   claude: number
   codex: number
   kimiCode: number
+  gemini: number
+  opencode: number
 }
 
 type SessionSyncTotals = {
@@ -68,14 +71,18 @@ function apiKeyLabel(key: ApiKeyRecord): string {
 const SESSION_LABEL: Record<SessionSource, string> = {
   'claude-code': 'Claude Code',
   codex: 'Codex CLI',
-  'kimi-code': 'Kimi Code CLI'
+  'kimi-code': 'Kimi Code CLI',
+  'gemini-cli': 'Gemini CLI',
+  opencode: 'OpenCode'
 }
 
 /** 来源到 SessionCounts 字段名的映射 */
 const SESSION_COUNT_KEY: Record<SessionSource, keyof SessionCounts> = {
   'claude-code': 'claude',
   codex: 'codex',
-  'kimi-code': 'kimiCode'
+  'kimi-code': 'kimiCode',
+  'gemini-cli': 'gemini',
+  opencode: 'opencode'
 }
 
 /** 空统计对象,用于初始化与重置 */
@@ -109,6 +116,26 @@ const EMPTY_SESSION_STATS: SessionStats = {
     cacheCreationTokens: 0,
     sessions: 0,
     models: 0
+  },
+  'gemini-cli': {
+    requests: 0,
+    tokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    sessions: 0,
+    models: 0
+  },
+  opencode: {
+    requests: 0,
+    tokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    sessions: 0,
+    models: 0
   }
 }
 
@@ -117,6 +144,7 @@ const EMPTY_SESSION_STATS: SessionStats = {
  * 管理密钥列表、Session 解析、筛选与增删改查操作。
  */
 export default function ApiKeys() {
+  const [searchParams] = useSearchParams()
   const [keys, setKeys] = useState<ApiKeyRecord[]>([])
   const [providers, setProviders] = useState<ProviderManifest[]>([])
   const [catalog, setCatalog] = useState<readonly ProviderCatalogEntry[]>([])
@@ -145,8 +173,8 @@ export default function ApiKeys() {
   const unsubDone = useRef<(() => void) | null>(null)
   // simplest possible filter — a single text query + a single
   // providerId chip selection. No debounce; the list is bounded (<200 rows).
-  const [search, setSearch] = useState('')
-  const [providerFilter, setProviderFilter] = useState<string | null>(null)
+  const [search, setSearch] = useState(searchParams.get('account') ?? '')
+  const [providerFilter, setProviderFilter] = useState<string | null>(searchParams.get('provider'))
   const codexUsage = useCodexUsage()
   const reducedMotion = useReducedMotion()
   const { orderedItems: orderedKeys, reorderVisible } = useCardOrder(
@@ -177,13 +205,17 @@ export default function ApiKeys() {
   /** 刷新 Session 统计:发现会话文件并重新构建用量统计 */
   const refreshSessionStats = useCallback(async () => {
     const [files, logs] = await Promise.all([
-      window.api.log.discover().catch(() => ({ claude: [], codex: [], kimiCode: [] })),
+      window.api.log
+        .discover()
+        .catch(() => ({ claude: [], codex: [], kimiCode: [], gemini: [], opencode: [] })),
       window.api.usage.getLogs({ source: 'session-log', limit: 10000 }).catch(() => [])
     ])
     setSessionCounts({
       claude: files.claude.length,
       codex: files.codex.length,
-      kimiCode: files.kimiCode?.length ?? 0
+      kimiCode: files.kimiCode?.length ?? 0,
+      gemini: files.gemini?.length ?? 0,
+      opencode: files.opencode?.length ?? 0
     })
     setSessionStats(buildSessionStats(logs))
   }, [])
@@ -208,7 +240,9 @@ export default function ApiKeys() {
         setSessionCounts({
           claude: files.claude.length,
           codex: files.codex.length,
-          kimiCode: files.kimiCode?.length ?? 0
+          kimiCode: files.kimiCode?.length ?? 0,
+          gemini: files.gemini?.length ?? 0,
+          opencode: files.opencode?.length ?? 0
         })
         const count = files[SESSION_COUNT_KEY[source]]?.length ?? 0
         if (count === 0) {
@@ -245,6 +279,8 @@ export default function ApiKeys() {
     await syncSessionSource('claude-code')
     await syncSessionSource('codex')
     await syncSessionSource('kimi-code')
+    await syncSessionSource('gemini-cli')
+    await syncSessionSource('opencode')
   }, [syncSessionSource])
 
   /** 加载 Session 面板:读取自动解析设置并刷新统计 */
@@ -266,7 +302,9 @@ export default function ApiKeys() {
       if (
         payload.source !== 'claude-code' &&
         payload.source !== 'codex' &&
-        payload.source !== 'kimi-code'
+        payload.source !== 'kimi-code' &&
+        payload.source !== 'gemini-cli' &&
+        payload.source !== 'opencode'
       )
         return
       setSessionProgress((prev) => ({
@@ -283,7 +321,9 @@ export default function ApiKeys() {
       if (
         payload.source !== 'claude-code' &&
         payload.source !== 'codex' &&
-        payload.source !== 'kimi-code'
+        payload.source !== 'kimi-code' &&
+        payload.source !== 'gemini-cli' &&
+        payload.source !== 'opencode'
       )
         return
       const source = payload.source
@@ -332,7 +372,12 @@ export default function ApiKeys() {
     const q = search.trim().toLowerCase()
     return orderedKeys.filter((k) => {
       if (providerFilter && k.providerId !== providerFilter) return false
-      if (q && !k.alias.toLowerCase().includes(q) && !k.providerId.toLowerCase().includes(q))
+      if (
+        q &&
+        !k.id.toLowerCase().includes(q) &&
+        !k.alias.toLowerCase().includes(q) &&
+        !k.providerId.toLowerCase().includes(q)
+      )
         return false
       return true
     })
@@ -558,7 +603,8 @@ export default function ApiKeys() {
               <div>
                 <div className="text-[13px] font-medium text-text-primary">本机 Session 解析</div>
                 <p className="text-[12px] text-text-muted mt-1">
-                  统一管理 Claude Code / Codex CLI 的本机会话日志，解析后会进入请求日志和用量统计。
+                  统一管理 Claude Code、Codex、Kimi、Gemini 与 OpenCode
+                  的本机会话日志，解析后会进入请求日志和用量统计。
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -603,6 +649,30 @@ export default function ApiKeys() {
               progress={sessionProgress['claude-code']}
               done={sessionDone['claude-code']}
               path={sessionPaths?.claudeProjects}
+              pathLoading={sessionPathsLoading}
+              pathError={sessionPathsError}
+              onSync={syncSessionSource}
+            />
+            <SessionUsageCard
+              source="gemini-cli"
+              counts={sessionCounts}
+              stats={sessionStats['gemini-cli']}
+              syncing={sessionSyncing.has('gemini-cli')}
+              progress={sessionProgress['gemini-cli']}
+              done={sessionDone['gemini-cli']}
+              path={sessionPaths?.geminiTemp}
+              pathLoading={sessionPathsLoading}
+              pathError={sessionPathsError}
+              onSync={syncSessionSource}
+            />
+            <SessionUsageCard
+              source="opencode"
+              counts={sessionCounts}
+              stats={sessionStats.opencode}
+              syncing={sessionSyncing.has('opencode')}
+              progress={sessionProgress.opencode}
+              done={sessionDone.opencode}
+              path={sessionPaths?.opencodeMessages}
               pathLoading={sessionPathsLoading}
               pathError={sessionPathsError}
               onSync={syncSessionSource}
@@ -744,17 +814,23 @@ function buildSessionStats(rows: UsageRecord[]): SessionStats {
   const out: SessionStats = {
     'claude-code': { ...EMPTY_SESSION_STATS['claude-code'] },
     codex: { ...EMPTY_SESSION_STATS.codex },
-    'kimi-code': { ...EMPTY_SESSION_STATS['kimi-code'] }
+    'kimi-code': { ...EMPTY_SESSION_STATS['kimi-code'] },
+    'gemini-cli': { ...EMPTY_SESSION_STATS['gemini-cli'] },
+    opencode: { ...EMPTY_SESSION_STATS.opencode }
   }
   const sessions: Record<SessionSource, Set<string>> = {
     'claude-code': new Set(),
     codex: new Set(),
-    'kimi-code': new Set()
+    'kimi-code': new Set(),
+    'gemini-cli': new Set(),
+    opencode: new Set()
   }
   const models: Record<SessionSource, Set<string>> = {
     'claude-code': new Set(),
     codex: new Set(),
-    'kimi-code': new Set()
+    'kimi-code': new Set(),
+    'gemini-cli': new Set(),
+    opencode: new Set()
   }
 
   for (const row of rows) {
@@ -765,7 +841,11 @@ function buildSessionStats(rows: UsageRecord[]): SessionStats {
           ? 'codex'
           : row.providerId === 'kimi-coding'
             ? 'kimi-code'
-            : null
+            : row.providerId === 'gemini-cli'
+              ? 'gemini-cli'
+              : row.providerId === 'opencode'
+                ? 'opencode'
+                : null
     if (!source) continue
     const stat = out[source]
     stat.requests++
@@ -823,7 +903,17 @@ function SessionUsageCard({
     <Card
       title={SESSION_LABEL[source]}
       subtitle={pathLabel}
-      motionOrder={source === 'claude-code' ? 0 : source === 'codex' ? 1 : 2}
+      motionOrder={
+        source === 'claude-code'
+          ? 0
+          : source === 'codex'
+            ? 1
+            : source === 'kimi-code'
+              ? 2
+              : source === 'gemini-cli'
+                ? 3
+                : 4
+      }
       iconNode={
         <ProviderIcon
           providerId={source === 'kimi-code' ? 'kimi-coding' : source}

@@ -9,6 +9,14 @@ function getPathImpl(platform: SupportedDesktopPlatform): typeof path.win32 | ty
 export function resolveCliPaths(platform: SupportedDesktopPlatform, home: string): CliPaths {
   const p = getPathImpl(platform)
   const kimiCodeHome = p.join(home, '.kimi-code')
+  const geminiTemp = p.join(home, '.gemini', 'tmp')
+  // OpenCode delegates its data root to xdg-basedir. That package uses this
+  // same ~/.local/share default on both supported desktop platforms.
+  const opencodeStorage = p.join(
+    process.env.XDG_DATA_HOME || p.join(home, '.local', 'share'),
+    'opencode',
+    'storage'
+  )
   return {
     claudeProjects: p.join(home, '.claude', 'projects'),
     claudeCredentialFiles: [
@@ -20,7 +28,10 @@ export function resolveCliPaths(platform: SupportedDesktopPlatform, home: string
     codexAuthFile: p.join(home, '.codex', 'auth.json'),
     kimiCodeHome,
     kimiCodeSessions: p.join(kimiCodeHome, 'sessions'),
-    kimiCodeSessionIndex: p.join(kimiCodeHome, 'session_index.jsonl')
+    kimiCodeSessionIndex: p.join(kimiCodeHome, 'session_index.jsonl'),
+    geminiTemp,
+    opencodeStorage,
+    opencodeMessages: p.join(opencodeStorage, 'message')
   }
 }
 
@@ -41,6 +52,7 @@ export function getCliPaths(): CliPaths {
 }
 
 export function getCliDisplayPaths(): CliDisplayPaths {
-  const { claudeProjects, codexSessions, kimiCodeSessions } = getCliPaths()
-  return { claudeProjects, codexSessions, kimiCodeSessions }
+  const { claudeProjects, codexSessions, kimiCodeSessions, geminiTemp, opencodeMessages } =
+    getCliPaths()
+  return { claudeProjects, codexSessions, kimiCodeSessions, geminiTemp, opencodeMessages }
 }

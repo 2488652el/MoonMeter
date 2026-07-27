@@ -4,7 +4,7 @@
  */
 import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
 import { hostname } from 'node:os'
-import { createWindow } from './window'
+import { allowWindowCloseForQuit, createWindow } from './window'
 import { registerIpcHandlers } from './ipc/register-handlers'
 import { startAutoRefresh } from './scheduler/refresh'
 import { getDb } from './store/db'
@@ -16,6 +16,7 @@ import { startCatalogAutoRefresh } from './pricing/catalog-service'
 import { initializeAppUpdater } from './services/app-updater'
 import { startSessionAutoParse } from './scheduler/session-auto-parse'
 import { configureCompatibleUserDataPath } from './platform/user-data-compat'
+import { createAppTray, destroyAppTray, refreshAppTray } from './services/app-tray'
 
 const isDev = !app.isPackaged
 const pendingBindingLinks: string[] = []
@@ -104,12 +105,14 @@ app.whenReady().then(() => {
   startAutoRefresh()
 
   createWindow()
+  createAppTray()
   setTimeout(() => startSessionAutoParse(), 0)
   for (const link of pendingBindingLinks.splice(0)) void handleBindingLink(link)
   if (getSyncStatus().configured) void syncNow().catch(() => undefined)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    refreshAppTray()
     if (getSyncStatus().configured) void syncNow().catch(() => undefined)
   })
 })
@@ -120,6 +123,11 @@ powerMonitor.on('resume', () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('before-quit', () => {
+  allowWindowCloseForQuit()
+  destroyAppTray()
 })
 
 app.on('web-contents-created', (_, contents) => {

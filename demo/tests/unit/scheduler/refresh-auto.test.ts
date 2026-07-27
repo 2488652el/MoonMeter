@@ -39,6 +39,10 @@ vi.mock('../../../../code/src/main/store/db', () => ({
   getDb: vi.fn()
 }))
 
+vi.mock('../../../../code/src/main/services/budget-planning', () => ({
+  evaluateBudgetReminders: vi.fn(() => [])
+}))
+
 vi.mock('../../../../code/src/main/providers/registry', () => ({
   getProvider: vi.fn()
 }))

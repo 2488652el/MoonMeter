@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearExchangeRateCache,
   getCnyRateQuote,
+  withCnyAmounts,
   withCnyDashboardConversion,
   withCnyModelSpendConversion,
   withCnySpendConversion,
@@ -67,7 +68,7 @@ describe('getCnyRateQuote', () => {
       { currency: 'CNY', amount: 2 }
     ]
 
-    const [spend, dashboard, models, logs] = await Promise.all([
+    const [spend, dashboard, models, logs, amounts] = await Promise.all([
       withCnySpendConversion({
         total: 2,
         currency: 'CNY',
@@ -120,7 +121,8 @@ describe('getCnyRateQuote', () => {
           source: 'vendor-api',
           capturedAt: '2026-07-25T00:00:00.000Z'
         }
-      ])
+      ]),
+      withCnyAmounts(byCurrency)
     ])
 
     expect(spend.cnyTotal).toBe(9.2)
@@ -129,6 +131,7 @@ describe('getCnyRateQuote', () => {
     expect(dashboard.daily[0]?.cost).toBe(9.2)
     expect(models[0]?.total).toBe(9.2)
     expect(logs[0]?.costCny).toBe(7.2)
+    expect(amounts.cnyTotal).toBe(9.2)
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
   })
 })

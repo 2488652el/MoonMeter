@@ -75,6 +75,10 @@ vi.mock('../../../../code/src/main/store/db', () => ({
   getDb: vi.fn()
 }))
 
+vi.mock('../../../../code/src/main/services/budget-planning', () => ({
+  evaluateBudgetReminders: vi.fn(() => [])
+}))
+
 function makeBalanceProvider(id: string): ProviderImpl {
   const build = vi.fn(() => ({
     balance: vi.fn(async () => ({
