@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.0 - 2026-07-28
+
 - 新增 Windows/WSL 来源健康中心：首次只读发现 WSL 发行版，不启动发行版或扫描日志；解析 `$HOME`、预览候选目录、启用来源和同步均为显式动作，支持 Claude Code、Codex、Kimi Code、Gemini CLI 与 OpenCode。
 - 新增项目用量聚合与任务归属：由 Main/SQLite 汇总成本、Token、会话和 Git numstat；Git 只读且超时 fail-soft；会话、commit 和手动 HTTPS PR 需用户确认后才归属任务。
 - 新增 90 天详细事件时间线、游标分页、状态/类型/时间筛选和旧详情按日聚合；新增默认关闭的本地回环 OTLP/HTTP JSON 接收器，Bearer Token 使用 safeStorage 保存并执行字段、大小、速率和去重限制。
