@@ -88,16 +88,9 @@ export function sourceHealthAction(source: SourceHealth): ActionCenterItem | nul
   if (source.status === 'healthy') return null
   const providerName = source.providerId ?? providerFromSourceId(source.sourceId)
   const sourceName = source.accountAlias ? `${providerName} · ${source.accountAlias}` : providerName
-  const target =
-    source.sourceType === 'codex' && source.accountRef === 'codex-local'
-      ? `/?focus=source&source=${encodeURIComponent(source.sourceId)}`
-      : source.sourceType === 'codex' && source.accountRef
-        ? quotaSourceTarget(source.sourceId, source.accountRef)
-        : source.sourceType === 'cli-log'
-          ? `/logs?source=${encodeURIComponent(source.sourceId)}`
-          : source.accountRef
-            ? `/apikeys?provider=${encodeURIComponent(source.providerId ?? source.sourceId)}&account=${encodeURIComponent(source.accountRef)}`
-            : `/providers?provider=${encodeURIComponent(source.providerId ?? source.sourceId)}`
+  const target = `/sources?focus=source&source=${encodeURIComponent(source.sourceId)}${
+    source.accountRef ? `&account=${encodeURIComponent(source.accountRef)}` : ''
+  }`
   return {
     id: stableId('source-unhealthy', source.sourceId, source.errorCode ?? source.status),
     rootCauseId: `source:${source.sourceId}`,
@@ -132,7 +125,7 @@ export function unpricedUsageAction(
 }
 
 export function isInternalTarget(target: string): boolean {
-  return /^\/(?:(?:providers|apikeys|logs|agents|pricing))?(?:\?|$)/.test(target)
+  return /^\/(?:(?:providers|apikeys|logs|agents|pricing|sources))?(?:\?|$)/.test(target)
 }
 
 function compareActions(left: ActionCenterItem, right: ActionCenterItem): number {

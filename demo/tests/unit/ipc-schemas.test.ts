@@ -16,7 +16,10 @@ import {
   localReportPeriodInputSchema,
   localRecommendationsSetEnabledInputSchema,
   localReportsSetEnabledInputSchema,
-  settingsSetInputSchema
+  settingsSetInputSchema,
+  localSourcePreviewInputSchema,
+  localSourceToggleInputSchema,
+  localSourceSyncInputSchema
 } from '../../../code/src/shared/ipc-schemas'
 
 // ipc-schemas:校验各 IPC 输入 schema 的合法/非法判定
@@ -28,6 +31,32 @@ describe('ipc-schemas', () => {
     expect(localRecommendationsSetEnabledInputSchema.safeParse({ enabled: true }).success).toBe(
       true
     )
+  })
+
+  it('validates local source inputs without accepting arbitrary paths', () => {
+    expect(
+      localSourcePreviewInputSchema.safeParse({ environment: 'wsl', wslDistribution: 'Ubuntu' })
+        .success
+    ).toBe(true)
+    expect(
+      localSourcePreviewInputSchema.safeParse({
+        environment: 'wsl',
+        wslDistribution: 'Ubuntu\n--exec'
+      }).success
+    ).toBe(false)
+    expect(
+      localSourceToggleInputSchema.safeParse({
+        environment: 'wsl',
+        wslDistribution: 'Ubuntu',
+        cliSource: 'codex',
+        enabled: true,
+        rootDir: 'C:\\arbitrary'
+      }).success
+    ).toBe(true)
+    expect(localSourceSyncInputSchema.safeParse({ sourceId: 'local-source:abc' }).success).toBe(
+      true
+    )
+    expect(localSourceSyncInputSchema.safeParse({ sourceId: '' }).success).toBe(false)
   })
 
   it('accepts a valid api key create input', () => {

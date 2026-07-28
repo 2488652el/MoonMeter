@@ -177,6 +177,166 @@ export const logOpenFolderInputSchema = z.object({
   path: z.string().min(1)
 })
 
+// Windows / WSL local source management. Paths are deliberately absent from
+// these schemas; main derives every path from a validated environment, distro
+// and allowlisted CLI source.
+const cliSourceIdSchema = z.enum(['claude-code', 'codex', 'kimi-code', 'gemini-cli', 'opencode'])
+const localSourceEnvironmentSchema = z.enum(['windows', 'wsl'])
+const wslDistributionNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .refine(
+    (value) => !Array.from(value).some((character) => character.charCodeAt(0) < 32),
+    'invalid distribution name'
+  )
+
+export const localSourcePreviewInputSchema = z
+  .object({
+    environment: localSourceEnvironmentSchema,
+    cliSource: cliSourceIdSchema.optional(),
+    wslDistribution: wslDistributionNameSchema.optional()
+  })
+  .superRefine((value, context) => {
+    if (value.environment === 'wsl' && !value.wslDistribution) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wslDistribution'],
+        message: 'required'
+      })
+    }
+    if (value.environment === 'windows' && value.wslDistribution) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wslDistribution'],
+        message: 'not allowed'
+      })
+    }
+  })
+
+export const localSourceToggleInputSchema = z
+  .object({
+    sourceId: z.string().trim().min(1).max(200).optional(),
+    environment: localSourceEnvironmentSchema,
+    cliSource: cliSourceIdSchema,
+    wslDistribution: wslDistributionNameSchema.optional(),
+    enabled: z.boolean()
+  })
+  .superRefine((value, context) => {
+    if (value.enabled && value.environment === 'wsl' && !value.wslDistribution) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wslDistribution'],
+        message: 'required'
+      })
+    }
+    if (value.environment === 'windows' && value.wslDistribution) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['wslDistribution'],
+        message: 'not allowed'
+      })
+    }
+    if (!value.enabled && !value.sourceId) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['sourceId'], message: 'required' })
+    }
+  })
+
+export const localSourceSyncInputSchema = z.object({
+  sourceId: z.string().trim().min(1).max(200).optional()
+})
+
+export const localSourceIdInputSchema = z.object({
+  sourceId: z.string().trim().min(1).max(200)
+})
+
+// Projects, tasks and timeline. These inputs intentionally carry IDs and
+// filters only; filesystem paths remain main-owned.
+export const projectListInputSchema = z.object({
+  days: z.number().int().min(0).max(3_650).optional(),
+  limit: z.number().int().positive().max(500).optional(),
+  offset: z.number().int().nonnegative().max(1_000_000).optional()
+})
+
+export const projectIdInputSchema = z.object({ id: z.string().trim().min(1).max(300) })
+export const projectDetailInputSchema = projectIdInputSchema.extend({
+  days: z.number().int().min(0).max(3_650).optional()
+})
+
+export const taskAddInputSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  workspaceId: z.string().trim().min(1).max(300).optional()
+})
+
+export const taskUpdateInputSchema = z.object({
+  id: z.string().trim().min(1).max(300),
+  name: z.string().trim().min(1).max(120).optional(),
+  status: z.enum(['active', 'completed', 'archived']).optional()
+})
+
+export const taskSessionAssignmentInputSchema = z.object({
+  taskId: z.string().trim().min(1).max(300),
+  sourceConfigId: z.string().trim().min(1).max(300),
+  sessionId: z.string().trim().min(1).max(300)
+})
+
+export const taskConfirmDeliveryInputSchema = z.object({
+  deliveryId: z.string().trim().min(1).max(400),
+  taskId: z.string().trim().min(1).max(300)
+})
+
+export const taskAddPrInputSchema = z.object({
+  workspaceId: z.string().trim().min(1).max(300).optional(),
+  taskId: z.string().trim().min(1).max(300).optional(),
+  url: z.string().url().max(2_000),
+  label: z.string().trim().max(160).optional()
+})
+
+const timelineEventTypeSchema = z.enum([
+  'session-start',
+  'session-end',
+  'session-resume',
+  'model-call',
+  'source-error',
+  'permission-block',
+  'sync-failure',
+  'quota-alert',
+  'budget-event',
+  'commit',
+  'pr',
+  'otel'
+])
+
+export const timelineFilterInputSchema = z.object({
+  cursor: z.string().trim().min(1).max(500).optional(),
+  limit: z.number().int().positive().max(200).optional(),
+  workspaceId: z.string().trim().min(1).max(300).optional(),
+  taskId: z.string().trim().min(1).max(300).optional(),
+  sourceId: z.string().trim().min(1).max(300).optional(),
+  eventTypes: z.array(timelineEventTypeSchema).max(12).optional(),
+  status: z.enum(['ok', 'failed', 'blocked', 'warning']).optional(),
+  fromISO: z.string().datetime().optional(),
+  toISO: z.string().datetime().optional()
+})
+
+export const otelSetEnabledInputSchema = z.object({
+  enabled: z.boolean(),
+  port: z.number().int().min(1_024).max(65_535).optional()
+})
+
+export const quotaPlanningOverviewInputSchema = z.object({
+  refresh: z.boolean().optional()
+})
+
+export const miniPanelSettingsInputSchema = z.object({
+  enabled: z.boolean(),
+  visible: z.boolean(),
+  fixedWorkspaceId: z.string().trim().min(1).max(300).optional(),
+  hotkeyEnabled: z.boolean(),
+  hotkey: z.string().trim().min(1).max(80)
+})
+
 // PR-3: per-key usage-query toggle
 /** 按 Key 切换用量查询开关入参校验。 */
 export const keysSetUsageQueryInputSchema = z.object({

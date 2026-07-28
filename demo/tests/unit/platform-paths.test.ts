@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import path from 'node:path'
-import { resolveCliPaths } from '../../../code/src/main/platform/paths'
+import {
+  normalizeWindowsWorkspace,
+  normalizeWorkspaceProjectKey,
+  normalizeWslWorkspace,
+  resolveCliPaths,
+  toWslUncPath
+} from '../../../code/src/main/platform/paths'
 
 describe('resolveCliPaths', () => {
   it('resolves macOS CLI paths with POSIX separators', () => {
@@ -44,6 +50,35 @@ describe('resolveCliPaths', () => {
     const result = resolveCliPaths('darwin', '/Users/tester')
     expect(result.claudeCredentialFiles[0]).toContain('.credentials.json')
     expect(result.claudeCredentialFiles[1]).toContain('credentials.json')
+  })
+
+  it('resolves enabled WSL sources to host-readable UNC paths', () => {
+    const result = resolveCliPaths('wsl', '/home/Best Z', 'Ubuntu')
+    expect(result.claudeProjects).toBe('\\\\wsl$\\Ubuntu\\home\\Best Z\\.claude\\projects')
+    expect(result.opencodeMessages).toBe(
+      '\\\\wsl$\\Ubuntu\\home\\Best Z\\.local\\share\\opencode\\storage\\message'
+    )
+    expect(toWslUncPath('Ubuntu', '/')).toBe('\\\\wsl$\\Ubuntu')
+  })
+
+  it('keeps Windows and WSL workspace identities deterministic', () => {
+    expect(normalizeWindowsWorkspace('C:\\Work\\Project\\')).toBe('c:\\work\\project')
+    expect(normalizeWslWorkspace('Ubuntu', '/home/tester/project/')).toBe(
+      'Ubuntu:/home/tester/project'
+    )
+    expect(normalizeWorkspaceProjectKey('windows', 'C:\\Work\\Project')).toBe('c:\\work\\project')
+    expect(normalizeWorkspaceProjectKey('wsl', '/mnt/c/Work/Project', 'Ubuntu')).toBe(
+      'c:\\work\\project'
+    )
+    expect(normalizeWorkspaceProjectKey('wsl', '/home/tester/project', 'Ubuntu')).toBe(
+      'Ubuntu:/home/tester/project'
+    )
+  })
+
+  it('rejects relative or control-character WSL paths before UNC conversion', () => {
+    expect(() => toWslUncPath('Ubuntu', 'relative/path')).toThrow()
+    expect(() => toWslUncPath('Ubuntu', '/home/tester\nunsafe')).toThrow()
+    expect(() => normalizeWslWorkspace('Ubuntu', 'relative/path')).toThrow()
   })
 
   it('returns absolute paths for both desktop platforms', () => {

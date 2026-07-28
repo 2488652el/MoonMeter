@@ -1,9 +1,9 @@
 {
   "name": "moonmeter",
   "version": "1.2.55",
-  "description": "MoonMeter - unified LLM token usage & cost aggregator for Windows and macOS",
+  "description": "MoonMeter - unified usage and cost aggregator for Windows and macOS",
   "main": "demo/out/main/index.js",
-  "author": "bestzuge@gmail.com",
+  "author": "MoonMeter contributors",
   "repository": {
     "type": "git",
     "url": "https://github.com/2488652el/MoonMeter.git"

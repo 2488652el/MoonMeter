@@ -62,6 +62,7 @@ describe('action center', () => {
     expect(isInternalTarget('https://example.com')).toBe(false)
     expect(isInternalTarget('/settings')).toBe(false)
     expect(isInternalTarget('/logs?source=codex')).toBe(true)
+    expect(isInternalTarget('/sources?focus=source&source=codex')).toBe(true)
     expect(isInternalTarget('/?focus=quota&account=hash')).toBe(true)
   })
 
@@ -98,7 +99,7 @@ describe('action center', () => {
         status: 'error',
         updatedAt: window.capturedAt
       })?.target
-    ).toBe('/?focus=quota&account=local-hash')
+    ).toBe('/sources?focus=source&source=codex%3Achatgpt&account=local-hash')
     expect(
       sourceHealthAction({
         sourceId: 'codex:chatgpt',
@@ -108,7 +109,7 @@ describe('action center', () => {
         status: 'error',
         updatedAt: window.capturedAt
       })?.target
-    ).toBe('/?focus=source&source=codex%3Achatgpt')
+    ).toBe('/sources?focus=source&source=codex%3Achatgpt&account=codex-local')
     expect(quotaSourceTarget('provider:minimax', 'key-id')).toBe(
       '/apikeys?provider=minimax&account=key-id'
     )

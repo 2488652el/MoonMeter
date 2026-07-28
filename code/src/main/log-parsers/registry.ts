@@ -1,12 +1,30 @@
 import type { UsageRecord } from '@shared/types/usage'
+import type { CliSourceId } from '@shared/types/local-source'
+import type { CliPaths } from '@shared/types/platform'
+import { getCliPaths } from '../platform/paths'
 import { discoverClaudeSessions, syncClaudeFile } from './claude'
 import { discoverCodexSessions, syncCodexFile } from './codex'
 import { discoverKimiCodeSessions, syncKimiCodeFile } from './kimi-code'
 import { discoverGeminiSessions, syncGeminiFile } from './gemini'
 import { discoverOpenCodeSessions, syncOpenCodeFile } from './opencode'
 
-export type CliLogSourceId = 'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode'
+export type CliLogSourceId = CliSourceId
 export type CliDiscoveryKey = 'claude' | 'codex' | 'kimiCode' | 'gemini' | 'opencode'
+
+export interface CliSourceContext {
+  environment: 'windows' | 'macos' | 'wsl'
+  paths: CliPaths
+  wslDistribution?: string
+  sourceConfigId?: string
+}
+
+type CliRootPathKey =
+  | 'claudeProjects'
+  | 'codexSessions'
+  | 'codexArchivedSessions'
+  | 'kimiCodeSessions'
+  | 'geminiTemp'
+  | 'opencodeMessages'
 
 export interface CliLogSourceDefinition {
   id: CliLogSourceId
@@ -14,7 +32,8 @@ export interface CliLogSourceDefinition {
   discoveryKey: CliDiscoveryKey
   displayName: string
   syncStateSource: string
-  discover: () => string[]
+  rootPathKey: CliRootPathKey
+  discover: (context?: CliSourceContext) => string[]
   syncFile: (file: string, byteOffset: number) => { records: UsageRecord[]; nextOffset: number }
 }
 
@@ -25,7 +44,8 @@ export const CLI_LOG_SOURCES: readonly CliLogSourceDefinition[] = [
     discoveryKey: 'claude',
     displayName: 'Claude Code 日志',
     syncStateSource: 'claude-code',
-    discover: discoverClaudeSessions,
+    rootPathKey: 'claudeProjects',
+    discover: (context) => discoverClaudeSessions(context?.paths.claudeProjects),
     syncFile: syncClaudeFile
   },
   {
@@ -34,7 +54,11 @@ export const CLI_LOG_SOURCES: readonly CliLogSourceDefinition[] = [
     discoveryKey: 'codex',
     displayName: 'Codex CLI 日志',
     syncStateSource: 'codex:v2',
-    discover: discoverCodexSessions,
+    rootPathKey: 'codexSessions',
+    discover: (context) =>
+      discoverCodexSessions(
+        context ? [context.paths.codexSessions, context.paths.codexArchivedSessions] : undefined
+      ),
     syncFile: syncCodexFile
   },
   {
@@ -43,7 +67,8 @@ export const CLI_LOG_SOURCES: readonly CliLogSourceDefinition[] = [
     discoveryKey: 'kimiCode',
     displayName: 'Kimi Code 日志',
     syncStateSource: 'kimi-code:v1',
-    discover: discoverKimiCodeSessions,
+    rootPathKey: 'kimiCodeSessions',
+    discover: (context) => discoverKimiCodeSessions(context?.paths.kimiCodeSessions),
     syncFile: syncKimiCodeFile
   },
   {
@@ -52,7 +77,8 @@ export const CLI_LOG_SOURCES: readonly CliLogSourceDefinition[] = [
     discoveryKey: 'gemini',
     displayName: 'Gemini CLI 日志',
     syncStateSource: 'gemini-cli:v1',
-    discover: discoverGeminiSessions,
+    rootPathKey: 'geminiTemp',
+    discover: (context) => discoverGeminiSessions(context?.paths.geminiTemp),
     syncFile: syncGeminiFile
   },
   {
@@ -61,7 +87,8 @@ export const CLI_LOG_SOURCES: readonly CliLogSourceDefinition[] = [
     discoveryKey: 'opencode',
     displayName: 'OpenCode 日志',
     syncStateSource: 'opencode:v1',
-    discover: discoverOpenCodeSessions,
+    rootPathKey: 'opencodeMessages',
+    discover: (context) => discoverOpenCodeSessions(context?.paths.opencodeMessages),
     syncFile: syncOpenCodeFile
   }
 ]
@@ -72,8 +99,24 @@ export function getCliLogSource(id: CliLogSourceId): CliLogSourceDefinition {
   return source
 }
 
-export function discoverCliLogSessions(): Record<CliDiscoveryKey, string[]> {
+export function defaultCliSourceContext(): CliSourceContext {
+  return {
+    environment: process.platform === 'win32' ? 'windows' : 'macos',
+    paths: getCliPaths()
+  }
+}
+
+export function cliSourceRoot(
+  source: CliLogSourceDefinition,
+  context: CliSourceContext = defaultCliSourceContext()
+): string {
+  return context.paths[source.rootPathKey]
+}
+
+export function discoverCliLogSessions(
+  context: CliSourceContext = defaultCliSourceContext()
+): Record<CliDiscoveryKey, string[]> {
   return Object.fromEntries(
-    CLI_LOG_SOURCES.map((source) => [source.discoveryKey, source.discover()])
+    CLI_LOG_SOURCES.map((source) => [source.discoveryKey, source.discover(context)])
   ) as Record<CliDiscoveryKey, string[]>
 }

@@ -12,7 +12,13 @@ import {
   deriveKimiCodeAgentLabel,
   deriveKimiCodeSessionId
 } from './kimi-code'
-import { discoverCliLogSessions, getCliLogSource, type CliLogSourceId } from './registry'
+import {
+  defaultCliSourceContext,
+  discoverCliLogSessions,
+  getCliLogSource,
+  type CliLogSourceId,
+  type CliSourceContext
+} from './registry'
 import type { UsageRecord } from '@shared/types/usage'
 
 /** 单文件同步进度回调载荷。 */
@@ -140,12 +146,13 @@ export function syncOpenCodeSessions(onProgress?: (p: SyncProgress) => void): Sy
 
 function syncCliLogSource(
   sourceId: CliLogSourceId,
-  onProgress?: (p: SyncProgress) => void
+  onProgress?: (p: SyncProgress) => void,
+  context: CliSourceContext = defaultCliSourceContext()
 ): SyncResult {
   const source = getCliLogSource(sourceId)
   const result = syncFiles(
-    source.syncStateSource,
-    source.discover(),
+    context.sourceConfigId ? `local-source:${context.sourceConfigId}` : source.syncStateSource,
+    source.discover(context),
     source.syncFile,
     onProgress ? (progress) => onProgress({ ...progress, source: source.id }) : undefined
   )
@@ -157,22 +164,23 @@ function syncCliLogSource(
  */
 export function syncAllSessions(
   source: CliLogSourceId,
-  onProgress?: (p: SyncProgress) => void
+  onProgress?: (p: SyncProgress) => void,
+  context?: CliSourceContext
 ): SyncResult {
   const result =
     source === 'claude-code'
-      ? syncClaudeSessions(onProgress)
+      ? syncCliLogSource('claude-code', onProgress, context)
       : source === 'codex'
-        ? syncCodexSessions(onProgress)
+        ? syncCliLogSource('codex', onProgress, context)
         : source === 'kimi-code'
-          ? syncKimiCodeSessions(onProgress)
+          ? syncCliLogSource('kimi-code', onProgress, context)
           : source === 'gemini-cli'
-            ? syncGeminiSessions(onProgress)
-            : syncOpenCodeSessions(onProgress)
+            ? syncCliLogSource('gemini-cli', onProgress, context)
+            : syncCliLogSource('opencode', onProgress, context)
   // Best-effort: label historical rows that predate the agent_label column so
   // the UI can show a project name. Guarded internally so it never breaks sync.
   // 尽力而为:为早于 agent_label 列的历史行补充标签,内部已做防护,失败不影响同步。
-  backfillAgentLabels()
+  backfillAgentLabels(context)
   return result
 }
 
@@ -225,15 +233,17 @@ function claudeLabelForFile(head: string, filePath: string): string | undefined 
  * 在事务中执行且全程防护:发现 claude 与 codex 会话文件,推导每文件 sessionId(文件名)与标签(取自文件头部),
  * 更新 agent_label 为 NULL 的匹配行;失败不会中断同步。
  */
-export function backfillAgentLabels(): void {
+export function backfillAgentLabels(context?: CliSourceContext): void {
   try {
     const db = getDb()
     const update = db.prepare(
       'UPDATE usage_records SET agent_label = ? WHERE session_id = ? AND agent_label IS NULL'
     )
-    const claudeFiles = discoverClaudeSessions()
-    const codexFiles = discoverCodexSessions()
-    const kimiCodeFiles = discoverKimiCodeSessions()
+    const claudeFiles = discoverClaudeSessions(context?.paths.claudeProjects)
+    const codexFiles = discoverCodexSessions(
+      context ? [context.paths.codexSessions, context.paths.codexArchivedSessions] : undefined
+    )
+    const kimiCodeFiles = discoverKimiCodeSessions(context?.paths.kimiCodeSessions)
     const tx = db.transaction(() => {
       for (const file of claudeFiles) {
         const sessionId = fileStem(file)
@@ -262,12 +272,12 @@ export function backfillAgentLabels(): void {
 
 /** Discover session file counts for the renderer's session-parse page.
  *  为渲染层的会话解析页发现 claude 与 codex 会话文件列表。 */
-export function discoverAllSessions(): {
+export function discoverAllSessions(context?: CliSourceContext): {
   claude: string[]
   codex: string[]
   kimiCode: string[]
   gemini: string[]
   opencode: string[]
 } {
-  return discoverCliLogSessions()
+  return discoverCliLogSessions(context)
 }

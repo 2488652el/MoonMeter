@@ -153,22 +153,24 @@ describe('detectCodexKey', () => {
   })
 
   it('finds key from OPENAI_API_KEY env var first', () => {
-    process.env['OPENAI_API_KEY'] = 'sk-proj-testenvkey456'
+    const envKey = `sk-proj-${'e'.repeat(16)}`
+    process.env['OPENAI_API_KEY'] = envKey
     const result = detectCodexKey()
     expect(result.found).toBe(true)
     expect(result.path).toBe('env:OPENAI_API_KEY')
-    expect(result.fullKey).toBe('sk-proj-testenvkey456')
-    expect(result.maskedKey).toBe('sk-proj-...y456')
+    expect(result.fullKey).toBe(envKey)
+    expect(result.maskedKey).toBe(`${envKey.slice(0, 8)}...${envKey.slice(-4)}`)
   })
 
   it('reads OPENAI_API_KEY from ~/.codex/auth.json', () => {
     const tmpHome = join(tmpdir(), `tokenlub-test-codex-${process.pid}`)
     const codexDir = join(tmpHome, '.codex')
     mkdirSync(codexDir, { recursive: true })
+    const authKey = `sk-proj-${'a'.repeat(16)}`
     writeFileSync(
       join(codexDir, 'auth.json'),
       JSON.stringify({
-        OPENAI_API_KEY: 'sk-proj-fromauthfile789012',
+        OPENAI_API_KEY: authKey,
         tokens: { access_token: 'oauth' },
         last_refresh: '2025-01-01T00:00:00Z'
       })
@@ -177,7 +179,7 @@ describe('detectCodexKey', () => {
     process.env['USERPROFILE'] = tmpHome
     const result = detectCodexKey()
     expect(result.found).toBe(true)
-    expect(result.fullKey).toBe('sk-proj-fromauthfile789012')
+    expect(result.fullKey).toBe(authKey)
     expect(result.path).toContain('auth.json')
     rmSync(tmpHome, { recursive: true, force: true })
   })

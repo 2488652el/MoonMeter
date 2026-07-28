@@ -789,4 +789,231 @@ function applyMigrations(db: Database.Database): void {
     `)
     db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(23)
   }
+
+  // --- v24: Windows/WSL local source context and workspace affiliation ---
+  // The existing usage_records table is intentionally left untouched. New
+  // source/session context lives beside it so old clients and old usage rows
+  // remain readable during rollback or partial feature disablement.
+  if (currentVersion < 24) {
+    db.exec('BEGIN')
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS local_source_configs (
+          id TEXT PRIMARY KEY,
+          environment TEXT NOT NULL CHECK (environment IN ('windows', 'wsl')),
+          wsl_distribution TEXT NOT NULL DEFAULT '',
+          cli_source TEXT NOT NULL,
+          root_dir TEXT NOT NULL,
+          normalized_root TEXT NOT NULL,
+          enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+          status TEXT NOT NULL DEFAULT 'discovered',
+          last_attempt_at TEXT,
+          last_success_at TEXT,
+          error_code TEXT,
+          error_message TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (environment, wsl_distribution, cli_source, normalized_root)
+        );
+        CREATE INDEX IF NOT EXISTS idx_local_source_configs_status
+          ON local_source_configs(enabled, status, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS workspaces (
+          id TEXT PRIMARY KEY,
+          environment TEXT NOT NULL CHECK (environment IN ('windows', 'wsl')),
+          wsl_distribution TEXT NOT NULL DEFAULT '',
+          project_key TEXT NOT NULL,
+          normalized_root TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          normalized_git_root TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (project_key),
+          UNIQUE (environment, wsl_distribution, normalized_root)
+        );
+        CREATE INDEX IF NOT EXISTS idx_workspaces_git_root
+          ON workspaces(normalized_git_root) WHERE normalized_git_root IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS idx_workspaces_project_key
+          ON workspaces(project_key);
+
+        CREATE TABLE IF NOT EXISTS session_contexts (
+          source_config_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          workspace_id TEXT,
+          normalized_cwd TEXT,
+          branch TEXT,
+          first_seen_at TEXT NOT NULL,
+          last_seen_at TEXT NOT NULL,
+          PRIMARY KEY (source_config_id, session_id),
+          FOREIGN KEY (source_config_id) REFERENCES local_source_configs(id) ON DELETE CASCADE,
+          FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_session_contexts_workspace
+          ON session_contexts(workspace_id, last_seen_at DESC);
+      `)
+      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(24)
+      db.exec('COMMIT')
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw e
+    }
+  }
+
+  // --- v25: project tasks and read-only delivery evidence ---
+  // Git/PR metadata is kept separate from usage_records so the existing cost
+  // ingestion path remains compatible and task attribution stays user-confirmed.
+  if (currentVersion < 25) {
+    db.exec('BEGIN')
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS tasks (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'active'
+            CHECK (status IN ('active', 'completed', 'archived')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_tasks_workspace_updated
+          ON tasks(workspace_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS task_sessions (
+          task_id TEXT NOT NULL,
+          source_config_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          assigned_at TEXT NOT NULL,
+          PRIMARY KEY (task_id, source_config_id, session_id),
+          FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+          FOREIGN KEY (source_config_id, session_id)
+            REFERENCES session_contexts(source_config_id, session_id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_task_sessions_session
+          ON task_sessions(source_config_id, session_id);
+
+        CREATE TABLE IF NOT EXISTS delivery_events (
+          id TEXT PRIMARY KEY,
+          workspace_id TEXT,
+          task_id TEXT,
+          kind TEXT NOT NULL CHECK (kind IN ('commit', 'pr')),
+          commit_id TEXT,
+          author_name TEXT,
+          authored_at TEXT,
+          title TEXT,
+          changed_files INTEGER NOT NULL DEFAULT 0,
+          additions INTEGER NOT NULL DEFAULT 0,
+          deletions INTEGER NOT NULL DEFAULT 0,
+          pr_url TEXT,
+          pr_label TEXT,
+          confirmed INTEGER NOT NULL DEFAULT 1 CHECK (confirmed IN (0, 1)),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE (workspace_id, commit_id),
+          FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE SET NULL,
+          FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_delivery_events_workspace_time
+          ON delivery_events(workspace_id, authored_at DESC, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_delivery_events_task_time
+          ON delivery_events(task_id, authored_at DESC, created_at DESC);
+      `)
+      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(25)
+      db.exec('COMMIT')
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw e
+    }
+  }
+
+  // --- v26: privacy-filtered timeline events and daily aggregates ---
+  if (currentVersion < 26) {
+    db.exec('BEGIN')
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_events (
+          id TEXT PRIMARY KEY,
+          dedup_key TEXT NOT NULL UNIQUE,
+          event_type TEXT NOT NULL,
+          source_id TEXT,
+          session_id TEXT,
+          workspace_id TEXT,
+          task_id TEXT,
+          occurred_at TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'ok',
+          model TEXT,
+          input_tokens INTEGER,
+          output_tokens INTEGER,
+          total_tokens INTEGER,
+          cost_cny REAL,
+          duration_ms INTEGER,
+          tool_category TEXT,
+          error_code TEXT,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE SET NULL,
+          FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_events_timeline
+          ON agent_events(occurred_at DESC, event_type, workspace_id);
+        CREATE INDEX IF NOT EXISTS idx_agent_events_session
+          ON agent_events(session_id, occurred_at DESC);
+
+        CREATE TABLE IF NOT EXISTS agent_event_daily (
+          day TEXT NOT NULL,
+          workspace_id TEXT NOT NULL DEFAULT '',
+          task_id TEXT NOT NULL DEFAULT '',
+          source_id TEXT NOT NULL DEFAULT '',
+          event_type TEXT NOT NULL,
+          event_count INTEGER NOT NULL DEFAULT 0,
+          failed_count INTEGER NOT NULL DEFAULT 0,
+          total_duration_ms INTEGER NOT NULL DEFAULT 0,
+          total_tokens INTEGER NOT NULL DEFAULT 0,
+          total_cost_cny REAL NOT NULL DEFAULT 0,
+          PRIMARY KEY (day, workspace_id, task_id, source_id, event_type)
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_event_daily_workspace
+          ON agent_event_daily(day DESC, workspace_id, task_id);
+      `)
+      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(26)
+      db.exec('COMMIT')
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw e
+    }
+  }
+
+  // --- v27: local OTLP receiver state and event deduplication ---
+  if (currentVersion < 27) {
+    db.exec('BEGIN')
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS otel_receiver_state (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+          host TEXT NOT NULL DEFAULT '127.0.0.1',
+          port INTEGER NOT NULL DEFAULT 4318,
+          last_event_at TEXT,
+          last_error_code TEXT,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS otel_event_dedup (
+          dedup_key TEXT PRIMARY KEY,
+          source_id TEXT NOT NULL,
+          event_id TEXT,
+          session_id TEXT,
+          occurred_at TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_otel_event_dedup_created
+          ON otel_event_dedup(created_at);
+        INSERT OR IGNORE INTO otel_receiver_state (id, updated_at)
+          VALUES (1, CURRENT_TIMESTAMP);
+      `)
+      db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(27)
+      db.exec('COMMIT')
+    } catch (e) {
+      db.exec('ROLLBACK')
+      throw e
+    }
+  }
 }

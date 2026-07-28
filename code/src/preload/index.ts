@@ -42,7 +42,29 @@ import type { SyncPreview } from '../shared/sync-preview'
 import type { AppUpdateStatus } from '../shared/types/app-update'
 import type { CodexUsageSnapshot } from '../shared/types/codex-usage'
 import type { QuotaPlanningOverview } from '../shared/types/quota-planning'
+import type {
+  LocalSourcePreviewInput,
+  LocalSourceSyncInput,
+  LocalSourceSyncResult,
+  LocalSourceToggleInput,
+  LocalSourcesOverview,
+  SanitizedLocalSourceDiagnostic,
+  SourcePreview,
+  LocalSourceConfig
+} from '../shared/types/local-source'
 import type { BudgetOverview, BudgetRule, BudgetRuleInput } from '../shared/types/budget'
+import type {
+  DeliveryEvent,
+  ProjectDetail,
+  ProjectListFilter,
+  ProjectListPage,
+  TaskInput,
+  TaskSessionAssignment,
+  TaskSummary
+} from '../shared/types/project'
+import type { OtelConfigPreview, OtelReceiverStatus } from '../shared/types/otel'
+import type { TimelineFilter, TimelinePage } from '../shared/types/timeline'
+import type { MiniPanelSettings } from '../shared/types/mini-panel'
 import type { LocalReportOverview, LocalReportPeriodKind } from '../shared/types/local-report'
 import type { SanitizedDiagnosticPack } from '../shared/types/diagnostics'
 import type {
@@ -113,7 +135,74 @@ const api = {
   },
 
   quotaPlanning: {
-    overview: (): Promise<QuotaPlanningOverview> => ipcRenderer.invoke(IPC.quotaPlanningOverview)
+    overview: (options?: { refresh?: boolean }): Promise<QuotaPlanningOverview> =>
+      ipcRenderer.invoke(IPC.quotaPlanningOverview, options ?? {})
+  },
+
+  localSources: {
+    discover: (): Promise<LocalSourcesOverview> => ipcRenderer.invoke(IPC.localSourcesDiscover),
+    preview: (input: LocalSourcePreviewInput): Promise<SourcePreview> =>
+      ipcRenderer.invoke(IPC.localSourcesPreview, input),
+    setEnabled: (input: LocalSourceToggleInput): Promise<LocalSourceConfig> =>
+      ipcRenderer.invoke(IPC.localSourcesSetEnabled, input),
+    sync: (input?: LocalSourceSyncInput): Promise<LocalSourceSyncResult> =>
+      ipcRenderer.invoke(IPC.localSourcesSync, input ?? {}),
+    openFolder: (sourceId: string): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke(IPC.localSourcesOpenFolder, { sourceId }),
+    diagnostic: (): Promise<SanitizedLocalSourceDiagnostic> =>
+      ipcRenderer.invoke(IPC.localSourcesDiagnostic)
+  },
+
+  projects: {
+    overview: (filter?: ProjectListFilter): Promise<ProjectListPage> =>
+      ipcRenderer.invoke(IPC.projectsOverview, filter ?? {}),
+    detail: (id: string, days = 30): Promise<ProjectDetail | null> =>
+      ipcRenderer.invoke(IPC.projectsDetail, { id, days })
+  },
+
+  tasks: {
+    list: (workspaceId?: string): Promise<TaskSummary[]> =>
+      ipcRenderer.invoke(IPC.tasksList, workspaceId ? { id: workspaceId } : undefined),
+    add: (input: TaskInput): Promise<TaskSummary> => ipcRenderer.invoke(IPC.tasksAdd, input),
+    update: (
+      id: string,
+      input: Partial<Pick<TaskInput, 'name'>> & { status?: TaskSummary['status'] }
+    ): Promise<TaskSummary> => ipcRenderer.invoke(IPC.tasksUpdate, { id, ...input }),
+    assignSession: (input: TaskSessionAssignment): Promise<TaskSummary> =>
+      ipcRenderer.invoke(IPC.tasksAssignSession, input),
+    unassignSession: (input: TaskSessionAssignment): Promise<{ ok: true }> =>
+      ipcRenderer.invoke(IPC.tasksUnassignSession, input),
+    confirmDelivery: (deliveryId: string, taskId: string): Promise<DeliveryEvent> =>
+      ipcRenderer.invoke(IPC.tasksConfirmDelivery, { deliveryId, taskId }),
+    addPr: (input: {
+      workspaceId?: string
+      taskId?: string
+      url: string
+      label?: string
+    }): Promise<DeliveryEvent> => ipcRenderer.invoke(IPC.tasksAddPr, input)
+  },
+
+  timeline: {
+    list: (filter?: TimelineFilter): Promise<TimelinePage> =>
+      ipcRenderer.invoke(IPC.timelineList, filter ?? {}),
+    cleanup: (): Promise<{ removed: number }> => ipcRenderer.invoke(IPC.timelineCleanup)
+  },
+
+  otel: {
+    status: (): Promise<OtelReceiverStatus> => ipcRenderer.invoke(IPC.otelStatus),
+    setEnabled: (enabled: boolean, port = 4_318): Promise<OtelReceiverStatus> =>
+      ipcRenderer.invoke(IPC.otelSetEnabled, { enabled, port }),
+    rotateToken: (): Promise<{ token: string }> => ipcRenderer.invoke(IPC.otelRotateToken),
+    preview: (port = 4_318): Promise<OtelConfigPreview> =>
+      ipcRenderer.invoke(IPC.otelPreview, { port })
+  },
+
+  miniPanel: {
+    settings: (): Promise<MiniPanelSettings> => ipcRenderer.invoke(IPC.miniPanelSettings),
+    setSettings: (settings: MiniPanelSettings): Promise<MiniPanelSettings> =>
+      ipcRenderer.invoke(IPC.miniPanelSetSettings, settings),
+    show: (): Promise<MiniPanelSettings> => ipcRenderer.invoke(IPC.miniPanelShow),
+    hide: (): Promise<MiniPanelSettings> => ipcRenderer.invoke(IPC.miniPanelHide)
   },
 
   budgets: {

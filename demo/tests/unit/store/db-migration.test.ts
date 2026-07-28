@@ -137,7 +137,7 @@ describe('PR-1: db v5 migration contract', () => {
     const versionRow = fresh
       .prepare('SELECT MAX(version) AS v FROM schema_version')
       .get() as SchemaVersionRow
-    expect(versionRow.v).toBe(23)
+    expect(versionRow.v).toBe(27)
     expect(readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')).toContain('model_pricing')
 
     // Both new columns should be visible via PRAGMA table_info(api_keys).
@@ -318,6 +318,57 @@ describe('PR-1: db v5 migration contract', () => {
     expect(sql).toContain('UNIQUE (rule_id, period_start, threshold_percent)')
   })
 
+  it('v24 adds local source, workspace, and session context tables without rebuilding usage_records', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(24)")
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS local_source_configs\s*\(/)
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS workspaces\s*\(/)
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS session_contexts\s*\(/)
+    expect(sql).toContain("CHECK (environment IN ('windows', 'wsl'))")
+    expect(sql).toContain('UNIQUE (environment, wsl_distribution, cli_source, normalized_root)')
+    expect(sql).toContain('project_key TEXT NOT NULL')
+    expect(sql).toContain('UNIQUE (project_key)')
+    expect(sql).toContain('FOREIGN KEY (source_config_id) REFERENCES local_source_configs(id)')
+  })
+
+  it('v25 adds project task and read-only delivery tables', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(25)")
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS tasks\s*\(/)
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS task_sessions\s*\(/)
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS delivery_events\s*\(/)
+    expect(sql).toContain("CHECK (kind IN ('commit', 'pr'))")
+    expect(sql).toContain('UNIQUE (workspace_id, commit_id)')
+    expect(sql).toContain('FOREIGN KEY (source_config_id, session_id)')
+  })
+
+  it('v26 adds privacy-filtered timeline details and daily retention aggregates', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(26)")
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS agent_events\s*\(/)
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS agent_event_daily\s*\(/)
+    expect(sql).toContain('dedup_key TEXT NOT NULL UNIQUE')
+    expect(sql).toContain("workspace_id TEXT NOT NULL DEFAULT ''")
+    expect(sql).toContain("task_id TEXT NOT NULL DEFAULT ''")
+    expect(sql).toContain("source_id TEXT NOT NULL DEFAULT ''")
+  })
+
+  it('v27 keeps the loopback OTLP receiver disabled by default', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+    const additiveMigrations = sql.slice(sql.indexOf('// --- v24'))
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(27)")
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS otel_receiver_state\s*\(/)
+    expect(sql).toMatch(/enabled INTEGER NOT NULL DEFAULT 0/)
+    expect(sql).toMatch(/host TEXT NOT NULL DEFAULT '127\.0\.0\.1'/)
+    expect(sql).toMatch(/port INTEGER NOT NULL DEFAULT 4318/)
+    expect(sql).toMatch(/CREATE TABLE IF NOT EXISTS otel_event_dedup\s*\(/)
+    expect(additiveMigrations).not.toMatch(/DROP TABLE|CREATE TABLE usage_records_v2/)
+  })
+
   it('v2 usage_records rebuild preserves agent_label while copying legacy rows', () => {
     const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
 
@@ -364,7 +415,7 @@ describe('PR-1: db v5 migration contract', () => {
     expect(state.columns.filter((c) => c.name === 'usage_query_enabled').length).toBe(1)
     expect(state.columns.filter((c) => c.name === 'query_mode').length).toBe(1)
     // Re-running an up-to-date database must not bump the schema version.
-    expect(state.version).toBe(23)
+    expect(state.version).toBe(27)
   })
 
   it('v8 migration maps existing pricing rows without creating duplicate identities', () => {
@@ -387,7 +438,7 @@ describe('PR-1: db v5 migration contract', () => {
     }
 
     applyMigrationsForTest(fakeDb as unknown as Parameters<typeof applyMigrationsForTest>[0])
-    expect(state.version).toBe(23)
+    expect(state.version).toBe(27)
     expect(maps).toHaveLength(2)
     expect(maps.every((map) => map.startsWith('model_pricing:'))).toBe(true)
   })

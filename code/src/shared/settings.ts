@@ -3,7 +3,9 @@ export const INTERNAL_SETTING_PREFIXES = [
   'pricing_exchange_',
   'quota_',
   'budget_',
-  'report_'
+  'report_',
+  'otel_',
+  'mini_panel_'
 ] as const
 
 export function isInternalSettingKey(key: string): boolean {

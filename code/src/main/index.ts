@@ -17,6 +17,9 @@ import { initializeAppUpdater } from './services/app-updater'
 import { startSessionAutoParse } from './scheduler/session-auto-parse'
 import { configureCompatibleUserDataPath } from './platform/user-data-compat'
 import { createAppTray, destroyAppTray, refreshAppTray } from './services/app-tray'
+import { initializeOtelReceiver, stopOtelReceiver } from './services/otel-receiver'
+import { cleanupTimeline } from './services/timeline'
+import { initializeMiniPanel, stopMiniPanel } from './services/mini-panel'
 
 const isDev = !app.isPackaged
 const pendingBindingLinks: string[] = []
@@ -90,6 +93,8 @@ app.whenReady().then(() => {
   // event, so calling getDb() at module top level risks a wrong path or
   // a thrown error on some Electron versions / fresh user profiles.
   getDb()
+  cleanupTimeline()
+  void initializeOtelReceiver().catch(() => undefined)
   initializeSync()
 
   // Seed MiniMax catalog prices (idempotent; never overwrites user-set rows).
@@ -106,6 +111,7 @@ app.whenReady().then(() => {
 
   createWindow()
   createAppTray()
+  initializeMiniPanel()
   setTimeout(() => startSessionAutoParse(), 0)
   for (const link of pendingBindingLinks.splice(0)) void handleBindingLink(link)
   if (getSyncStatus().configured) void syncNow().catch(() => undefined)
@@ -128,6 +134,8 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   allowWindowCloseForQuit()
   destroyAppTray()
+  stopMiniPanel()
+  void stopOtelReceiver().catch(() => undefined)
 })
 
 app.on('web-contents-created', (_, contents) => {

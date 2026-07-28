@@ -18,7 +18,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: 'Overview',
     items: [
       { to: '/', label: '用量概览', icon: 'fa-chart-simple' },
-      { to: '/agents', label: '项目用量', icon: 'fa-folder-tree' },
+      { to: '/projects', label: '项目用量', icon: 'fa-folder-tree' },
       { to: '/providers', label: 'Provider 汇总', icon: 'fa-server' },
       { to: '/models', label: '模型对比', icon: 'fa-cube', badge: 'NEW', badgeVariant: 'new' }
     ]
@@ -26,6 +26,8 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Observe',
     items: [
+      { to: '/sources', label: '来源健康', icon: 'fa-heart-pulse' },
+      { to: '/timeline', label: '时间线', icon: 'fa-timeline' },
       { to: '/logs', label: '请求日志', icon: 'fa-clock-rotate-left' },
       { to: '/balance', label: '余额查询', icon: 'fa-wallet' }
     ]
@@ -59,16 +61,11 @@ export function Sidebar() {
 
   useEffect(() => {
     let alive = true
-    window.api.usage
-      .getLogs({ source: 'session-log', limit: 500 })
-      .then((rows) => {
-        if (!alive || !Array.isArray(rows)) return
-        const projects = new Set<string>()
-        for (const row of rows) {
-          const project = row.agentLabel?.trim() || row.sessionId
-          if (project) projects.add(project)
-        }
-        setProjectBadge(projects.size > 0 ? String(projects.size) : undefined)
+    window.api.projects
+      .overview({ days: 30, limit: 500 })
+      .then((result) => {
+        if (!alive) return
+        setProjectBadge(result.total > 0 ? String(result.total) : undefined)
       })
       .catch(() => {
         if (alive) setProjectBadge(undefined)
@@ -81,7 +78,7 @@ export function Sidebar() {
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.map((item) =>
-      item.to === '/agents' && projectBadge
+      item.to === '/projects' && projectBadge
         ? { ...item, badge: projectBadge, badgeVariant: 'count' as const }
         : item
     )

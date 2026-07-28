@@ -7,7 +7,7 @@ import { useEffect } from 'react'
 import { Navigate, Routes, Route, useNavigate } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
 import Dashboard from './pages/Dashboard'
-import AgentDetail from './pages/AgentDetail'
+import Projects from './pages/Projects'
 import ProviderSummary from './pages/ProviderSummary'
 import ModelCompare from './pages/ModelCompare'
 import RequestLogs from './pages/RequestLogs'
@@ -16,6 +16,9 @@ import ApiKeys from './pages/ApiKeys'
 import PricingConfig from './pages/PricingConfig'
 import UsageAlerts from './pages/UsageAlerts'
 import Settings from './pages/Settings'
+import Sources from './pages/Sources'
+import Timeline from './pages/Timeline'
+import MiniPanel from './pages/MiniPanel'
 
 /**
  * 应用根组件。
@@ -27,12 +30,16 @@ export default function App() {
     <>
       <AlertDestinationBridge />
       <Routes>
+        <Route path="/mini-panel" element={<MiniPanel />} />
         <Route element={<AppShell />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/agents" element={<AgentDetail />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/agents" element={<Navigate to="/projects" replace />} />
           <Route path="/providers" element={<ProviderSummary />} />
           <Route path="/models" element={<ModelCompare />} />
           <Route path="/logs" element={<RequestLogs />} />
+          <Route path="/sources" element={<Sources />} />
+          <Route path="/timeline" element={<Timeline />} />
           <Route path="/sessions" element={<Navigate to="/apikeys" replace />} />
           <Route path="/balance" element={<BalanceQuery />} />
           <Route path="/apikeys" element={<ApiKeys />} />

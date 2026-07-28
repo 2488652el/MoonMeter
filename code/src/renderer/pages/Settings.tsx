@@ -14,6 +14,7 @@ import { SYNC_BACKUP_DIRECTORY_SETTING_KEY } from '../../shared/sync-v2'
 import type { AppUpdateStatus } from '../../shared/types/app-update'
 import type { SanitizedDiagnosticPack } from '../../shared/types/diagnostics'
 import type { AccountIdentityOverview } from '../../shared/types/account-identity'
+import { IntegrationsPanel } from '../components/IntegrationsPanel'
 
 // scheduler reads `refresh_interval_min` (number, minutes).
 // 0 means "关闭" - refresh.ts treats intervalMin <= 0 as a no-op.
@@ -521,6 +522,8 @@ export default function Settings() {
           </span>
         </div>
       </Card>
+
+      <IntegrationsPanel />
 
       <Card className="mt-4" bodyClassName="p-0" motionOrder={3}>
         <div className="border-b border-border-light bg-bg-base/45 px-5 py-5">

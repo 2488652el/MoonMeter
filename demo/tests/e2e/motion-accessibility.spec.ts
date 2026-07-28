@@ -17,10 +17,13 @@ const builtMain = join(repoRoot, 'demo', 'out', 'main', 'index.js')
 
 const ROUTES = [
   { path: '/', marker: /使用统计|连接来源，开始看到可信数据/ },
-  { path: '/agents', marker: '项目用量' },
+  { path: '/projects', marker: '项目用量' },
+  { path: '/agents', expectedPath: '/projects', marker: '项目用量' },
   { path: '/providers', marker: 'Provider 汇总' },
   { path: '/models', marker: '模型对比' },
   { path: '/logs', marker: '请求日志' },
+  { path: '/sources', marker: '来源健康' },
+  { path: '/timeline', marker: '时间线' },
   { path: '/balance', marker: '余额查询' },
   { path: '/apikeys', marker: 'API Keys' },
   { path: '/pricing', marker: '价格配置' },
@@ -298,6 +301,7 @@ async function reducedMotionReport(page: Page): Promise<ReducedMotionReport> {
 }
 
 async function navigateTo(page: Page, route: (typeof ROUTES)[number]): Promise<void> {
+  const expectedPath = 'expectedPath' in route ? route.expectedPath : route.path
   await page.evaluate((path) => {
     window.location.hash = `#${path}`
   }, route.path)
@@ -306,7 +310,7 @@ async function navigateTo(page: Page, route: (typeof ROUTES)[number]): Promise<v
       timeout: 5_000,
       message: `hash route ${route.path} did not become active`
     })
-    .toBe(`#${route.path}`)
+    .toBe(`#${expectedPath}`)
   await expect(page.locator('.page-content')).toBeVisible()
   await expect(page.locator('.page-content')).toContainText(route.marker)
 }

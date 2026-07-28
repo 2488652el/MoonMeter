@@ -140,7 +140,7 @@ describe('application updater', () => {
     const { getAppUpdateStatus, initializeAppUpdater } = await loadUpdater()
     initializeAppUpdater()
 
-    emit('error', new Error('request failed for ghp_1234567890secret'))
+    emit('error', new Error(`request failed for ghp_${'x'.repeat(32)}`))
 
     expect(getAppUpdateStatus()).toMatchObject({
       phase: 'error',

@@ -2,7 +2,7 @@
   <img src="./design/assets/icon.png" width="112" alt="MoonMeter Logo" />
   <h1>MoonMeter</h1>
   <p><strong>Every token, in a clearer light.</strong></p>
-  <p>A local-first LLM usage, balance, and cost workspace for multi-model developers.</p>
+  <p>A local-first usage, balance, and cost workspace for developers.</p>
 
   <p>
     <img alt="Version" src="https://img.shields.io/badge/version-1.2.55-151515?style=flat-square" />
@@ -24,27 +24,31 @@
 
 ## What is MoonMeter?
 
-When you use Claude Code, Codex CLI, multiple model APIs, and gateway services, usage, balances, token plans, and real costs end up scattered across different products. MoonMeter brings them together in one Windows and macOS desktop application while keeping data on your machine by default.
+When development tools, services, and billing records are spread across different products, usage, balances, plans, and real costs are hard to review together. MoonMeter brings them into one Windows and macOS desktop application while keeping data on your machine by default.
 
 It is not another chat client. It is a focused dashboard for three questions:
 
 - Where did the tokens go?
 - How much quota is left?
-- What did each model and project actually cost?
+- What did each service and project actually cost?
 
 ## Core capabilities
 
 | Capability         | What it does                                                                                 |
 | ------------------ | -------------------------------------------------------------------------------------------- |
-| Usage overview     | Combines API and local CLI usage with month-to-date and custom billing periods               |
-| Project analytics  | Shows tokens, model mix, active dates, and normalized cost by coding project                 |
+| Usage overview     | Combines API and local session usage with month-to-date and custom billing periods           |
+| Project analytics  | Shows tokens, sessions, active dates, and normalized cost by coding project                  |
 | Provider summary   | Aggregates requests, tokens, spend, and model distribution across providers                  |
 | Model comparison   | Compares spend ranking, providers, token composition, request averages, and pricing coverage |
+| Source health      | Checks Windows / WSL sources read-only; enable, preview, and sync actions are explicit       |
+| Tasks and delivery | Associates workspaces, tasks, commits, and user-confirmed HTTPS delivery links               |
+| Timeline           | Paginates events by type, status, and date while aggregating older detail by day             |
 | API key management | Encrypts credentials locally with Electron `safeStorage`; the UI only sees key tails         |
 | Balances and plans | Reads API balances, coding plans, token packages, organization usage, and gateway quota      |
 | Request logs       | Separates occurrence-time cost from legacy current-price estimates in detail and CSV         |
 | Model pricing      | Searches official and custom prices with currency conversion, scopes, and change review      |
 | Usage alerts       | Sends native notifications with event history, read state, and recovery-based re-triggering  |
+| Local integrations | Provides a loopback HTTP JSON receiver and separate mini panel, both disabled by default     |
 | Multi-device sync  | Optionally syncs settings, prices, and balance snapshots with local backup support           |
 
 ## Moonlit paper interface
@@ -64,11 +68,17 @@ MoonMeter uses warm paper surfaces, black-and-white contrast, hairline borders, 
 - API keys are encrypted by the Electron main process with the operating system's `safeStorage` facility.
 - The sandboxed renderer cannot access Node.js, the filesystem, SQLite, raw IPC, or plaintext secrets.
 - Renderer-to-main payloads are validated through shared schemas.
-- Claude Code, Codex CLI, and Kimi Code logs are parsed incrementally and read-only.
+- Local session logs are parsed incrementally and read-only; source files are never modified.
 - No telemetry is added by default. Cloud sync is optional and can be self-hosted.
 - The SQLite database lives under Electron's user-data directory, outside the installation directory.
 
 See [design/ARCHITECTURE.md](./design/ARCHITECTURE.md) for the full process and trust boundaries.
+See [design/LOCAL_DATA_PRIVACY.md](./design/LOCAL_DATA_PRIVACY.md) for the Windows/WSL,
+project/Git, timeline, and local OTLP data boundaries.
+
+## Public content boundary
+
+The public repository excludes personal paths, credentials, databases, raw logs, prompts, command arguments, code snippets, tool inputs/outputs, internal plans, and generated installers. Uploads are generated from an allowlisted staging directory and pass a redacted-content audit.
 
 ## Quick start
 
@@ -111,15 +121,14 @@ demo/moonmeter-1.2.55-MoonMeter-1.2.55-release/
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
 
-## Providers and local sessions
+## Services and local sessions
 
-The built-in catalog covers DeepSeek, Zhipu GLM, Kimi / Moonshot, MiniMax, LongCat, SiliconFlow, OpenRouter, OpenAI Admin, Anthropic Admin, NewAPI / OneAPI-compatible services, and manual quota entries. See the [provider documentation](./design/PROVIDERS.md) for protocols, capabilities, and pricing sources.
+The built-in catalog covers compatible services, organization usage, plan quotas, and manual quota entries. See the [provider documentation](./design/PROVIDERS.md) for protocols, capabilities, and pricing sources.
 
 Local session sources:
 
-- Claude Code project JSONL sessions under the user's home directory.
-- Codex CLI session JSONL organized by date.
-- Kimi Code local session JSONL with incremental message ingestion.
+- Windows and WSL local CLI sessions.
+- Workspace, session, token, and cost context per source.
 - Incremental, deduplicated parsing that never modifies source logs.
 
 ## Data and upgrade compatibility
@@ -132,7 +141,7 @@ moonmeter.db
 
 On first launch, it can copy compatible databases and SQLite WAL/SHM sidecars from legacy TokenLub, TokenScope, or tokengirl user-data directories. Legacy files are never moved or deleted, so rollback remains possible.
 
-Compatibility surfaces retained in 1.2.2:
+Compatibility surfaces retained:
 
 - `moonmeter://sync/bind` is the new default binding protocol.
 - `tokenlub://sync/bind` remains registered and accepted.

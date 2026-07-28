@@ -1,4 +1,5 @@
 export type SupportedDesktopPlatform = 'win32' | 'darwin'
+export type CliPathEnvironment = SupportedDesktopPlatform | 'wsl'
 
 export interface CliPaths {
   claudeProjects: string

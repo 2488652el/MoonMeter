@@ -38,9 +38,11 @@ import {
   pruneQuotaSamples,
   type PersistedQuotaSample
 } from '../store/quota-repo'
+import { listLocalSourceConfigs } from '../store/local-source-repo'
 import { discoverAllSessions } from '../log-parsers/sync'
 import { CLI_LOG_SOURCES } from '../log-parsers/registry'
 import { computeTotalSpend, listUsageProviderIds } from '../store/usage-repo'
+import type { LocalSourceConfig } from '@shared/types/local-source'
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 
@@ -185,6 +187,64 @@ function toSourceHealth(
     ...(errorCode ? { errorCode } : {}),
     ...(stored.errorMessage ? { errorMessage: stored.errorMessage } : {}),
     ...(pricingCoverage ? { pricingCoverage } : {})
+  }
+}
+
+function localSourceErrorCode(value: LocalSourceConfig['errorCode']): SourceErrorCode | undefined {
+  if (!value) return undefined
+  if (value === 'permission-denied') return 'permission-required'
+  if (
+    value === 'path-missing' ||
+    value === 'distribution-not-found' ||
+    value === 'no-distributions'
+  ) {
+    return 'not-found'
+  }
+  if (value === 'timeout') return 'network-error'
+  if (value === 'format-changed') return 'invalid-response'
+  return 'unknown-error'
+}
+
+function toLocalSourceHealth(
+  source: LocalSourceConfig,
+  generatedAt: Date,
+  staleAfterMs: number
+): SourceHealth {
+  const status: SourceStatus =
+    source.status === 'ready'
+      ? 'healthy'
+      : source.status === 'stale'
+        ? 'stale'
+        : source.status === 'enabled' || source.status === 'discovered'
+          ? 'unavailable'
+          : source.status === 'stopped' || source.status === 'unavailable'
+            ? 'unavailable'
+            : 'error'
+  const lastSuccessMs = source.lastSuccessAt ? Date.parse(source.lastSuccessAt) : NaN
+  const dataAgeMs = Number.isFinite(lastSuccessMs)
+    ? Math.max(0, generatedAt.getTime() - lastSuccessMs)
+    : undefined
+  const errorCode = localSourceErrorCode(source.errorCode)
+  return {
+    sourceId: `local:${source.id}`,
+    sourceType: 'cli-log',
+    accountRef: source.id,
+    accountAlias: `${source.cliSource}${source.wslDistribution ? ` · WSL ${source.wslDistribution}` : ' · Windows'}`,
+    permission:
+      source.errorCode === 'permission-denied'
+        ? 'permission-required'
+        : source.status === 'ready'
+          ? 'readable'
+          : source.errorCode === 'path-missing' || source.errorCode === 'distribution-not-found'
+            ? 'missing'
+            : 'unknown',
+    status: sourceStatusWithFreshness(status, source.lastSuccessAt, generatedAt, staleAfterMs),
+    updatedAt: source.updatedAt,
+    ...(source.lastAttemptAt ? { lastAttemptAt: source.lastAttemptAt } : {}),
+    ...(source.lastSuccessAt ? { lastSuccessAt: source.lastSuccessAt } : {}),
+    ...(dataAgeMs !== undefined ? { dataAgeMs } : {}),
+    ...(errorCode ? { errorCode } : {}),
+    ...(source.errorMessage ? { errorMessage: source.errorMessage } : {})
   }
 }
 
@@ -360,27 +420,29 @@ async function refreshCodexQuota(
 
 export async function getQuotaPlanningOverview(
   fetchImpl: FetchLike,
-  now = new Date()
+  now = new Date(),
+  options: { refresh?: boolean } = {}
 ): Promise<QuotaPlanningOverview> {
   const refreshIntervalMs = (getSetting<number>('refresh_interval_min') ?? 30) * 60_000
   const storedBeforeRefresh = listSourceHealth()
   const codexAccountRef = resolveCodexAccountRef(storedBeforeRefresh)
-  if (!storedBeforeRefresh.some((source) => source.sourceKind === 'codex')) {
-    recordSourceUnavailable(
-      {
-        sourceId: 'codex:chatgpt',
-        accountRef: codexAccountRef,
-        sourceKind: 'codex',
-        providerId: 'codex',
-        displayName: 'ChatGPT / Codex'
-      },
-      'missing',
-      now
-    )
+  if (options.refresh !== false) {
+    if (!storedBeforeRefresh.some((source) => source.sourceKind === 'codex')) {
+      recordSourceUnavailable(
+        {
+          sourceId: 'codex:chatgpt',
+          accountRef: codexAccountRef,
+          sourceKind: 'codex',
+          providerId: 'codex',
+          displayName: 'ChatGPT / Codex'
+        },
+        'missing',
+        now
+      )
+    }
+    await refreshCodexQuota(fetchImpl, refreshIntervalMs, codexAccountRef)
+    discoverCliSources(now)
   }
-  await refreshCodexQuota(fetchImpl, refreshIntervalMs, codexAccountRef)
-
-  discoverCliSources(now)
   ensureConfiguredProviderSources(now)
 
   const pricingCoverage = buildPricingCoverage(now)
@@ -393,9 +455,12 @@ export async function getQuotaPlanningOverview(
     forecast: forecastQuota(window, samples, now)
   }))
   const sourceTtlMs = Math.min(Math.max(refreshIntervalMs * 2, 10 * 60_000), 30 * 60_000)
-  const sources = listSourceHealth().map((source) =>
-    toSourceHealth(source, now, sourceTtlMs, pricingCoverage)
-  )
+  const sources = [
+    ...listSourceHealth().map((source) =>
+      toSourceHealth(source, now, sourceTtlMs, pricingCoverage)
+    ),
+    ...listLocalSourceConfigs().map((source) => toLocalSourceHealth(source, now, sourceTtlMs))
+  ]
   const actions: ActionCenterItem[] = []
   for (const item of forecasts) {
     const action = quotaAction(item.window, item.forecast)

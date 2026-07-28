@@ -2,7 +2,7 @@
   <img src="./design/assets/icon.png" width="112" alt="MoonMeter Logo" />
   <h1>MoonMeter</h1>
   <p><strong>Every token, in a clearer light.</strong></p>
-  <p>面向多模型开发者的本地优先 LLM 用量、余额与成本工作台。</p>
+  <p>面向开发者的本地优先用量、余额与成本工作台。</p>
 
   <p>
     <img alt="Version" src="https://img.shields.io/badge/version-1.2.55-151515?style=flat-square" />
@@ -24,28 +24,32 @@
 
 ## MoonMeter 是什么
 
-同时使用 Claude Code、Codex CLI、多个模型 API 和中转服务时，用量、余额、资源包和真实成本往往散落在不同平台。MoonMeter 把这些信息统一到一款 Windows / macOS 桌面应用中，并默认将数据留在本机。
+当开发工具、服务和账单分散在不同平台时，用量、余额、资源包和真实成本很难统一查看。MoonMeter 把这些信息集中到一款 Windows / macOS 桌面应用中，并默认将数据留在本机。
 
 它不是另一个聊天客户端，而是一块专注于回答三个问题的仪表盘：
 
 - Token 用到哪里了？
 - 还剩多少额度？
-- 不同模型和项目实际花了多少钱？
+- 不同服务和项目实际花了多少钱？
 
 ## 核心能力
 
-| 能力          | 说明                                                         |
-| ------------- | ------------------------------------------------------------ |
-| 使用统计      | 汇总 API 请求与本地 CLI 会话，支持本月至今与自定义账期       |
-| 项目分析      | 按项目查看 Token、模型构成、活跃日期和折算后的统一成本       |
-| Provider 汇总 | 聚合不同服务商的请求量、Token、费用与模型分布                |
-| 模型对比      | 对比费用排名、Provider、Token 构成、单次均值与计价覆盖       |
-| API Key 管理  | 使用 Electron `safeStorage` 本地加密，界面只显示 Key 尾号    |
-| 余额与套餐    | 查询 API 余额、Coding Plan、Token 包、组织用量及聚合网关额度 |
-| 请求日志      | 区分发生时成本与旧记录当前估算，并导出请求级价格口径         |
-| 模型价格      | 搜索和筛选官方或自定义价格，支持币种换算、范围与变更审核     |
-| 用量告警      | 原生系统通知、事件历史、已读状态与恢复后再次触发             |
-| 多设备同步    | 可选同步设置、价格和余额快照，并支持本地备份及自托管服务     |
+| 能力          | 说明                                                          |
+| ------------- | ------------------------------------------------------------- |
+| 使用统计      | 汇总 API 请求与本地会话，支持本月至今与自定义账期             |
+| 项目分析      | 按项目查看 Token、会话、活跃日期和折算后的统一成本            |
+| Provider 汇总 | 聚合不同服务商的请求量、Token、费用与模型分布                 |
+| 模型对比      | 对比费用排名、Provider、Token 构成、单次均值与计价覆盖        |
+| 来源健康      | 只读检查 Windows / WSL 来源，所有启用、预览和同步均由用户触发 |
+| 任务与交付    | 关联工作区、任务、提交和手工确认的 HTTPS 交付链接             |
+| 时间线        | 按类型、状态和时间查看分页事件，旧详情自动按日聚合            |
+| API Key 管理  | 使用 Electron `safeStorage` 本地加密，界面只显示 Key 尾号     |
+| 余额与套餐    | 查询 API 余额、Coding Plan、Token 包、组织用量及聚合网关额度  |
+| 请求日志      | 区分发生时成本与旧记录当前估算，并导出请求级价格口径          |
+| 模型价格      | 搜索和筛选官方或自定义价格，支持币种换算、范围与变更审核      |
+| 用量告警      | 原生系统通知、事件历史、已读状态与恢复后再次触发              |
+| 本地集成      | 默认关闭的回环 HTTP JSON 接收器和独立 mini panel              |
+| 多设备同步    | 可选同步设置、价格和余额快照，并支持本地备份及自托管服务      |
 
 ## 月光纸感界面
 
@@ -64,11 +68,17 @@ MoonMeter 采用米白纸面、黑白对比、发丝线和克制金色数据强�
 - API Key 由 Electron 主进程使用系统 `safeStorage` 加密，Renderer 不接触明文凭据。
 - Renderer 保持沙箱隔离，不能访问 Node.js、文件系统、SQLite 或原始 IPC。
 - 所有 Renderer → Main 输入均通过共享 schema 校验。
-- Claude Code、Codex CLI 与 Kimi Code 日志仅做只读增量解析。
+- 本地会话日志仅做只读增量解析，不修改原始文件。
 - 默认不发送遥测；云端同步为可选功能，可使用自己的服务器。
 - SQLite 数据库位于 Electron 用户数据目录，不会写进安装目录。
 
 更完整的边界说明见 [design/ARCHITECTURE.md](./design/ARCHITECTURE.md)。
+Windows/WSL 来源、项目/Git、时间线和本地 OTLP 的细粒度边界见
+[design/LOCAL_DATA_PRIVACY.md](./design/LOCAL_DATA_PRIVACY.md)。
+
+## 公开内容边界
+
+公开仓库不包含个人路径、凭据、数据库、日志正文、提示词、命令参数、代码片段、工具输入输出、内部计划或构建安装包。上传前会从白名单 staging 目录生成并执行脱敏审计。
 
 ## 快速开始
 
@@ -111,16 +121,15 @@ demo/moonmeter-1.2.55-MoonMeter-1.2.55-release/
 
 macOS 可使用 `npm run dist:mac:x64`、`npm run dist:mac:arm64` 或 `npm run dist:mac`。正式构建与历史版本请前往 [GitHub Releases](https://github.com/2488652el/MoonMeter/releases)。
 
-## Provider 与本地会话
+## 服务与本地会话
 
-内置目录覆盖 DeepSeek、智谱 GLM、Kimi / Moonshot、MiniMax、LongCat、SiliconFlow、OpenRouter、OpenAI Admin、Anthropic Admin、NewAPI / OneAPI 兼容服务及手动额度等类型。具体能力、协议和价格来源见 [Provider 文档](./design/PROVIDERS.md)。
+内置目录覆盖多种兼容服务、组织用量、套餐额度和手动额度类型。具体能力、协议和价格来源见 [Provider 文档](./design/PROVIDERS.md)。
 
 本地会话支持：
 
-- Claude Code：读取用户目录下的项目 JSONL 会话。
-- Codex CLI：读取按日期组织的本地 session JSONL。
-- Kimi Code：读取本地会话 JSONL，并按消息增量入库。
-- 日志按增量解析并去重，不修改原始文件。
+- Windows 与 WSL 本地 CLI 会话。
+- 按来源上下文记录工作区、会话、Token 和成本。
+- 日志按增量解析、去重并保留原始文件不变。
 
 ## 数据与升级兼容
 

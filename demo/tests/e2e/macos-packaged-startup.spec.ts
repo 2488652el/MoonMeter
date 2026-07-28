@@ -61,7 +61,11 @@ test('starts the packaged macOS app with an isolated profile', async () => {
     app = await electron.launch({
       executablePath: executablePath(appBundle!),
       args: [`--user-data-dir=${userData}`, '--disable-gpu'],
-      env: { ...process.env, HOME: home }
+      env: {
+        ...process.env,
+        HOME: home,
+        XDG_DATA_HOME: join(home, '.local', 'share')
+      }
     })
     const window = await app.firstWindow()
 
@@ -119,12 +123,16 @@ test('starts the packaged macOS app with an isolated profile', async () => {
     expect(locations).toEqual({
       claudeProjects: join(home, '.claude', 'projects'),
       codexSessions: join(home, '.codex', 'sessions'),
-      kimiCodeSessions: join(home, '.kimi-code', 'sessions')
+      kimiCodeSessions: join(home, '.kimi-code', 'sessions'),
+      geminiTemp: join(home, '.gemini', 'tmp'),
+      opencodeMessages: join(home, '.local', 'share', 'opencode', 'storage', 'message')
     })
     await expect(window.evaluate(() => window.api.log.discover())).resolves.toEqual({
       claude: [],
       codex: [],
-      kimiCode: []
+      kimiCode: [],
+      gemini: [],
+      opencode: []
     })
 
     await window.evaluate(() => window.api.settings.set('macos_e2e_probe', 'ok'))

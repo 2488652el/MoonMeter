@@ -31,6 +31,22 @@ import {
   keysSetUsageQueryInputSchema,
   logOpenFolderInputSchema,
   logSyncInputSchema,
+  localSourceIdInputSchema,
+  localSourcePreviewInputSchema,
+  localSourceSyncInputSchema,
+  localSourceToggleInputSchema,
+  projectDetailInputSchema,
+  projectIdInputSchema,
+  projectListInputSchema,
+  taskAddInputSchema,
+  taskAddPrInputSchema,
+  taskConfirmDeliveryInputSchema,
+  taskSessionAssignmentInputSchema,
+  taskUpdateInputSchema,
+  timelineFilterInputSchema,
+  otelSetEnabledInputSchema,
+  miniPanelSettingsInputSchema,
+  quotaPlanningOverviewInputSchema,
   syncLoginInputSchema,
   syncDeviceIdInputSchema,
   syncModeSchema
@@ -40,6 +56,14 @@ import type { PricingEntry } from '@shared/types/pricing'
 import type { AlertRuleInput } from '@shared/types/alert'
 import type { BudgetRuleInput } from '@shared/types/budget'
 import type { UsageAnalysisFilter } from '@shared/types/usage'
+import type {
+  LocalSourcePreviewInput,
+  LocalSourceSyncInput,
+  LocalSourceToggleInput
+} from '@shared/types/local-source'
+import type { ProjectListFilter } from '@shared/types/project'
+import type { TimelineFilter } from '@shared/types/timeline'
+import type { MiniPanelSettings } from '@shared/types/mini-panel'
 import {
   listKeys,
   addKey,
@@ -129,6 +153,36 @@ import { syncAllSessions, discoverAllSessions } from '../log-parsers/sync'
 import { detectClaudeKey, detectCodexKey } from '../log-parsers/cli-auth'
 import { getCliDisplayPaths } from '../platform/paths'
 import { statSync } from 'node:fs'
+import {
+  getLocalSourceDirectory,
+  getLocalSourcesOverview,
+  getSanitizedLocalSourceDiagnostic,
+  previewLocalSource,
+  setLocalSourceEnabledForInput,
+  syncLocalSources
+} from '../services/local-sources'
+import { getProjectDetails, getProjectsOverview } from '../services/projects'
+import { addManualPr, confirmDeliveryTask } from '../store/delivery-repo'
+import {
+  assignSessionToTask,
+  createTask,
+  listTasks,
+  removeSessionFromTask,
+  updateTask
+} from '../store/task-repo'
+import {
+  getOtelConfigPreview,
+  getOtelReceiverStatus,
+  rotateOtelToken,
+  setOtelReceiverEnabled
+} from '../services/otel-receiver'
+import { cleanupTimeline, getTimeline } from '../services/timeline'
+import {
+  getMiniPanelSettings,
+  hideMiniPanel,
+  setMiniPanelSettings,
+  showMiniPanel
+} from '../services/mini-panel'
 import {
   getSyncStatus,
   previewSync,
@@ -291,7 +345,11 @@ export function registerIpcHandlers(): void {
   // global fetch does not, which breaks ChatGPT usage lookup on proxied desktops.
   ipcMain.handle(IPC.codexUsage, () => fetchCodexUsage(net.fetch))
   let quotaOverviewInFlight: ReturnType<typeof getQuotaPlanningOverview> | null = null
-  ipcMain.handle(IPC.quotaPlanningOverview, () => {
+  ipcMain.handle(IPC.quotaPlanningOverview, (_e, input) => {
+    const parsed = quotaPlanningOverviewInputSchema.parse(input ?? {})
+    if (parsed.refresh === false) {
+      return getQuotaPlanningOverview(net.fetch, new Date(), { refresh: false })
+    }
     if (!quotaOverviewInFlight) {
       quotaOverviewInFlight = getQuotaPlanningOverview(net.fetch).finally(() => {
         quotaOverviewInFlight = null
@@ -299,6 +357,98 @@ export function registerIpcHandlers(): void {
     }
     return quotaOverviewInFlight
   })
+  ipcMain.handle(IPC.localSourcesDiscover, () => getLocalSourcesOverview())
+  ipcMain.handle(IPC.localSourcesPreview, (_e, input) => {
+    const parsed = stripUndefined(
+      localSourcePreviewInputSchema.parse(input)
+    ) as unknown as LocalSourcePreviewInput
+    return previewLocalSource(parsed)
+  })
+  ipcMain.handle(IPC.localSourcesSetEnabled, (_e, input) => {
+    const parsed = stripUndefined(
+      localSourceToggleInputSchema.parse(input)
+    ) as unknown as LocalSourceToggleInput
+    return setLocalSourceEnabledForInput(parsed)
+  })
+  ipcMain.handle(IPC.localSourcesSync, (_e, input) => {
+    const parsed = localSourceSyncInputSchema.parse(input ?? {}) as LocalSourceSyncInput
+    return syncLocalSources(parsed)
+  })
+  ipcMain.handle(IPC.localSourcesOpenFolder, (_e, input) => {
+    const { sourceId } = localSourceIdInputSchema.parse(input)
+    const directory = getLocalSourceDirectory(sourceId)
+    if (!directory) return { ok: false as const, error: 'source not found' }
+    try {
+      const st = statSync(directory)
+      if (!st.isDirectory()) return { ok: false as const, error: 'source directory is unavailable' }
+    } catch {
+      return { ok: false as const, error: 'source directory is unavailable' }
+    }
+    void shell.openPath(directory)
+    return { ok: true as const }
+  })
+  ipcMain.handle(IPC.localSourcesDiagnostic, () => getSanitizedLocalSourceDiagnostic())
+  ipcMain.handle(IPC.projectsOverview, (_e, input) => {
+    const parsed = stripUndefined(projectListInputSchema.parse(input ?? {})) as ProjectListFilter
+    return getProjectsOverview(parsed)
+  })
+  ipcMain.handle(IPC.projectsDetail, (_e, input) => {
+    const parsed = stripUndefined(projectDetailInputSchema.parse(input))
+    return getProjectDetails(parsed.id, parsed.days ?? 30)
+  })
+  ipcMain.handle(IPC.tasksList, (_e, input) => {
+    const workspaceId = input === undefined ? undefined : projectIdInputSchema.parse(input).id
+    return listTasks(workspaceId)
+  })
+  ipcMain.handle(IPC.tasksAdd, (_e, input) => {
+    const parsed = stripUndefined(taskAddInputSchema.parse(input))
+    return createTask(parsed as Parameters<typeof createTask>[0])
+  })
+  ipcMain.handle(IPC.tasksUpdate, (_e, input) => {
+    const parsed = stripUndefined(taskUpdateInputSchema.parse(input))
+    const { id, ...changes } = parsed
+    return updateTask(id, changes as Parameters<typeof updateTask>[1])
+  })
+  ipcMain.handle(IPC.tasksAssignSession, (_e, input) => {
+    return assignSessionToTask(taskSessionAssignmentInputSchema.parse(input))
+  })
+  ipcMain.handle(IPC.tasksUnassignSession, (_e, input) => {
+    removeSessionFromTask(taskSessionAssignmentInputSchema.parse(input))
+    return { ok: true as const }
+  })
+  ipcMain.handle(IPC.tasksConfirmDelivery, (_e, input) => {
+    const parsed = taskConfirmDeliveryInputSchema.parse(input)
+    return confirmDeliveryTask(parsed.deliveryId, parsed.taskId)
+  })
+  ipcMain.handle(IPC.tasksAddPr, (_e, input) => {
+    const parsed = stripUndefined(taskAddPrInputSchema.parse(input))
+    return addManualPr(parsed as Parameters<typeof addManualPr>[0])
+  })
+  ipcMain.handle(IPC.timelineList, (_e, input) => {
+    const parsed = stripUndefined(timelineFilterInputSchema.parse(input ?? {})) as TimelineFilter
+    return getTimeline(parsed)
+  })
+  ipcMain.handle(IPC.timelineCleanup, () => ({ removed: cleanupTimeline() }))
+  ipcMain.handle(IPC.otelStatus, () => getOtelReceiverStatus())
+  ipcMain.handle(IPC.otelSetEnabled, (_e, input) => {
+    const parsed = stripUndefined(otelSetEnabledInputSchema.parse(input))
+    return setOtelReceiverEnabled({
+      enabled: parsed.enabled,
+      port: parsed.port ?? 4_318
+    })
+  })
+  ipcMain.handle(IPC.otelRotateToken, () => rotateOtelToken())
+  ipcMain.handle(IPC.otelPreview, (_e, input) => {
+    const parsed = otelSetEnabledInputSchema.partial().parse(input ?? {})
+    return getOtelConfigPreview(parsed.port ?? 4_318)
+  })
+  ipcMain.handle(IPC.miniPanelSettings, () => getMiniPanelSettings())
+  ipcMain.handle(IPC.miniPanelSetSettings, (_e, input) => {
+    const parsed = miniPanelSettingsInputSchema.parse(input) as MiniPanelSettings
+    return setMiniPanelSettings(parsed)
+  })
+  ipcMain.handle(IPC.miniPanelShow, () => showMiniPanel())
+  ipcMain.handle(IPC.miniPanelHide, () => hideMiniPanel())
   ipcMain.handle(IPC.localReportsGet, (_e, kind) =>
     getLocalReportOverview(localReportPeriodInputSchema.parse(kind))
   )

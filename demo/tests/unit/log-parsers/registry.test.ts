@@ -14,6 +14,7 @@ describe('CLI log source registry', () => {
       expect(source.healthSourceId).toBe(`cli:${source.id}`)
       expect(source.syncStateSource).toBeTruthy()
       expect(source.displayName).toBeTruthy()
+      expect(source.rootPathKey).toBeTruthy()
       expect(getCliLogSource(source.id)).toBe(source)
     }
   })
