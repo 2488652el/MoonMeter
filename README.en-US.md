@@ -5,7 +5,7 @@
   <p>A local-first LLM usage, balance, and cost workspace for multi-model developers.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.2.54-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.2.55-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -100,13 +100,13 @@ npm run build
 ### Package for Windows
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.2.54" --model "release"
+npm run dist:win -- --change "MoonMeter-1.2.55" --model "release"
 ```
 
 Output:
 
 ```text
-demo/moonmeter-1.2.54-MoonMeter-1.2.54-release/
+demo/moonmeter-1.2.55-MoonMeter-1.2.55-release/
 ```
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
@@ -172,4 +172,4 @@ Run at least `typecheck`, `test`, `lint`, and `format:check` before submitting a
 
 ## Version
 
-Current source version: **MoonMeter 1.2.54**. This release improves API Keys startup performance and reorganizes the dashboard around scope, overview, exceptions, analysis, and management. See [CHANGELOG.md](./CHANGELOG.md).
+Current source version: **MoonMeter 1.2.55**. This release replaces browser dialogs for API Key deletion and connection tests with native app modals that match the product design. See [CHANGELOG.md](./CHANGELOG.md).

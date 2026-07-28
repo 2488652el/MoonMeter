@@ -11,6 +11,7 @@ import { EmptyState } from '../components/EmptyState'
 import { ApiKeyCard, providerLabel } from '../components/ApiKeyCard'
 import { CreateKeyModal } from '../components/CreateKeyModal'
 import { EditKeyModal } from '../components/EditKeyModal'
+import { Modal } from '../components/Modal'
 import { ProviderIcon } from '../components/ProviderIcon'
 import { CodexQuotaPanel } from '../components/CodexQuotaPanel'
 import { AnimatedNumber, MotionGroup, SortableCardGrid } from '../components/motion'
@@ -38,6 +39,13 @@ type SessionSyncTotals = {
   lines: number
   tokens: number
   inserted: number
+}
+
+type TestConnectionDialogState = {
+  alias: string
+  status: 'testing' | 'success' | 'error'
+  message?: string
+  hint?: string
 }
 
 type SessionStats = Record<
@@ -153,6 +161,11 @@ export default function ApiKeys() {
   >([])
   const [createOpen, setCreateOpen] = useState(false)
   const [editingKey, setEditingKey] = useState<ApiKeyRecord | null>(null)
+  const [deleteCandidate, setDeleteCandidate] = useState<ApiKeyRecord | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [testDialog, setTestDialog] = useState<TestConnectionDialogState | null>(null)
+  const testRunRef = useRef(0)
   const [importing, setImporting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sessionCounts, setSessionCounts] = useState<SessionCounts | null>(null)
@@ -417,28 +430,57 @@ export default function ApiKeys() {
     }
   }
 
-  /** 删除 Key(带确认弹窗) */
-  async function handleDelete(k: ApiKeyRecord) {
-    if (
-      !window.confirm(
-        `确认删除 "${k.alias}" (${k.providerId}, key 末位 …${k.keyTail})?\n此操作不可撤销。`
-      )
-    )
-      return
-    await window.api.keys.delete(k.id)
-    await refresh()
+  /** 打开删除确认弹窗。 */
+  function handleDelete(k: ApiKeyRecord) {
+    setDeleteError(null)
+    setDeleteCandidate(k)
   }
 
-  /** 测试 Key 连通性并展示结果 */
-  async function handleTest(id: string, alias: string) {
+  /** 确认删除 Key；错误留在弹窗内，便于用户决定是否重试。 */
+  async function confirmDelete() {
+    if (!deleteCandidate) return
+    setDeleting(true)
+    setDeleteError(null)
     try {
-      const r = await window.api.keys.test(id)
-      const msg = `${alias}：${r.ok ? '✅ ' + r.message : '❌ ' + r.message}`
-      window.alert(r.ok ? msg : `${msg}${hintForError(r.message)}`)
+      await window.api.keys.delete(deleteCandidate.id)
+      setDeleteCandidate(null)
+      await refresh()
     } catch (e) {
-      const msg = `${alias}：❌ ${(e as Error).message}`
-      window.alert(`${msg}${hintForError((e as Error).message)}`)
+      setDeleteError((e as Error).message)
+    } finally {
+      setDeleting(false)
     }
+  }
+
+  /** 测试 Key 连通性，并在应用内弹窗展示进行中与结果状态。 */
+  function handleTest(id: string, alias: string) {
+    const run = ++testRunRef.current
+    setTestDialog({ alias, status: 'testing' })
+    void window.api.keys
+      .test(id)
+      .then((result) => {
+        if (testRunRef.current !== run) return
+        if (result.ok) {
+          setTestDialog({ alias, status: 'success', message: result.message })
+          return
+        }
+        setTestDialog({
+          alias,
+          status: 'error',
+          message: result.message,
+          hint: hintForError(result.message)
+        })
+      })
+      .catch((e) => {
+        if (testRunRef.current !== run) return
+        const message = (e as Error).message
+        setTestDialog({ alias, status: 'error', message, hint: hintForError(message) })
+      })
+  }
+
+  function closeTestDialog() {
+    testRunRef.current += 1
+    setTestDialog(null)
   }
 
   // cheap string-match hint for common HTTP error codes. Not a real
@@ -805,7 +847,149 @@ export default function ApiKeys() {
           onSave={handleUpdate}
         />
       )}
+      {deleteCandidate && (
+        <DeleteKeyDialog
+          keyRecord={deleteCandidate}
+          deleting={deleting}
+          error={deleteError}
+          onClose={() => {
+            if (!deleting) setDeleteCandidate(null)
+          }}
+          onConfirm={() => void confirmDelete()}
+        />
+      )}
+      {testDialog && <TestConnectionDialog state={testDialog} onClose={closeTestDialog} />}
     </div>
+  )
+}
+
+function DeleteKeyDialog({
+  keyRecord,
+  deleting,
+  error,
+  onClose,
+  onConfirm
+}: {
+  keyRecord: ApiKeyRecord
+  deleting: boolean
+  error: string | null
+  onClose: () => void
+  onConfirm: () => void
+}) {
+  return (
+    <Modal title="删除 API Key" onClose={onClose}>
+      <div className="space-y-5">
+        <div className="flex gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+            <Icon name="fa-trash-can" />
+          </span>
+          <div>
+            <h3 className="text-[14px] font-semibold text-text-primary">
+              删除 “{keyRecord.alias}”？
+            </h3>
+            <p className="mt-1 text-[12.5px] leading-relaxed text-text-secondary">
+              删除后无法恢复，相关余额与历史关联会停止更新。
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-lg border border-border-light bg-bg-base/45 px-3 py-2.5 text-[12px]">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-text-muted">Provider</span>
+            <span className="font-mono text-text-secondary">{keyRecord.providerId}</span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-text-muted">Key 末位</span>
+            <span className="font-mono text-text-secondary">…{keyRecord.keyTail}</span>
+          </div>
+        </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700"
+          >
+            删除失败：{error}
+          </p>
+        )}
+
+        <div className="-mx-5 -mb-5 flex justify-end gap-2 border-t border-border-light bg-bg-base/30 px-5 py-4">
+          <button type="button" className="btn btn-outline" onClick={onClose} disabled={deleting}>
+            取消
+          </button>
+          <button
+            type="button"
+            className="btn border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700"
+            onClick={onConfirm}
+            disabled={deleting}
+          >
+            {deleting ? (
+              <Icon name="fa-spinner" className="animate-spin" />
+            ) : (
+              <Icon name="fa-trash-can" />
+            )}
+            {deleting ? '删除中…' : '确认删除'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+function TestConnectionDialog({
+  state,
+  onClose
+}: {
+  state: TestConnectionDialogState
+  onClose: () => void
+}) {
+  const testing = state.status === 'testing'
+  const success = state.status === 'success'
+  const visual = testing
+    ? {
+        icon: 'fa-spinner',
+        className: 'animate-spin bg-blue-50 text-blue-600',
+        title: '正在测试连接'
+      }
+    : success
+      ? { icon: 'fa-circle-check', className: 'bg-emerald-50 text-emerald-600', title: '连接正常' }
+      : { icon: 'fa-triangle-exclamation', className: 'bg-red-50 text-red-600', title: '连接失败' }
+
+  return (
+    <Modal title="测试连接" onClose={onClose}>
+      <div className="space-y-5">
+        <div className="flex gap-3">
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${visual.className}`}
+          >
+            <Icon name={visual.icon} />
+          </span>
+          <div>
+            <h3 className="text-[14px] font-semibold text-text-primary">{visual.title}</h3>
+            <p className="mt-1 text-[12.5px] text-text-secondary">API Key：{state.alias}</p>
+          </div>
+        </div>
+
+        <div
+          aria-live="polite"
+          className="rounded-lg border border-border-light bg-bg-base/45 px-3 py-3 text-[12.5px] leading-relaxed text-text-secondary"
+        >
+          {testing ? '正在向服务商发起验证，请稍候…' : state.message}
+        </div>
+
+        {state.hint && (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-relaxed text-amber-800">
+            <Icon name="fa-lightbulb" className="mr-1" /> 建议：{state.hint}
+          </p>
+        )}
+
+        <div className="-mx-5 -mb-5 flex justify-end border-t border-border-light bg-bg-base/30 px-5 py-4">
+          <button type="button" className="btn btn-primary" onClick={onClose} disabled={testing}>
+            {testing ? '测试中…' : '完成'}
+          </button>
+        </div>
+      </div>
+    </Modal>
   )
 }
 
