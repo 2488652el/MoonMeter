@@ -329,10 +329,18 @@ export const quotaPlanningOverviewInputSchema = z.object({
   refresh: z.boolean().optional()
 })
 
+const miniPanelBoundsInputSchema = z.object({
+  x: z.number().int().min(-100_000).max(100_000),
+  y: z.number().int().min(-100_000).max(100_000),
+  width: z.number().int().min(320).max(4_000),
+  height: z.number().int().min(220).max(4_000)
+})
+
 export const miniPanelSettingsInputSchema = z.object({
   enabled: z.boolean(),
   visible: z.boolean(),
   fixedWorkspaceId: z.string().trim().min(1).max(300).optional(),
+  bounds: miniPanelBoundsInputSchema.optional(),
   hotkeyEnabled: z.boolean(),
   hotkey: z.string().trim().min(1).max(80)
 })

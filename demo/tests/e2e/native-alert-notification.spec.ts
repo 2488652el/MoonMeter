@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { assertTemporaryProfile, createIsolatedEnvironment } from './electron-test-utils'
 
 const electronPath = createRequire(__filename)('electron') as string
 
@@ -13,13 +14,15 @@ test('delivers native alerts in foreground, minimized, and background states', a
     'Native alert acceptance targets Windows and macOS.'
   )
   const profile = mkdtempSync(join(tmpdir(), 'moonmeter-native-alert-'))
+  assertTemporaryProfile(profile, profile)
   let app: ElectronApplication | undefined
 
   try {
     app = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${profile}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(profile)
     })
     await app.firstWindow()
 

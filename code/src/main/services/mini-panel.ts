@@ -1,6 +1,6 @@
-import { app, BrowserWindow, globalShortcut } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen } from 'electron'
 import { join } from 'node:path'
-import type { MiniPanelSettings } from '@shared/types/mini-panel'
+import type { MiniPanelBounds, MiniPanelSettings } from '@shared/types/mini-panel'
 import { getSetting, setSetting } from '../store/settings-store'
 
 const MINI_PANEL_SETTINGS_KEY = 'mini_panel_settings'
@@ -12,6 +12,8 @@ const DEFAULT_SETTINGS: MiniPanelSettings = {
   hotkeyEnabled: false,
   hotkey: DEFAULT_HOTKEY
 }
+
+const DEFAULT_BOUNDS = { width: 380, height: 300 }
 
 let miniPanel: BrowserWindow | null = null
 let registeredHotkey: string | undefined
@@ -26,16 +28,66 @@ function safeId(value: unknown): string | undefined {
   return normalized
 }
 
+function safeBounds(value: unknown): MiniPanelBounds | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const candidate = value as Record<string, unknown>
+  const x = candidate['x']
+  const y = candidate['y']
+  const width = candidate['width']
+  const height = candidate['height']
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof width !== 'number' ||
+    typeof height !== 'number' ||
+    !Number.isInteger(x) ||
+    !Number.isInteger(y) ||
+    !Number.isInteger(width) ||
+    !Number.isInteger(height)
+  ) {
+    return undefined
+  }
+  if (
+    x < -100_000 ||
+    x > 100_000 ||
+    y < -100_000 ||
+    y > 100_000 ||
+    width < 320 ||
+    width > 4_000 ||
+    height < 220 ||
+    height > 4_000
+  ) {
+    return undefined
+  }
+  return { x, y, width, height }
+}
+
+function recoverBounds(bounds: MiniPanelBounds | undefined): MiniPanelBounds {
+  const candidate = bounds ?? { x: 0, y: 0, ...DEFAULT_BOUNDS }
+  const display = screen.getDisplayMatching(candidate)
+  const workArea = display.workArea
+  const width = Math.min(candidate.width, workArea.width)
+  const height = Math.min(candidate.height, workArea.height)
+  return {
+    x: Math.min(Math.max(candidate.x, workArea.x), workArea.x + workArea.width - width),
+    y: Math.min(Math.max(candidate.y, workArea.y), workArea.y + workArea.height - height),
+    width,
+    height
+  }
+}
+
 /** Pure, conservative settings normalization used by the IPC and startup paths. */
 export function normalizeMiniPanelSettings(
   input: Partial<MiniPanelSettings> | null | undefined
 ): MiniPanelSettings {
   const fixedWorkspaceId = safeId(input?.fixedWorkspaceId)
+  const bounds = safeBounds(input?.bounds)
   const hotkey = typeof input?.hotkey === 'string' ? input.hotkey.trim() : DEFAULT_HOTKEY
   return {
     enabled: input?.enabled === true,
     visible: input?.visible === true,
     ...(fixedWorkspaceId ? { fixedWorkspaceId } : {}),
+    ...(bounds ? { bounds } : {}),
     hotkeyEnabled: input?.hotkeyEnabled === true,
     hotkey: hotkey.slice(0, 80) || DEFAULT_HOTKEY
   }
@@ -52,7 +104,8 @@ function persistSettings(settings: MiniPanelSettings): void {
     visible: settings.visible,
     hotkeyEnabled: settings.hotkeyEnabled,
     hotkey: settings.hotkey,
-    ...(settings.fixedWorkspaceId ? { fixedWorkspaceId: settings.fixedWorkspaceId } : {})
+    ...(settings.fixedWorkspaceId ? { fixedWorkspaceId: settings.fixedWorkspaceId } : {}),
+    ...(settings.bounds ? { bounds: settings.bounds } : {})
   }
   setSetting(MINI_PANEL_SETTINGS_KEY, persisted)
 }
@@ -69,10 +122,20 @@ function rendererUrl(): string | undefined {
 
 function createMiniPanel(): BrowserWindow {
   if (miniPanel) return miniPanel
+  const settings = readSettings()
+  const bounds = recoverBounds(settings.bounds)
+  if (
+    !settings.bounds ||
+    settings.bounds.x !== bounds.x ||
+    settings.bounds.y !== bounds.y ||
+    settings.bounds.width !== bounds.width ||
+    settings.bounds.height !== bounds.height
+  ) {
+    persistSettings({ ...settings, bounds })
+  }
   const isDev = !app.isPackaged
   const win = new BrowserWindow({
-    width: 380,
-    height: 300,
+    ...bounds,
     minWidth: 320,
     minHeight: 220,
     show: false,
@@ -100,6 +163,12 @@ function createMiniPanel(): BrowserWindow {
   win.on('closed', () => {
     if (miniPanel === win) miniPanel = null
   })
+  const rememberBounds = () => {
+    const current = readSettings()
+    persistSettings({ ...current, bounds: recoverBounds(win.getBounds()) })
+  }
+  win.on('move', rememberBounds)
+  win.on('resize', rememberBounds)
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
 
   if (isDev && rendererUrl()) {

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 
 /**
  * This suite intentionally launches the built desktop app instead of the
@@ -207,6 +207,22 @@ function profileDatabasePath(profileRoot: string): string {
   return join(profileRoot, 'user-data', 'moonmeter.db')
 }
 
+function assertTemporaryProfile(profileRoot: string, userData: string): void {
+  const temporaryRoot = resolve(tmpdir())
+  const profileRelative = relative(temporaryRoot, resolve(profileRoot))
+  const userDataRelative = relative(resolve(profileRoot), resolve(userData))
+  if (
+    profileRelative === '' ||
+    profileRelative.startsWith('..') ||
+    isAbsolute(profileRelative) ||
+    userDataRelative === '' ||
+    userDataRelative.startsWith('..') ||
+    isAbsolute(userDataRelative)
+  ) {
+    throw new Error('Electron E2E requires a temporary profile contained by its test root')
+  }
+}
+
 async function runningAnimations(page: Page): Promise<RunningAnimation[]> {
   return page.evaluate(() => {
     const describe = (animation: Animation): RunningAnimation => {
@@ -382,6 +398,7 @@ test.describe.serial('Electron motion and accessibility', () => {
 
     profileRoot = mkdtempSync(join(tmpdir(), 'tokenlub-motion-e2e-'))
     const userData = join(profileRoot, 'user-data')
+    assertTemporaryProfile(profileRoot, userData)
     mkdirSync(userData, { recursive: true })
     seedOfflineSettings(profileDatabasePath(profileRoot))
 

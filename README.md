@@ -5,7 +5,7 @@
   <p>面向开发者的本地优先用量、余额与成本工作台。</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.3.0-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.3.1-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -110,13 +110,13 @@ npm run build
 ### Windows 打包
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.3.0" --model "release"
+npm run dist:win -- --change "MoonMeter-1.3.1" --model "release"
 ```
 
 输出目录：
 
 ```text
-demo/moonmeter-1.3.0-MoonMeter-1.3.0-release/
+demo/moonmeter-1.3.1-MoonMeter-1.3.1-release/
 ```
 
 macOS 可使用 `npm run dist:mac:x64`、`npm run dist:mac:arm64` 或 `npm run dist:mac`。正式构建与历史版本请前往 [GitHub Releases](https://github.com/2488652el/MoonMeter/releases)。
@@ -181,4 +181,4 @@ Electron 31 · React 19 · TypeScript · Vite · Tailwind CSS · Recharts · Zus
 
 ## 版本
 
-当前源码版本：**MoonMeter 1.3.0**。本版将来源健康、项目任务归属、详细时间线、本地报告与可选 mini panel 收进同一套本地优先工作台，并继续保持所有本地数据控制在用户设备上。详见 [CHANGELOG.md](./CHANGELOG.md)。
+当前源码版本：**MoonMeter 1.3.1**。本版将来源健康、项目任务归属、详细时间线、本地报告与可选 mini panel 收进同一套本地优先工作台，并继续保持所有本地数据控制在用户设备上。详见 [CHANGELOG.md](./CHANGELOG.md)。

@@ -12,6 +12,7 @@ import {
   SnapshotSyncService,
   type StoredSyncV2Snapshot
 } from '../../../drive/src/server/snapshot-sync'
+import { assertTemporaryProfile, createIsolatedEnvironment } from './electron-test-utils'
 
 const electronPath = createRequire(__filename)('electron') as string
 
@@ -55,6 +56,8 @@ test('drives sync login, restore cancellation, manual sync, and responsive layou
 }, testInfo) => {
   expect(browserName).toBe('chromium')
   const root = mkdtempSync(join(tmpdir(), 'moonmeter-sync-login-ui-'))
+  const profile = join(root, 'profile')
+  assertTemporaryProfile(root, profile)
   let app: ElectronApplication | undefined
   let server: Server | undefined
 
@@ -98,8 +101,9 @@ test('drives sync login, restore cancellation, manual sync, and responsive layou
 
     app = await electron.launch({
       executablePath: electronPath,
-      args: ['.', `--user-data-dir=${join(root, 'profile')}`, '--disable-gpu'],
-      cwd: process.cwd()
+      args: ['.', `--user-data-dir=${profile}`, '--disable-gpu'],
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(root)
     })
     const window = await app.firstWindow()
     await expect(window).toHaveTitle('MoonMeter')

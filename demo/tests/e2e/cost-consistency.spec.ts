@@ -6,18 +6,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { DEFAULT_CNY_RATES } from '../../../code/src/shared/utils/money'
+import { assertTemporaryProfile, createIsolatedEnvironment } from './electron-test-utils'
 
 const electronPath = createRequire(__filename)('electron') as string
 
 test('returns one amount for the same filter across dashboard, provider, model, and logs', async () => {
   const profile = mkdtempSync(join(tmpdir(), 'moonmeter-cost-consistency-'))
+  assertTemporaryProfile(profile, profile)
   let app: ElectronApplication | undefined
 
   try {
     app = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${profile}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(profile)
     })
     await app.firstWindow()
     const userData = await app.evaluate(({ app: electronApp }) => electronApp.getPath('userData'))
@@ -46,7 +49,8 @@ test('returns one amount for the same filter across dashboard, provider, model, 
     app = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${profile}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(profile)
     })
     const window = await app.firstWindow()
     const amounts = await window.evaluate(async () => {

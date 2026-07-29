@@ -86,6 +86,9 @@ async function defaultWslCommandRunner(
   args: readonly string[],
   options: { timeoutMs: number }
 ): Promise<WslCommandResult> {
+  if (process.env['MOONMETER_E2E_WSL_ERROR'] === 'permission-denied') {
+    throw Object.assign(new Error('fixture permission denied'), { code: 'EACCES' })
+  }
   const result = await execFile('wsl.exe', [...args], {
     windowsHide: true,
     timeout: options.timeoutMs,

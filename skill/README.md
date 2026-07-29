@@ -1,6 +1,6 @@
 # Skill
 
-此目录只存放 TokenLub 项目需要调用的项目级 Skill。
+此目录只存放 MoonMeter 项目需要调用的项目级 Skill。
 
 每个 Skill 使用独立目录，入口文件必须命名为 `SKILL.md`：
 

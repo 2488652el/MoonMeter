@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:f
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
+import { assertTemporaryProfile, createIsolatedEnvironment } from './electron-test-utils'
 
 const packagedApp = process.env['MOONMETER_PACKAGED_APP']
 const legacyProfileSource = process.env['MOONMETER_LEGACY_PROFILE_SOURCE']
@@ -16,6 +17,7 @@ test('starts the packaged app with the TokenLub safeStorage profile after rebran
   test.skip(!legacyProfileSource, 'MOONMETER_LEGACY_PROFILE_SOURCE is required')
 
   const root = mkdtempSync(join(tmpdir(), 'moonmeter-upgrade-'))
+  assertTemporaryProfile(root, join(root, 'MoonMeter'))
   const legacyProfile = join(root, 'TokenLub')
   mkdirSync(legacyProfile, { recursive: true })
 
@@ -36,7 +38,7 @@ test('starts the packaged app with the TokenLub safeStorage profile after rebran
       executablePath: packagedApp!,
       args: [`--user-data-dir=${join(root, 'MoonMeter')}`, '--disable-gpu'],
       env: {
-        ...process.env,
+        ...createIsolatedEnvironment(root),
         APPDATA: root,
         LOCALAPPDATA: join(root, 'local')
       }

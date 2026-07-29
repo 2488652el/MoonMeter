@@ -5,18 +5,21 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { assertTemporaryProfile, createIsolatedEnvironment } from './electron-test-utils'
 
 const electronPath = createRequire(__filename)('electron') as string
 
 test('keeps occurrence-time cost frozen after the pricing catalog changes', async () => {
   const profile = mkdtempSync(join(tmpdir(), 'moonmeter-cost-snapshot-'))
+  assertTemporaryProfile(profile, profile)
   let app: ElectronApplication | undefined
 
   try {
     app = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${profile}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(profile)
     })
     await app.firstWindow()
     const userData = await app.evaluate(({ app: electronApp }) => electronApp.getPath('userData'))
@@ -52,7 +55,8 @@ test('keeps occurrence-time cost frozen after the pricing catalog changes', asyn
     app = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${profile}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(profile)
     })
     const window = await app.firstWindow()
     const result = await window.evaluate(async () => {

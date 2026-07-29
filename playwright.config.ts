@@ -12,15 +12,7 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry'
   },
-  projects: [{ name: 'electron', use: { ...devices['Desktop Chrome'] } }],
-  ...(process.env['MOONMETER_PACKAGED_APP'] ?? process.env['TOKENLUB_PACKAGED_APP']
-    ? {}
-    : {
-        webServer: {
-          command: 'npm run dev',
-          url: 'http://localhost:5173',
-          reuseExistingServer: !process.env.CI,
-          timeout: 120_000
-        }
-      })
+  // Electron suites launch the production build directly. The web console
+  // suite provides its own loopback server, so no global dev server is needed.
+  projects: [{ name: 'electron', use: { ...devices['Desktop Chrome'] } }]
 })

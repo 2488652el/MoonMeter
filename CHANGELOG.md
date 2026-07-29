@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.3.1 - 2026-07-29
+
+- 修复 Windows 本地控制台的 Electron 自动验收启动链：测试直接运行构建产物，并为非 macOS Electron 用例使用临时 profile 与隔离的本机目录。
+- 修复时间线手动清理在同一天被自动节流跳过的问题；90 天外详情会按日聚合。
+- mini panel 现会持久化并恢复越界窗口边界，避免窗口出现在屏幕外。
+- 补充 Windows/WSL、项目分页、时间线、通知 deep-link、OTel 与隐私边界的隔离验收。
+
 ## 1.3.0 - 2026-07-28
 
 - 新增 Windows/WSL 来源健康中心：首次只读发现 WSL 发行版，不启动发行版或扫描日志；解析 `$HOME`、预览候选目录、启用来源和同步均为显式动作，支持 Claude Code、Codex、Kimi Code、Gemini CLI 与 OpenCode。

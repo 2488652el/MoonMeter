@@ -13,6 +13,7 @@ import {
   SnapshotSyncService,
   type StoredSyncV2Snapshot
 } from '../../../drive/src/server/snapshot-sync'
+import { assertTemporaryProfile, createIsolatedEnvironment } from './electron-test-utils'
 
 const electronPath = createRequire(__filename)('electron') as string
 const packageVersion = (createRequire(__filename)('../../../package.json') as { version: string })
@@ -40,6 +41,8 @@ async function holdDatabaseLock(databasePath: string): Promise<ChildProcess> {
 
 test('syncs two isolated Electron profiles and recovers after server restart', async () => {
   const root = mkdtempSync(join(tmpdir(), 'moonmeter-electron-'))
+  assertTemporaryProfile(root, join(root, 'device-a'))
+  assertTemporaryProfile(root, join(root, 'device-b'))
   const apps: ElectronApplication[] = []
   let server: Server | undefined
 
@@ -84,7 +87,8 @@ test('syncs two isolated Electron profiles and recovers after server restart', a
         await electron.launch({
           executablePath: electronPath,
           args: ['.', `--user-data-dir=${join(root, name)}`, '--disable-gpu'],
-          cwd: process.cwd()
+          cwd: process.cwd(),
+          env: createIsolatedEnvironment(root)
         })
       )
     }
@@ -174,7 +178,8 @@ test('syncs two isolated Electron profiles and recovers after server restart', a
     apps[1] = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${join(root, 'device-b')}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(root)
     })
     appB = apps[1]
     const restartedWindowB = await appB.firstWindow()
@@ -199,6 +204,7 @@ test('syncs two isolated Electron profiles and recovers after server restart', a
 
 test('applies 10,000 remote balance snapshots without freezing Electron', async () => {
   const root = mkdtempSync(join(tmpdir(), 'moonmeter-electron-load-'))
+  assertTemporaryProfile(root, join(root, 'device'))
   let app: ElectronApplication | undefined
   let server: Server | undefined
 
@@ -240,7 +246,8 @@ test('applies 10,000 remote balance snapshots without freezing Electron', async 
     app = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${join(root, 'device')}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(root)
     })
     const window = await app.firstWindow()
     await expect(window.locator('body')).toContainText('MoonMeter')
@@ -269,6 +276,7 @@ test('applies 10,000 remote balance snapshots without freezing Electron', async 
 
 test('stops safely when a local database fails integrity check', async () => {
   const root = mkdtempSync(join(tmpdir(), 'moonmeter-electron-corrupt-'))
+  assertTemporaryProfile(root, join(root, 'device'))
   let app: ElectronApplication | undefined
   let brokenApp: ElectronApplication | undefined
   const databasePath = join(root, 'device', 'moonmeter.db')
@@ -277,7 +285,8 @@ test('stops safely when a local database fails integrity check', async () => {
     app = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${join(root, 'device')}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(root)
     })
     await app.firstWindow()
     await app.close()
@@ -288,7 +297,8 @@ test('stops safely when a local database fails integrity check', async () => {
     brokenApp = await electron.launch({
       executablePath: electronPath,
       args: ['.', `--user-data-dir=${join(root, 'device')}`, '--disable-gpu'],
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: createIsolatedEnvironment(root)
     })
     await expect(brokenApp.firstWindow({ timeout: 3_000 })).rejects.toThrow()
     expect(existsSync(databasePath)).toBe(true)

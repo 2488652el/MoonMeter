@@ -1,8 +1,12 @@
-# TokenLub 一键安装服务器同步（第一期）
+# MoonMeter 一键安装服务器同步
 
-第一期目标是把一台干净的 Ubuntu 22.04/24.04 服务器部署成可用的 TokenLub
-同步服务：PostgreSQL 只在 Compose 网络内可见，TokenLub 由 Caddy 提供 HTTPS
+目标是把一台干净的 Ubuntu 22.04/24.04 服务器部署成可用的 MoonMeter
+同步服务：PostgreSQL 只在 Compose 网络内可见，MoonMeter 由 Caddy 提供 HTTPS
 入口，安装脚本自动生成密钥、启动服务并执行健康检查。
+
+为兼容已有部署，`/opt/tokenlub`、`TOKENLUB_*`、Compose project
+`tokenlub` 和 `tokenlub-sync` 仍是现役运维接口；除非同时提供迁移与回滚，
+不要仅因产品品牌已改为 MoonMeter 而重命名这些标识。
 
 ## 前置条件
 
@@ -38,7 +42,7 @@ sudo bash drive/ops/one-click/install.sh \
 ```sh
 sudo bash install.sh \
   --repo-url https://github.com/2488652el/MoonMeter.git \
-  --ref v1.0.5 \
+  --ref v1.3.1 \
   --domain sync.example.com \
   --email admin@example.com
 ```
@@ -49,7 +53,7 @@ sudo bash install.sh \
 2. 必要时安装 Docker Engine、Compose plugin、Git 和 OpenSSL。
 3. 创建 `/opt/tokenlub` 部署目录并生成 `.env`。
 4. 自动生成 `POSTGRES_PASSWORD` 和 `ACCESS_TOKEN_SECRET`。
-5. 启动 PostgreSQL、TokenLub App 和 Caddy。
+5. 启动 PostgreSQL、MoonMeter App 和 Caddy。
 6. 检查 App 的 `/healthz` 和 Caddy 配置。
 7. 安装 `tokenlub-sync` 运维命令。
 
@@ -99,7 +103,7 @@ sudo tokenlub-sync upgrade --archive /path/to/tokenlub-server-<version>.tgz
 - `docker compose ps` 中 `db`、`app`、`caddy` 均为运行状态。
 - `tokenlub-sync health` 成功返回 `/healthz`。
 - `https://<域名>/console` 可以打开控制台。
-- Windows 客户端可以使用 `https://<域名>` 完成注册、登录和双设备同步。
+- MoonMeter 客户端可以使用 `https://<域名>` 完成注册、登录和双设备同步。
 - `tokenlub-sync backup` 能生成非空 `.dump` 文件。
 - 重启服务器后容器和数据自动恢复。
 - `tokenlub-sync uninstall` 不删除数据；`--purge` 才删除数据卷。

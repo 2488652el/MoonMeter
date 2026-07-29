@@ -7,9 +7,9 @@ export function getTimeline(filter: TimelineFilter = {}): TimelinePage {
   return listTimeline(filter)
 }
 
-export function cleanupTimeline(now = new Date()): number {
+export function cleanupTimeline(now = new Date(), force = false): number {
   const day = now.toISOString().slice(0, 10)
-  if (lastCleanupDay === day) return 0
+  if (!force && lastCleanupDay === day) return 0
   lastCleanupDay = day
   return cleanupTimelineDetails(now)
 }

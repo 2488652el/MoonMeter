@@ -428,7 +428,7 @@ export function registerIpcHandlers(): void {
     const parsed = stripUndefined(timelineFilterInputSchema.parse(input ?? {})) as TimelineFilter
     return getTimeline(parsed)
   })
-  ipcMain.handle(IPC.timelineCleanup, () => ({ removed: cleanupTimeline() }))
+  ipcMain.handle(IPC.timelineCleanup, () => ({ removed: cleanupTimeline(new Date(), true) }))
   ipcMain.handle(IPC.otelStatus, () => getOtelReceiverStatus())
   ipcMain.handle(IPC.otelSetEnabled, (_e, input) => {
     const parsed = stripUndefined(otelSetEnabledInputSchema.parse(input))
