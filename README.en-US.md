@@ -5,7 +5,7 @@
   <p>A local-first usage, balance, and cost workspace for developers.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.3.5-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.3.6-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -110,13 +110,13 @@ npm run build
 ### Package for Windows
 
 ```powershell
-npm run dist:win -- --change "pricing-sync-isolated" --model "codex"
+npm run dist:win -- --change "pricing-sync-node-fallback" --model "codex"
 ```
 
 Output:
 
 ```text
-demo/moonmeter-1.3.5-pricing-sync-isolated-codex/
+demo/moonmeter-1.3.6-pricing-sync-node-fallback-codex/
 ```
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
@@ -181,4 +181,4 @@ Run at least `typecheck`, `test`, `lint`, and `format:check` before submitting a
 
 ## Version
 
-Current source version: **MoonMeter 1.3.5**. This release isolates official pricing catalog requests in a dedicated Electron network session, loads the system proxy before the first request, and recovers DNS and connections after failures behind Windows proxies. See [CHANGELOG.md](./CHANGELOG.md).
+Current source version: **MoonMeter 1.3.6**. This release fixes official pricing catalog sync when Electron Chromium returns `net::ERR_FAILED`: failed sessions are discarded, and the system proxy is used for a final Node HTTPS CONNECT fallback. See [CHANGELOG.md](./CHANGELOG.md).
