@@ -110,6 +110,20 @@ describe('transformCatalogModel', () => {
 })
 
 describe('syncCatalog', () => {
+  it('uses the injected network implementation', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({})) as unknown as typeof fetch
+
+    await syncCatalog(() => undefined, {}, fetchImpl)
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      CATALOG_URL,
+      expect.objectContaining({
+        headers: expect.any(Headers),
+        signal: expect.any(AbortSignal)
+      })
+    )
+  })
+
   it('reads provider model maps and reports applied/protected/skipped counts', async () => {
     const fetchCalls: Array<{ url: string; etag: string | null }> = []
     globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {

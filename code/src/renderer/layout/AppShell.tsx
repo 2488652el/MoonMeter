@@ -10,9 +10,23 @@ export function AppShell() {
   const outlet = useOutlet()
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg-base text-text-primary">
+    <div className="relative flex h-screen overflow-hidden bg-bg-base text-text-primary">
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded-md bg-text-primary px-4 py-3 text-sm font-semibold text-bg-base focus:not-sr-only focus:absolute focus:left-3 focus:top-3"
+        onClick={(event) => {
+          event.preventDefault()
+          document.getElementById('main-content')?.focus()
+        }}
+      >
+        跳到主内容
+      </a>
       <Sidebar />
-      <main className="relative flex flex-1 flex-col overflow-hidden bg-bg-base">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-bg-base outline-none"
+      >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(circle_at_50%_-40%,rgb(var(--color-ink)/0.055),transparent_68%)]" />
         <div
           key={location.pathname}

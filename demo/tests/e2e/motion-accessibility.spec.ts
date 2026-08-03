@@ -443,6 +443,7 @@ test.describe.serial('Electron motion and accessibility', () => {
     await window.emulateMedia({ reducedMotion: 'no-preference' })
     for (const route of ROUTES) {
       await navigateTo(window, route)
+      await expect(window.locator('[aria-current="page"]')).toHaveCount(1)
       await expectSettled(window)
     }
   })
@@ -472,8 +473,33 @@ test.describe.serial('Electron motion and accessibility', () => {
       )
       const metrics = window.locator('[data-dashboard-metric]')
       await expect(metrics).toHaveCount(8)
+      await expect(window.locator('[data-dashboard-primary-metric]')).toHaveCount(4)
+      await expect(window.locator('[data-dashboard-secondary-metric]')).toHaveCount(4)
+      expect(await window.locator('[data-action-item]').count()).toBeLessThanOrEqual(3)
       await expect(metrics.filter({ hasText: '计价覆盖' })).toContainText('%')
       await expect(metrics.filter({ hasText: '最近数据' })).not.toContainText('Invalid')
+
+      const secondary = window.locator('[data-dashboard-secondary]')
+      await expect(secondary).not.toHaveAttribute('open', '')
+      await secondary.locator('summary').click()
+      await expect(secondary).toHaveAttribute('open', '')
+      await expect(secondary.locator('[data-dashboard-secondary-metric]')).toHaveCount(4)
+
+      const skipLink = window.getByRole('link', { name: '跳到主内容', exact: true })
+      await skipLink.focus()
+      await expect(skipLink).toBeFocused()
+      await skipLink.press('Enter')
+      await expect(window.locator('#main-content')).toBeFocused()
+
+      const hitAreaReport = await window
+        .locator('[data-primary-nav-item], [data-secondary-nav-item], aside button')
+        .evaluateAll((elements) =>
+          elements.map((element) => {
+            const rect = element.getBoundingClientRect()
+            return { width: rect.width, height: rect.height }
+          })
+        )
+      expect(hitAreaReport.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true)
 
       const sevenDays = window.getByRole('button', { name: '7 天', exact: true })
       await sevenDays.click()
@@ -511,6 +537,7 @@ test.describe.serial('Electron motion and accessibility', () => {
       await refresh.click()
       await expect(refresh).toBeEnabled()
       await expect(metrics).toHaveCount(8)
+      await expect(window.locator('[data-dashboard-primary-metric]')).toHaveCount(4)
 
       for (const viewport of [
         { width: 1280, height: 900, name: 'desktop' },

@@ -26,7 +26,8 @@ const ACTION_META: Record<
 
 export function ActionCenter({ actions }: { actions: ActionCenterItem[] }) {
   const navigate = useNavigate()
-  if (actions.length === 0) return null
+  const visibleActions = actions.slice(0, 3)
+  if (visibleActions.length === 0) return null
 
   return (
     <Card
@@ -34,18 +35,19 @@ export function ActionCenter({ actions }: { actions: ActionCenterItem[] }) {
       subtitle="按优先级展示最多 3 条可追溯、可直接处理的异常"
       action={
         <span className="rounded-full bg-bg-base px-2.5 py-1 text-[11px] text-text-secondary">
-          {actions.length} 条
+          {visibleActions.length} 条
         </span>
       }
     >
       <div className="grid grid-cols-3 gap-2.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        {actions.slice(0, 3).map((action) => {
+        {visibleActions.map((action) => {
           const meta = ACTION_META[action.severity]
           return (
             <button
               key={action.id}
               type="button"
-              className="rounded-lg border border-border-light bg-bg-base/45 p-3 text-left transition-colors hover:border-border-focus hover:bg-bg-hover"
+              data-action-item
+              className="min-h-[44px] rounded-lg border border-border-light bg-bg-base/45 p-3 text-left transition-colors hover:border-border-focus hover:bg-bg-hover"
               onClick={() => navigate(action.target)}
             >
               <div className="flex items-start gap-3">

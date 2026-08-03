@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
+import { LocalSessionSourcesPanel } from '../components/LocalSessionSourcesPanel'
 import { PageHeader } from '../components/PageHeader'
 import type {
   LocalSourceConfig,
@@ -251,6 +252,10 @@ export default function Sources() {
           value={formatTime(local?.generatedAt)}
           hint="状态与错误均为脱敏说明"
         />
+      </div>
+
+      <div className="mt-6">
+        <LocalSessionSourcesPanel />
       </div>
 
       <Card

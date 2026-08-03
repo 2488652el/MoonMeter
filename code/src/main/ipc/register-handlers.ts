@@ -536,8 +536,8 @@ export function registerIpcHandlers(): void {
     scheduleSyncAfterChange()
     return { ok: true }
   })
-  ipcMain.handle(IPC.pricingCatalog, () => syncCatalogNow())
-  ipcMain.handle(IPC.pricingCatalogPreview, () => previewCatalogNow())
+  ipcMain.handle(IPC.pricingCatalog, () => syncCatalogNow(net.fetch))
+  ipcMain.handle(IPC.pricingCatalogPreview, () => previewCatalogNow(net.fetch))
   ipcMain.handle(IPC.pricingCatalogApply, (_e, input) => {
     const parsed = pricingCatalogApplyInputSchema.parse(input)
     const result = applyCatalogPreview(parsed.previewId)

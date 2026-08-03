@@ -217,13 +217,15 @@ body::before {
 }
 
 .btn-sm {
-  min-height: 30px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 5px 11px;
   font-size: 12px;
 }
 
 .btn-xs {
-  min-height: 26px;
+  min-width: 44px;
+  min-height: 44px;
   gap: 5px;
   padding: 3px 8px;
   font-size: 11.5px;

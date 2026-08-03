@@ -10,7 +10,12 @@ import type {
 import { getSetting, setSetting } from '../store/settings-store'
 import { listPricing, recordPricingHistory, upsertCatalogBatch } from '../store/pricing-repo'
 import { scheduleSyncAfterChange } from '../sync/service'
-import { CATALOG_MANAGED_SCOPES, syncCatalog, type CatalogFetchResult } from './catalog'
+import {
+  CATALOG_MANAGED_SCOPES,
+  syncCatalog,
+  type CatalogFetch,
+  type CatalogFetchResult
+} from './catalog'
 import {
   buildPricingCatalogDiff,
   DEFAULT_MAX_PRICE_CHANGE_RATIO,
@@ -99,7 +104,7 @@ export function setCatalogApprovalRequired(enabled: boolean): PricingCatalogStat
   return getCatalogSyncStatus()
 }
 
-export function syncCatalogNow(): Promise<PricingCatalogSyncResult> {
+export function syncCatalogNow(fetchImpl: CatalogFetch = fetch): Promise<PricingCatalogSyncResult> {
   if (activeSync) return activeSync
 
   activeSync = (async () => {
@@ -113,7 +118,8 @@ export function syncCatalogNow(): Promise<PricingCatalogSyncResult> {
           fetchedEntries = entries
           return { updated: entries.length, skipped: 0 }
         },
-        etag ? { etag } : {}
+        etag ? { etag } : {},
+        fetchImpl
       )
       if (result.notModified || fetchedEntries === null) {
         const visible = publicResult(result)
@@ -198,7 +204,9 @@ export function getCatalogPreview(): PricingCatalogPreview | null {
 }
 
 /** 只抓取并保存差异预览，不写入 pricing_entries。供人工确认流程使用。 */
-export async function previewCatalogNow(): Promise<PricingCatalogPreview | null> {
+export async function previewCatalogNow(
+  fetchImpl: CatalogFetch = fetch
+): Promise<PricingCatalogPreview | null> {
   const attemptedAt = new Date().toISOString()
   setSetting(LAST_ATTEMPT_KEY, attemptedAt)
   try {
@@ -209,7 +217,8 @@ export async function previewCatalogNow(): Promise<PricingCatalogPreview | null>
         fetchedEntries = entries
         return { updated: entries.length, skipped: 0 }
       },
-      etag ? { etag } : {}
+      etag ? { etag } : {},
+      fetchImpl
     )
     if (result.notModified || fetchedEntries === null) return readPendingPreview()
     const entries = fetchedEntries as PricingEntry[]
@@ -258,7 +267,9 @@ export function applyCatalogPreview(previewId: string): PricingCatalogSyncResult
 }
 
 /** 应用启动时仅在自动更新开启且最近成功同步超过 24 小时时拉取。 */
-export async function refreshCatalogIfStale(): Promise<PricingCatalogSyncResult | null> {
+export async function refreshCatalogIfStale(
+  fetchImpl: CatalogFetch = fetch
+): Promise<PricingCatalogSyncResult | null> {
   if (getSetting<boolean>(AUTO_UPDATE_KEY) === false) return null
   const lastSuccessAt = asNonEmptyString(getSetting(LAST_SUCCESS_KEY))
   if (lastSuccessAt) {
@@ -267,14 +278,14 @@ export async function refreshCatalogIfStale(): Promise<PricingCatalogSyncResult 
       return null
     }
   }
-  return syncCatalogNow()
+  return syncCatalogNow(fetchImpl)
 }
 
 /** 启动后台检查；每小时判断一次，真正下载仍受 24 小时新鲜度限制。 */
-export function startCatalogAutoRefresh(): void {
-  void refreshCatalogIfStale().catch(() => undefined)
+export function startCatalogAutoRefresh(fetchImpl: CatalogFetch = fetch): void {
+  void refreshCatalogIfStale(fetchImpl).catch(() => undefined)
   if (refreshTimer) return
   refreshTimer = setInterval(() => {
-    void refreshCatalogIfStale().catch(() => undefined)
+    void refreshCatalogIfStale(fetchImpl).catch(() => undefined)
   }, STALE_CHECK_INTERVAL_MS)
 }

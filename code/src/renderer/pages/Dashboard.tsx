@@ -22,6 +22,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
+import { Link } from 'react-router-dom'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { ActionCenter } from '../components/ActionCenter'
@@ -434,244 +435,268 @@ export default function Dashboard() {
 
   return (
     <div className="page-content overflow-x-hidden bg-bg-base text-text-primary">
-      {loadError && !summary ? (
-        <Card className="border-red-200/60 bg-red-50/40 shadow-sm">
-          <EmptyState
-            icon="fa-triangle-exclamation"
-            title="仪表盘加载失败"
-            hint={loadError}
-            action={
-              <button className="btn btn-primary btn-sm" onClick={() => void load()}>
-                <Icon name="fa-arrows-rotate" /> 重试
-              </button>
-            }
-          />
-        </Card>
-      ) : isEmpty ? (
+      {loading ? (
         <MotionGroup className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-6">
-          <SourceActivation
-            overview={quotaPlanning.overview}
-            loading={quotaPlanning.loading}
-            error={quotaPlanning.error}
-            onRefresh={() => void quotaPlanning.refresh()}
-          />
-          <QuotaPlanningPanel overview={quotaPlanning.overview} />
-          <BudgetPlanningPanel
-            overview={budgetPlanning.overview}
-            loading={budgetPlanning.loading}
-            error={budgetPlanning.error}
-            onRefresh={() => budgetPlanning.refresh()}
-          />
-          <LocalReportPanel
-            overview={localReports.overview}
-            loading={localReports.loading}
-            error={localReports.error}
-            periodKind={localReports.periodKind}
-            onPeriodKindChange={localReports.setPeriodKind}
-            onRefresh={() => localReports.refresh()}
-            onSetEnabled={localReports.setEnabled}
-            onSetRecommendationsEnabled={localReports.setRecommendationsEnabled}
-          />
-          <Card className="border-border-light bg-bg-card shadow-sm">
+          <Card>
+            <div role="status" aria-live="polite" aria-busy="true">
+              <EmptyState
+                icon="fa-spinner"
+                title="正在读取概览"
+                hint="汇总本地用量、成本和来源状态"
+                variant="loading"
+              />
+            </div>
+          </Card>
+        </MotionGroup>
+      ) : loadError && !summary ? (
+        <Card className="border-red-200/60 bg-red-50/40 shadow-sm">
+          <div role="alert" aria-live="assertive">
             <EmptyState
-              icon="fa-chart-simple"
-              title="等待首个有效数据"
-              hint="完成上方任一来源连接后，额度、用量和成本会自动显示在这里"
+              icon="fa-triangle-exclamation"
+              title="仪表盘加载失败"
+              hint={loadError}
               action={
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                >
-                  <Icon name="fa-arrows-rotate" /> 刷新全部来源
+                <button className="btn btn-primary btn-sm" onClick={() => void load()}>
+                  <Icon name="fa-arrows-rotate" /> 重试
                 </button>
               }
             />
-          </Card>
+          </div>
+        </Card>
+      ) : isEmpty ? (
+        <MotionGroup className="mx-auto flex min-w-0 max-w-[1100px] flex-col gap-6">
+          <div role="status" aria-live="polite">
+            <SourceActivation
+              overview={quotaPlanning.overview}
+              loading={quotaPlanning.loading}
+              error={quotaPlanning.error}
+              onRefresh={() => void quotaPlanning.refresh()}
+            />
+            <QuotaPlanningPanel overview={quotaPlanning.overview} />
+            <BudgetPlanningPanel
+              overview={budgetPlanning.overview}
+              loading={budgetPlanning.loading}
+              error={budgetPlanning.error}
+              onRefresh={() => budgetPlanning.refresh()}
+            />
+            <LocalReportPanel
+              overview={localReports.overview}
+              loading={localReports.loading}
+              error={localReports.error}
+              periodKind={localReports.periodKind}
+              onPeriodKindChange={localReports.setPeriodKind}
+              onRefresh={() => localReports.refresh()}
+              onSetEnabled={localReports.setEnabled}
+              onSetRecommendationsEnabled={localReports.setRecommendationsEnabled}
+            />
+            <Card className="border-border-light bg-bg-card shadow-sm">
+              <EmptyState
+                icon="fa-chart-simple"
+                title="等待首个有效数据"
+                hint="完成上方任一来源连接后，额度、用量和成本会自动显示在这里"
+                action={
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                  >
+                    <Icon name="fa-arrows-rotate" /> 刷新全部来源
+                  </button>
+                }
+              />
+            </Card>
+          </div>
         </MotionGroup>
       ) : (
         <MotionGroup className="mx-auto flex min-w-0 max-w-[1440px] flex-col gap-6">
-          <section className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-[13px] font-medium text-text-secondary">MoonMeter</p>
-              <h1 className="mt-1 text-[34px] font-bold leading-tight text-text-primary">
-                使用统计
-              </h1>
-              <p className="mt-1 text-[14px] text-text-secondary">
-                查看 AI 模型用量、成本和资源包消耗
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <div className="inline-flex h-11 items-center rounded-lg border border-border-light bg-bg-card p-1 shadow-sm">
-                {RANGE_OPTIONS.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    className={`h-9 rounded-md px-3 text-[13px] font-semibold transition-colors ${
-                      range === option.key
-                        ? 'bg-text-primary text-bg-base'
-                        : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
-                    }`}
-                    aria-pressed={range === option.key}
-                    onClick={() => updateRange(option.key)}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+          <div data-dashboard-scope className="flex flex-col gap-6">
+            <section className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-[13px] font-medium text-text-secondary">MoonMeter</p>
+                <h1 className="mt-1 text-[34px] font-bold leading-tight text-text-primary">
+                  使用统计
+                </h1>
+                <p className="mt-1 text-[14px] text-text-secondary">
+                  查看 AI 模型用量、成本和资源包消耗
+                </p>
               </div>
-              <button
-                className="inline-flex h-11 items-center gap-2 rounded-lg border border-border-light bg-bg-card px-4 text-[13px] font-semibold text-text-primary shadow-sm transition-colors hover:bg-bg-hover disabled:opacity-60"
-                onClick={handleRefresh}
-                disabled={refreshing}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="inline-flex h-11 items-center rounded-lg border border-border-light bg-bg-card p-1 shadow-sm">
+                  {RANGE_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      className={`h-9 rounded-md px-3 text-[13px] font-semibold transition-colors ${
+                        range === option.key
+                          ? 'bg-text-primary text-bg-base'
+                          : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+                      }`}
+                      style={{ minHeight: 44 }}
+                      aria-pressed={range === option.key}
+                      onClick={() => updateRange(option.key)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="inline-flex h-11 items-center gap-2 rounded-lg border border-border-light bg-bg-card px-4 text-[13px] font-semibold text-text-primary shadow-sm transition-colors hover:bg-bg-hover disabled:opacity-60"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                >
+                  <Icon name="fa-arrows-rotate" className={refreshing ? 'icon-spin' : ''} /> 刷新
+                </button>
+                <button
+                  className="inline-flex h-11 items-center gap-2 rounded-lg border border-border-light bg-bg-card px-4 text-[13px] font-semibold text-text-primary shadow-sm transition-colors hover:bg-bg-hover"
+                  onClick={() => handleExport(summary)}
+                >
+                  <Icon name="fa-arrow-up-from-bracket" /> 导出
+                </button>
+              </div>
+            </section>
+
+            <div data-usage-filter-bar>
+              <Card
+                title="统一筛选"
+                subtitle="首页指标、趋势与请求日志复用同一组条件"
+                action={
+                  <span className="rounded-full bg-bg-base px-2.5 py-1 text-[11px] font-medium text-text-secondary">
+                    {activeFilterCount > 0 ? `${activeFilterCount} 项生效` : '全部数据'}
+                  </span>
+                }
+                bodyClassName="pt-1"
               >
-                <Icon name="fa-arrows-rotate" className={refreshing ? 'icon-spin' : ''} /> 刷新
-              </button>
-              <button
-                className="inline-flex h-11 items-center gap-2 rounded-lg border border-border-light bg-bg-card px-4 text-[13px] font-semibold text-text-primary shadow-sm transition-colors hover:bg-bg-hover"
-                onClick={() => handleExport(summary)}
-              >
-                <Icon name="fa-arrow-up-from-bracket" /> 导出
-              </button>
+                <form
+                  className="grid grid-cols-1 items-end gap-3 lg:grid-cols-12"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    applyFilters()
+                  }}
+                >
+                  <label className="lg:col-span-4">
+                    <span className="mb-1.5 block text-[11.5px] font-medium text-text-secondary">
+                      数据来源
+                    </span>
+                    <span className="flex h-9 rounded-md border border-border-light bg-bg-base p-1">
+                      {[
+                        ['all', '全部'],
+                        ['vendor-api', 'API 调用'],
+                        ['session-log', 'CLI 会话']
+                      ].map(([value, label]) => (
+                        <button
+                          key={value}
+                          type="button"
+                          aria-pressed={filterDraft.source === value}
+                          onClick={() =>
+                            setFilterDraft((current) => ({
+                              ...current,
+                              source: value as PersistedUsageAnalysisFilter['source']
+                            }))
+                          }
+                          className={clsx(
+                            'flex-1 rounded-sm px-2 text-[11.5px] font-medium transition-colors',
+                            filterDraft.source === value
+                              ? 'bg-bg-card text-accent-text shadow-sm'
+                              : 'text-text-secondary hover:text-text-primary'
+                          )}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </span>
+                  </label>
+
+                  <label className="lg:col-span-3">
+                    <span className="mb-1.5 block text-[11.5px] font-medium text-text-secondary">
+                      模型
+                    </span>
+                    <input
+                      type="search"
+                      aria-label="全局模型筛选"
+                      placeholder="例如 gpt-5"
+                      value={filterDraft.modelContains}
+                      onChange={(event) =>
+                        setFilterDraft((current) => ({
+                          ...current,
+                          modelContains: event.target.value
+                        }))
+                      }
+                      className="h-9 w-full rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-accent-dim"
+                    />
+                  </label>
+
+                  <label className="lg:col-span-3">
+                    <span className="mb-1.5 block text-[11.5px] font-medium text-text-secondary">
+                      项目 / Agent
+                    </span>
+                    <input
+                      type="search"
+                      aria-label="全局项目筛选"
+                      placeholder="例如 tokenlub"
+                      value={filterDraft.projectContains}
+                      onChange={(event) =>
+                        setFilterDraft((current) => ({
+                          ...current,
+                          projectContains: event.target.value
+                        }))
+                      }
+                      className="h-9 w-full rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-accent-dim"
+                    />
+                  </label>
+
+                  <div className="flex gap-2 lg:col-span-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm flex-1"
+                      onClick={clearFilters}
+                    >
+                      清除
+                    </button>
+                    <button type="submit" className="btn btn-primary btn-sm flex-1">
+                      应用
+                    </button>
+                  </div>
+                </form>
+                {filterDraft.range === 'custom' ? (
+                  <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-t border-border-light pt-3">
+                    <input
+                      type="date"
+                      aria-label="自定义账期开始日期"
+                      value={filterDraft.customFrom}
+                      max={filterDraft.customTo || undefined}
+                      onChange={(event) =>
+                        setFilterDraft((current) => ({
+                          ...current,
+                          customFrom: event.target.value
+                        }))
+                      }
+                      className="h-9 rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary"
+                    />
+                    <span className="text-[12px] text-text-muted">至</span>
+                    <input
+                      type="date"
+                      aria-label="自定义账期结束日期"
+                      value={filterDraft.customTo}
+                      min={filterDraft.customFrom || undefined}
+                      onChange={(event) =>
+                        setFilterDraft((current) => ({
+                          ...current,
+                          customTo: event.target.value
+                        }))
+                      }
+                      className="h-9 rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary"
+                    />
+                  </div>
+                ) : null}
+              </Card>
             </div>
-          </section>
-
-          <div data-usage-filter-bar>
-            <Card
-              title="统一筛选"
-              subtitle="首页指标、趋势与请求日志复用同一组条件"
-              action={
-                <span className="rounded-full bg-bg-base px-2.5 py-1 text-[11px] font-medium text-text-secondary">
-                  {activeFilterCount > 0 ? `${activeFilterCount} 项生效` : '全部数据'}
-                </span>
-              }
-              bodyClassName="pt-1"
-            >
-              <form
-                className="grid grid-cols-1 items-end gap-3 lg:grid-cols-12"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  applyFilters()
-                }}
-              >
-                <label className="lg:col-span-4">
-                  <span className="mb-1.5 block text-[11.5px] font-medium text-text-secondary">
-                    数据来源
-                  </span>
-                  <span className="flex h-9 rounded-md border border-border-light bg-bg-base p-1">
-                    {[
-                      ['all', '全部'],
-                      ['vendor-api', 'API 调用'],
-                      ['session-log', 'CLI 会话']
-                    ].map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-pressed={filterDraft.source === value}
-                        onClick={() =>
-                          setFilterDraft((current) => ({
-                            ...current,
-                            source: value as PersistedUsageAnalysisFilter['source']
-                          }))
-                        }
-                        className={clsx(
-                          'flex-1 rounded-sm px-2 text-[11.5px] font-medium transition-colors',
-                          filterDraft.source === value
-                            ? 'bg-bg-card text-accent-text shadow-sm'
-                            : 'text-text-secondary hover:text-text-primary'
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </span>
-                </label>
-
-                <label className="lg:col-span-3">
-                  <span className="mb-1.5 block text-[11.5px] font-medium text-text-secondary">
-                    模型
-                  </span>
-                  <input
-                    type="search"
-                    aria-label="全局模型筛选"
-                    placeholder="例如 gpt-5"
-                    value={filterDraft.modelContains}
-                    onChange={(event) =>
-                      setFilterDraft((current) => ({
-                        ...current,
-                        modelContains: event.target.value
-                      }))
-                    }
-                    className="h-9 w-full rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-accent-dim"
-                  />
-                </label>
-
-                <label className="lg:col-span-3">
-                  <span className="mb-1.5 block text-[11.5px] font-medium text-text-secondary">
-                    项目 / Agent
-                  </span>
-                  <input
-                    type="search"
-                    aria-label="全局项目筛选"
-                    placeholder="例如 tokenlub"
-                    value={filterDraft.projectContains}
-                    onChange={(event) =>
-                      setFilterDraft((current) => ({
-                        ...current,
-                        projectContains: event.target.value
-                      }))
-                    }
-                    className="h-9 w-full rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary focus:border-border-focus focus:outline-none focus:ring-2 focus:ring-accent-dim"
-                  />
-                </label>
-
-                <div className="flex gap-2 lg:col-span-2">
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm flex-1"
-                    onClick={clearFilters}
-                  >
-                    清除
-                  </button>
-                  <button type="submit" className="btn btn-primary btn-sm flex-1">
-                    应用
-                  </button>
-                </div>
-              </form>
-              {filterDraft.range === 'custom' ? (
-                <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-t border-border-light pt-3">
-                  <input
-                    type="date"
-                    aria-label="自定义账期开始日期"
-                    value={filterDraft.customFrom}
-                    max={filterDraft.customTo || undefined}
-                    onChange={(event) =>
-                      setFilterDraft((current) => ({
-                        ...current,
-                        customFrom: event.target.value
-                      }))
-                    }
-                    className="h-9 rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary"
-                  />
-                  <span className="text-[12px] text-text-muted">至</span>
-                  <input
-                    type="date"
-                    aria-label="自定义账期结束日期"
-                    value={filterDraft.customTo}
-                    min={filterDraft.customFrom || undefined}
-                    onChange={(event) =>
-                      setFilterDraft((current) => ({
-                        ...current,
-                        customTo: event.target.value
-                      }))
-                    }
-                    className="h-9 rounded-md border border-border-light bg-bg-input px-3 text-[12.5px] text-text-primary"
-                  />
-                </div>
-              ) : null}
-            </Card>
           </div>
 
-          <section>
+          <div data-action-center>
+            <ActionCenter actions={quotaPlanning.overview?.actions ?? []} />
+          </div>
+
+          <section data-dashboard-primary-metrics>
             <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="text-[14px] font-semibold text-text-primary">核心指标</h2>
@@ -691,127 +716,85 @@ export default function Dashboard() {
             </div>
 
             <MotionGroup className="grid grid-cols-4 gap-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
-              <OverviewMetricCard
-                label="总成本"
-                icon="fa-coins"
-                tone="accent"
-                value={
-                  <AnimatedNumber
-                    value={estimatedCostValue}
-                    format={(value) => (hasCnySpend ? fmtMoney(value, 'CNY') : fmtMoney(value))}
-                    durationMs={520}
-                  />
-                }
-                sub={
-                  hasCnySpend
-                    ? spend && spend.estimatedRequests > 0
-                      ? '发生时成本优先，含旧记录估算'
-                      : '按发生时成本汇总'
-                    : '按原始记录汇总'
-                }
-                motionOrder={0}
-              />
-              <OverviewMetricCard
-                label="真实消耗 Tokens"
-                icon="fa-bolt"
-                value={
-                  heroNumber !== null ? (
-                    <AnimatedNumber value={heroNumber} format={fmtCount} durationMs={520} />
-                  ) : (
-                    '—'
-                  )
-                }
-                sub={
-                  totalTokens > 0
-                    ? 'API 请求 + 本地 CLI 会话'
-                    : totalBalanceTokens > 0
-                      ? `余额快照共 ${fmtCount(totalBalanceTokens)}`
-                      : '尚未记录消耗'
-                }
-                motionOrder={1}
-              />
-              <OverviewMetricCard
-                label="总请求数"
-                icon="fa-arrow-right-arrow-left"
-                tone="blue"
-                value={
-                  <AnimatedNumber
-                    value={summary?.totalRequests ?? 0}
-                    format={(value) => Math.round(value).toLocaleString('en-US')}
-                    durationMs={480}
-                  />
-                }
-                sub={`${summary?.providers.length ?? 0} 个活跃来源`}
-                motionOrder={2}
-              />
-              <OverviewMetricCard
-                label="计价覆盖"
-                icon="fa-tag"
-                tone={health.tone === 'error' ? 'red' : health.coverage < 1 ? 'amber' : 'accent'}
-                value={
-                  <AnimatedNumber
-                    value={health.coverage * 100}
-                    format={(value) => `${value.toFixed(0)}%`}
-                    durationMs={480}
-                  />
-                }
-                sub={
-                  health.failedSources > 0
-                    ? `${health.failedSources} 个来源刷新失败`
-                    : `${health.pricedRequests} 已计价 · ${health.unpricedRequests} 待补价`
-                }
-                motionOrder={3}
-              />
-              <OverviewMetricCard
-                label="新增输入"
-                icon="fa-arrow-down"
-                tone="blue"
-                value={
-                  <AnimatedNumber
-                    value={summary?.totalInputTokens ?? 0}
-                    format={fmtCount}
-                    durationMs={480}
-                  />
-                }
-                sub="Input tokens"
-                motionOrder={4}
-              />
-              <OverviewMetricCard
-                label="模型输出"
-                icon="fa-arrow-up"
-                tone="purple"
-                value={
-                  <AnimatedNumber
-                    value={summary?.totalOutputTokens ?? 0}
-                    format={fmtCount}
-                    durationMs={480}
-                  />
-                }
-                sub="Output tokens"
-                motionOrder={5}
-              />
-              <OverviewMetricCard
-                label="缓存命中率"
-                icon="fa-database"
-                value={
-                  <AnimatedNumber
-                    value={cacheHitRate * 100}
-                    format={(value) => `${value.toFixed(1)}%`}
-                    durationMs={480}
-                  />
-                }
-                sub={`${fmtCount(summary?.totalCacheReadTokens ?? 0)} 缓存读取`}
-                progress={cacheHitRate}
-                motionOrder={6}
-              />
-              <OverviewMetricCard
-                label="最近数据"
-                icon="fa-clock"
-                tone={health.lastCapturedAt ? 'accent' : 'amber'}
-                value={formatCapturedAt(health.lastCapturedAt)}
-                sub={healthMeta.description}
-                motionOrder={7}
-              />
+              <div data-dashboard-primary-metric>
+                <OverviewMetricCard
+                  label="总成本"
+                  icon="fa-coins"
+                  tone="accent"
+                  value={
+                    <AnimatedNumber
+                      value={estimatedCostValue}
+                      format={(value) => (hasCnySpend ? fmtMoney(value, 'CNY') : fmtMoney(value))}
+                      durationMs={520}
+                    />
+                  }
+                  sub={
+                    hasCnySpend
+                      ? spend && spend.estimatedRequests > 0
+                        ? '发生时成本优先，含旧记录估算'
+                        : '按发生时成本汇总'
+                      : '按原始记录汇总'
+                  }
+                  motionOrder={0}
+                />
+              </div>
+              <div data-dashboard-primary-metric>
+                <OverviewMetricCard
+                  label="真实消耗 Tokens"
+                  icon="fa-bolt"
+                  value={
+                    heroNumber !== null ? (
+                      <AnimatedNumber value={heroNumber} format={fmtCount} durationMs={520} />
+                    ) : (
+                      '—'
+                    )
+                  }
+                  sub={
+                    totalTokens > 0
+                      ? 'API 请求 + 本地 CLI 会话'
+                      : totalBalanceTokens > 0
+                        ? `余额快照共 ${fmtCount(totalBalanceTokens)}`
+                        : '尚未记录消耗'
+                  }
+                  motionOrder={1}
+                />
+              </div>
+              <div data-dashboard-primary-metric>
+                <OverviewMetricCard
+                  label="总请求数"
+                  icon="fa-arrow-right-arrow-left"
+                  tone="blue"
+                  value={
+                    <AnimatedNumber
+                      value={summary?.totalRequests ?? 0}
+                      format={(value) => Math.round(value).toLocaleString('en-US')}
+                      durationMs={480}
+                    />
+                  }
+                  sub={`${summary?.providers.length ?? 0} 个活跃来源`}
+                  motionOrder={2}
+                />
+              </div>
+              <div data-dashboard-primary-metric>
+                <OverviewMetricCard
+                  label="计价覆盖"
+                  icon="fa-tag"
+                  tone={health.tone === 'error' ? 'red' : health.coverage < 1 ? 'amber' : 'accent'}
+                  value={
+                    <AnimatedNumber
+                      value={health.coverage * 100}
+                      format={(value) => `${value.toFixed(0)}%`}
+                      durationMs={480}
+                    />
+                  }
+                  sub={
+                    health.failedSources > 0
+                      ? `${health.failedSources} 个来源刷新失败`
+                      : `${health.pricedRequests} 已计价 · ${health.unpricedRequests} 待补价`
+                  }
+                  motionOrder={3}
+                />
+              </div>
             </MotionGroup>
 
             {topProviders.length > 0 ? (
@@ -829,9 +812,10 @@ export default function Dashboard() {
             ) : null}
           </section>
 
-          <ActionCenter actions={quotaPlanning.overview?.actions ?? []} />
-
-          <section className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
+          <section
+            data-dashboard-trend
+            className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]"
+          >
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-[22px] font-bold text-text-primary">使用趋势</h2>
@@ -846,161 +830,275 @@ export default function Dashboard() {
             {modelSeries.points.length > 0 ? (
               <ModelUsageLineChart series={modelSeries} />
             ) : (
-              <div className="flex h-[360px] items-center justify-center rounded-lg border border-dashed border-border text-[13px] text-text-muted">
-                暂无当前时间段用量记录
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex h-[360px] items-center justify-center gap-2 rounded-lg border border-dashed border-border text-[13px] text-text-muted"
+              >
+                <Icon name="fa-chart-line" />
+                <span>暂无当前时间段用量记录</span>
               </div>
             )}
           </section>
 
-          <section className="grid grid-cols-[minmax(0,1fr)_minmax(360px,0.6fr)] gap-6 max-xl:grid-cols-1">
-            <div className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
-              <div className="mb-5 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-[20px] font-bold text-text-primary">消费统计</h2>
-                  <p className="mt-1 text-[13px] text-text-secondary">
-                    发生时成本优先，旧记录按当前价格估算
-                  </p>
-                </div>
-                <Icon name="fa-coins" className="text-accent" />
-              </div>
-              {spend && spend.totalRequests > 0 ? (
-                <div className="space-y-4">
-                  <div>
-                    <div className="font-mono text-[34px] font-bold leading-none text-text-primary">
-                      <AnimatedNumber
-                        value={spend.cnyTotal}
-                        format={(value) => fmtMoney(value, 'CNY')}
-                        durationMs={520}
-                      />
-                    </div>
-                    <p className="mt-2 text-[12.5px] text-text-secondary">
-                      请求发生时的供应商成本或价格快照（{activeRangeLabel}，已折算人民币）
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-                    <InfoPill
-                      label="发生时成本"
-                      value={`${(
-                        spend.providerCostRequests + spend.snapshotCostRequests
-                      ).toLocaleString('en-US')} 次`}
-                    />
-                    <InfoPill
-                      label="当前价格估算"
-                      value={`${spend.estimatedRequests.toLocaleString('en-US')} 次`}
-                    />
-                    <InfoPill
-                      label="未计价"
-                      value={`${spend.unpricedRequests.toLocaleString('en-US')} 次`}
-                    />
-                  </div>
-                  {spend.byCurrency.length > 1 ? (
-                    <p className="font-mono text-[12px] text-text-secondary">
-                      原始币种{' '}
-                      {spend.byCurrency.map((c) => fmtMoney(c.amount, c.currency)).join(' · ')}
-                    </p>
-                  ) : null}
-                  <p className="text-[12px] text-text-secondary">
-                    汇率来源：
-                    {spend.exchangeRateSource === 'api'
-                      ? `实时接口${spend.exchangeRateUpdatedAt ? ` · ${spend.exchangeRateUpdatedAt}` : ''}`
-                      : spend.exchangeRateSource === 'mixed'
-                        ? '实时接口 + 备用汇率'
-                        : '备用汇率'}
-                    {spend.unconvertedCurrencies.length > 0
-                      ? ` · 未折算 ${spend.unconvertedCurrencies.join(', ')}`
-                      : ''}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-[13px] text-text-muted">暂无可计价的请求（检查价格配置）</p>
-              )}
-            </div>
-
-            <div className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
-              <div className="mb-5 flex items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-[20px] font-bold text-text-primary">余额快照</h2>
-                  <p className="mt-1 text-[13px] text-text-secondary">
-                    各 Key 最近一次资源包读取结果
-                  </p>
-                </div>
-                <Icon name="fa-wallet" className="text-accent-text" />
-              </div>
-              {balances.length === 0 ? (
-                <p className="text-[13px] text-text-muted">
-                  还没有余额记录，触发一次刷新后会自动抓取
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[12.5px]">
-                    <thead className="text-left text-text-secondary">
-                      <tr>
-                        <th className="py-2 font-medium">Provider</th>
-                        <th className="py-2 text-right font-medium">剩余</th>
-                        <th className="py-2 text-right font-medium">已用</th>
-                        <th className="py-2 text-right font-medium">时间</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-text-primary">
-                      {balances.slice(0, 6).map((b) => (
-                        <tr key={b.id} className="border-t border-border-light">
-                          <td className="py-2">{b.providerId}</td>
-                          <td className="py-2 text-right font-mono">
-                            {b.remaining !== undefined ? fmtCount(b.remaining) : '—'}
-                          </td>
-                          <td className="py-2 text-right font-mono">
-                            {b.used !== undefined ? fmtCount(b.used) : '—'}
-                          </td>
-                          <td className="py-2 text-right text-text-secondary">
-                            {b.capturedAt.slice(0, 10)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section
-            data-dashboard-management
-            className="space-y-6 border-t border-border-light pt-2"
+          <details
+            data-dashboard-secondary
+            className="rounded-lg border border-border-light bg-bg-card/45 shadow-card backdrop-blur-[2px]"
           >
-            <div>
-              <h2 className="text-[16px] font-semibold text-text-primary">规划与管理</h2>
-              <p className="mt-1 text-[12px] text-text-muted">
-                在看完当前用量与异常后，再配置额度、预算、周期报告和数据来源。
-              </p>
+            <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-[14px] font-semibold text-text-primary [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-2">
+                <Icon name="fa-layer-group" className="text-accent-text" />
+                更多指标与明细
+              </span>
+              <span className="text-[11.5px] font-normal text-text-muted">
+                输入、输出、缓存、最近数据、消费与余额
+              </span>
+            </summary>
+            <div className="space-y-6 border-t border-border-light p-5">
+              <div className="grid grid-cols-4 gap-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
+                <div data-dashboard-secondary-metric>
+                  <OverviewMetricCard
+                    label="新增输入"
+                    icon="fa-arrow-down"
+                    tone="blue"
+                    value={
+                      <AnimatedNumber
+                        value={summary?.totalInputTokens ?? 0}
+                        format={fmtCount}
+                        durationMs={480}
+                      />
+                    }
+                    sub="Input tokens"
+                    motionOrder={4}
+                  />
+                </div>
+                <div data-dashboard-secondary-metric>
+                  <OverviewMetricCard
+                    label="模型输出"
+                    icon="fa-arrow-up"
+                    tone="purple"
+                    value={
+                      <AnimatedNumber
+                        value={summary?.totalOutputTokens ?? 0}
+                        format={fmtCount}
+                        durationMs={480}
+                      />
+                    }
+                    sub="Output tokens"
+                    motionOrder={5}
+                  />
+                </div>
+                <div data-dashboard-secondary-metric>
+                  <OverviewMetricCard
+                    label="缓存命中率"
+                    icon="fa-database"
+                    value={
+                      <AnimatedNumber
+                        value={cacheHitRate * 100}
+                        format={(value) => `${value.toFixed(1)}%`}
+                        durationMs={480}
+                      />
+                    }
+                    sub={`${fmtCount(summary?.totalCacheReadTokens ?? 0)} 缓存读取`}
+                    progress={cacheHitRate}
+                    motionOrder={6}
+                  />
+                </div>
+                <div data-dashboard-secondary-metric>
+                  <OverviewMetricCard
+                    label="最近数据"
+                    icon="fa-clock"
+                    tone={health.lastCapturedAt ? 'accent' : 'amber'}
+                    value={formatCapturedAt(health.lastCapturedAt)}
+                    sub={healthMeta.description}
+                    motionOrder={7}
+                  />
+                </div>
+              </div>
+
+              <section className="grid grid-cols-[minmax(0,1fr)_minmax(360px,0.6fr)] gap-6 max-xl:grid-cols-1">
+                <div className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
+                  <div className="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-[20px] font-bold text-text-primary">消费统计</h2>
+                      <p className="mt-1 text-[13px] text-text-secondary">
+                        发生时成本优先，旧记录按当前价格估算
+                      </p>
+                    </div>
+                    <Icon name="fa-coins" className="text-accent" />
+                  </div>
+                  {spend && spend.totalRequests > 0 ? (
+                    <div className="space-y-4">
+                      <div>
+                        <div className="font-mono text-[34px] font-bold leading-none text-text-primary">
+                          <AnimatedNumber
+                            value={spend.cnyTotal}
+                            format={(value) => fmtMoney(value, 'CNY')}
+                            durationMs={520}
+                          />
+                        </div>
+                        <p className="mt-2 text-[12.5px] text-text-secondary">
+                          请求发生时的供应商成本或价格快照（{activeRangeLabel}，已折算人民币）
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3 max-sm:grid-cols-1">
+                        <InfoPill
+                          label="发生时成本"
+                          value={`${(
+                            spend.providerCostRequests + spend.snapshotCostRequests
+                          ).toLocaleString('en-US')} 次`}
+                        />
+                        <InfoPill
+                          label="当前价格估算"
+                          value={`${spend.estimatedRequests.toLocaleString('en-US')} 次`}
+                        />
+                        <InfoPill
+                          label="未计价"
+                          value={`${spend.unpricedRequests.toLocaleString('en-US')} 次`}
+                        />
+                      </div>
+                      {spend.byCurrency.length > 1 ? (
+                        <p className="font-mono text-[12px] text-text-secondary">
+                          原始币种{' '}
+                          {spend.byCurrency.map((c) => fmtMoney(c.amount, c.currency)).join(' · ')}
+                        </p>
+                      ) : null}
+                      <p className="text-[12px] text-text-secondary">
+                        汇率来源：
+                        {spend.exchangeRateSource === 'api'
+                          ? `实时接口${spend.exchangeRateUpdatedAt ? ` · ${spend.exchangeRateUpdatedAt}` : ''}`
+                          : spend.exchangeRateSource === 'mixed'
+                            ? '实时接口 + 备用汇率'
+                            : '备用汇率'}
+                        {spend.unconvertedCurrencies.length > 0
+                          ? ` · 未折算 ${spend.unconvertedCurrencies.join(', ')}`
+                          : ''}
+                      </p>
+                    </div>
+                  ) : (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="inline-flex items-center gap-2 text-[13px] text-text-muted"
+                    >
+                      <Icon name="fa-coins" />
+                      <span>暂无可计价的请求（检查价格配置）</span>
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
+                  <div className="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-[20px] font-bold text-text-primary">余额快照</h2>
+                      <p className="mt-1 text-[13px] text-text-secondary">
+                        各 Key 最近一次资源包读取结果
+                      </p>
+                    </div>
+                    <Icon name="fa-wallet" className="text-accent-text" />
+                  </div>
+                  {balances.length === 0 ? (
+                    <p
+                      role="status"
+                      aria-live="polite"
+                      className="inline-flex items-center gap-2 text-[13px] text-text-muted"
+                    >
+                      <Icon name="fa-wallet" />
+                      <span>还没有余额记录，触发一次刷新后会自动抓取</span>
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-[12.5px]">
+                        <thead className="text-left text-text-secondary">
+                          <tr>
+                            <th className="py-2 font-medium">Provider</th>
+                            <th className="py-2 text-right font-medium">剩余</th>
+                            <th className="py-2 text-right font-medium">已用</th>
+                            <th className="py-2 text-right font-medium">时间</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-text-primary">
+                          {balances.slice(0, 6).map((b) => (
+                            <tr key={b.id} className="border-t border-border-light">
+                              <td className="py-2">{b.providerId}</td>
+                              <td className="py-2 text-right font-mono">
+                                {b.remaining !== undefined ? fmtCount(b.remaining) : '—'}
+                              </td>
+                              <td className="py-2 text-right font-mono">
+                                {b.used !== undefined ? fmtCount(b.used) : '—'}
+                              </td>
+                              <td className="py-2 text-right text-text-secondary">
+                                {b.capturedAt.slice(0, 10)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <div className="grid grid-cols-3 gap-3 border-t border-border-light pt-5 max-lg:grid-cols-1">
+                <DashboardDeepLink
+                  to="/sources"
+                  icon="fa-heart-pulse"
+                  title="查看来源健康"
+                  detail={
+                    quotaPlanning.overview
+                      ? `${quotaPlanning.overview.sources.filter((source) => source.status === 'healthy').length}/${quotaPlanning.overview.sources.length} 个来源可用`
+                      : '检查 Provider 与本地 CLI 来源'
+                  }
+                />
+                <DashboardDeepLink
+                  to="/balance"
+                  icon="fa-wallet"
+                  title="查看额度"
+                  detail="处理订阅额度与 API 余额"
+                />
+                <DashboardDeepLink
+                  to="/projects"
+                  icon="fa-chart-line"
+                  title="进入分析"
+                  detail="按项目、Provider、模型和日志钻取"
+                />
+              </div>
             </div>
-            <QuotaPlanningPanel overview={quotaPlanning.overview} />
-            <BudgetPlanningPanel
-              overview={budgetPlanning.overview}
-              loading={budgetPlanning.loading}
-              error={budgetPlanning.error}
-              onRefresh={() => budgetPlanning.refresh()}
-            />
-            <LocalReportPanel
-              overview={localReports.overview}
-              loading={localReports.loading}
-              error={localReports.error}
-              periodKind={localReports.periodKind}
-              onPeriodKindChange={localReports.setPeriodKind}
-              onRefresh={() => localReports.refresh()}
-              onSetEnabled={localReports.setEnabled}
-              onSetRecommendationsEnabled={localReports.setRecommendationsEnabled}
-            />
-            <SourceActivation
-              overview={quotaPlanning.overview}
-              loading={quotaPlanning.loading}
-              error={quotaPlanning.error}
-              onRefresh={() => void quotaPlanning.refresh()}
-              compact
-            />
-          </section>
+          </details>
         </MotionGroup>
       )}
     </div>
+  )
+}
+
+function DashboardDeepLink({
+  to,
+  icon,
+  title,
+  detail
+}: {
+  to: string
+  icon: string
+  title: string
+  detail: string
+}) {
+  return (
+    <Link
+      to={to}
+      className="group flex min-h-[72px] items-center gap-3 rounded-lg border border-border-light bg-bg-base/45 px-4 py-3 transition-colors hover:border-border-focus hover:bg-bg-hover"
+    >
+      <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-accent-dim text-accent-text">
+        <Icon name={icon} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[12.5px] font-semibold text-text-primary">{title}</span>
+        <span className="mt-0.5 block truncate text-[11px] text-text-secondary">{detail}</span>
+      </span>
+      <Icon
+        name="fa-arrow-right"
+        className="text-[10px] text-text-muted transition-transform group-hover:translate-x-0.5"
+      />
+    </Link>
   )
 }
 

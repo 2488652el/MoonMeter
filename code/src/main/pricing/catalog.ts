@@ -150,6 +150,9 @@ export interface CatalogFetchOptions {
   etag?: string
 }
 
+/** 可替换的网络出口；桌面主进程会注入 Electron 的 Chromium 网络栈。 */
+export type CatalogFetch = (input: string, init?: RequestInit) => Promise<Response>
+
 export interface CatalogFetchResult {
   synced: number
   skipped: number
@@ -166,7 +169,8 @@ interface CatalogUpsertResult {
 
 export async function syncCatalog(
   upsert: (entries: PricingEntry[]) => CatalogUpsertResult | void,
-  options: CatalogFetchOptions = {}
+  options: CatalogFetchOptions = {},
+  fetchImpl: CatalogFetch = fetch
 ): Promise<CatalogFetchResult> {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), CATALOG_TIMEOUT_MS)
@@ -175,7 +179,7 @@ export async function syncCatalog(
 
   let res: Response
   try {
-    res = await fetch(CATALOG_URL, { signal: ctrl.signal, headers })
+    res = await fetchImpl(CATALOG_URL, { signal: ctrl.signal, headers })
   } catch (e) {
     clearTimeout(timer)
     throw new ProviderError(

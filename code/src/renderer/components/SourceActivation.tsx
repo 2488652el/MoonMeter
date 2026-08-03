@@ -77,8 +77,13 @@ export function SourceActivation({
       }
     >
       {error && sources.length === 0 ? (
-        <div className="rounded-lg border border-status-red/20 bg-status-red-dim px-4 py-3 text-[12px] text-status-red">
-          {error}
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="flex items-start gap-2 rounded-lg border border-status-red/20 bg-status-red-dim px-4 py-3 text-[12px] text-status-red"
+        >
+          <Icon name="fa-circle-exclamation" className="mt-0.5" />
+          <span>{error}</span>
         </div>
       ) : sources.length === 0 ? (
         <div className="grid grid-cols-3 gap-3 max-lg:grid-cols-1">
@@ -168,7 +173,7 @@ function ActivationStep({
   return (
     <button
       type="button"
-      className="rounded-lg border border-dashed border-border p-4 text-left hover:border-border-focus hover:bg-bg-hover"
+      className="min-h-[44px] rounded-lg border border-dashed border-border p-4 text-left hover:border-border-focus hover:bg-bg-hover"
       onClick={onClick}
     >
       <Icon name={icon} className="text-accent-text" />

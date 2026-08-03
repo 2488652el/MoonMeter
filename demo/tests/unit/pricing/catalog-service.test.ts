@@ -55,6 +55,21 @@ beforeEach(() => {
 })
 
 describe('catalog-service', () => {
+  it('passes the caller network implementation to catalog sync', async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch
+    mocks.syncCatalog.mockResolvedValue({
+      synced: 0,
+      skipped: 0,
+      protected: 0,
+      notModified: true,
+      checkedAt: '2026-07-15T12:00:00.000Z'
+    })
+
+    await syncCatalogNow(fetchImpl)
+
+    expect(mocks.syncCatalog).toHaveBeenCalledWith(expect.any(Function), {}, fetchImpl)
+  })
+
   it('defaults auto update to enabled and persists successful sync metadata', async () => {
     mocks.settings.set('pricing_catalog_etag', '"old"')
     mocks.syncCatalog.mockResolvedValue({
@@ -72,7 +87,11 @@ describe('catalog-service', () => {
       approvalRequired: true
     })
     await expect(syncCatalogNow()).resolves.toMatchObject({ synced: 12, protected: 2 })
-    expect(mocks.syncCatalog).toHaveBeenCalledWith(expect.any(Function), { etag: '"old"' })
+    expect(mocks.syncCatalog).toHaveBeenCalledWith(
+      expect.any(Function),
+      { etag: '"old"' },
+      expect.any(Function)
+    )
     expect(getCatalogSyncStatus()).toMatchObject({
       state: 'idle',
       autoUpdate: true,

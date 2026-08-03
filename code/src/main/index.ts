@@ -2,7 +2,7 @@
  * Electron 主进程入口模块:负责应用生命周期管理、数据库初始化、IPC 注册、
  * 自动刷新调度与浏览器窗口创建,同时对外部导航/打开链接进行安全校验。
  */
-import { app, BrowserWindow, dialog, powerMonitor } from 'electron'
+import { app, BrowserWindow, dialog, net, powerMonitor } from 'electron'
 import { hostname } from 'node:os'
 import { allowWindowCloseForQuit, createWindow } from './window'
 import { registerIpcHandlers } from './ipc/register-handlers'
@@ -103,7 +103,7 @@ app.whenReady().then(() => {
   void seedMinimaxPricing().catch((e) => {
     console.warn('[minimax] pricing seed failed:', e)
   })
-  startCatalogAutoRefresh()
+  startCatalogAutoRefresh(net.fetch)
 
   registerIpcHandlers()
   initializeAppUpdater()
