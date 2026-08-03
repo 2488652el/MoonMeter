@@ -1,24 +1,50 @@
 /** 官方价格目录的 Electron 网络出口与失败恢复。 */
-import { net, session } from 'electron'
+import { session } from 'electron'
 import type { CatalogFetch } from '../pricing/catalog'
 
+const CATALOG_SESSION_PARTITION = 'moonmeter-pricing-catalog'
+type CatalogSession = ReturnType<typeof session.fromPartition>
+
+let catalogSession: CatalogSession | null = null
+
+function getCatalogSession(): CatalogSession {
+  if (!catalogSession) catalogSession = session.fromPartition(CATALOG_SESSION_PARTITION)
+  return catalogSession
+}
+
+async function refreshSystemProxy(target: CatalogSession): Promise<void> {
+  await target.setProxy({ mode: 'system' })
+}
+
+async function recoverNetworkSession(target: CatalogSession): Promise<void> {
+  await refreshSystemProxy(target)
+  await target.clearHostResolverCache()
+  await target.closeAllConnections()
+}
+
 /**
- * Electron 进程长期运行时，系统代理或本地代理服务可能在 Chromium 网络
- * 会话初始化后才就绪。失败后重新加载 system proxy、DNS 与连接池，再重试
- * 当前请求，避免把一次性的 net::ERR_FAILED 固化成目录异常。
+ * 价格目录不复用渲染窗口的默认网络会话，避免窗口启动时留下的失败连接、
+ * DNS 状态或代理解析结果污染同步。每次请求前重新应用 system proxy；失败后
+ * 再清理该独立会话的 DNS 与连接池并重试。
  */
 export const fetchCatalogThroughSystemProxy: CatalogFetch = async (input, init) => {
+  const target = getCatalogSession()
+
   try {
-    return await net.fetch(input, init)
-  } catch {
+    await refreshSystemProxy(target)
+    return await target.fetch(input, init)
+  } catch (error) {
+    // Do not reuse an already-aborted signal. The outer catalog retry loop will
+    // provide a fresh deadline and signal for the next attempt.
+    if (init?.signal?.aborted) throw error
+
     try {
-      await session.defaultSession.setProxy({ mode: 'system' })
-      await session.defaultSession.clearHostResolverCache()
-      await session.defaultSession.closeAllConnections()
+      await recoverNetworkSession(target)
     } catch {
       // Even if proxy refresh is unavailable, the second request may succeed
       // when the local proxy service recovered between attempts.
     }
-    return net.fetch(input, init)
+    if (init?.signal?.aborted) throw error
+    return target.fetch(input, init)
   }
 }
