@@ -109,6 +109,7 @@ import {
   setCatalogAutoUpdate,
   syncCatalogNow
 } from '../pricing/catalog-service'
+import { fetchCatalogThroughSystemProxy } from '../services/catalog-network'
 import { refreshAll, restartAutoRefresh } from '../scheduler/refresh'
 import {
   restartSessionAutoParse,
@@ -536,8 +537,8 @@ export function registerIpcHandlers(): void {
     scheduleSyncAfterChange()
     return { ok: true }
   })
-  ipcMain.handle(IPC.pricingCatalog, () => syncCatalogNow(net.fetch))
-  ipcMain.handle(IPC.pricingCatalogPreview, () => previewCatalogNow(net.fetch))
+  ipcMain.handle(IPC.pricingCatalog, () => syncCatalogNow(fetchCatalogThroughSystemProxy))
+  ipcMain.handle(IPC.pricingCatalogPreview, () => previewCatalogNow(fetchCatalogThroughSystemProxy))
   ipcMain.handle(IPC.pricingCatalogApply, (_e, input) => {
     const parsed = pricingCatalogApplyInputSchema.parse(input)
     const result = applyCatalogPreview(parsed.previewId)

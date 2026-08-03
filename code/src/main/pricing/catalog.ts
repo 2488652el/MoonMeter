@@ -39,6 +39,8 @@ export const CATALOG_URL = 'https://models.dev/api.json'
 /** HTTP fetch timeout for catalog sync (30s - the file is ~500KB).
  *  目录同步的 HTTP 拉取超时(30 秒,文件约 500KB)。 */
 const CATALOG_TIMEOUT_MS = 30_000
+const CATALOG_FETCH_ATTEMPTS = 3
+const CATALOG_RETRY_DELAYS_MS = [500, 1_500] as const
 
 /**
  * Map models.dev provider prefixes to TokenLub providerIds.
@@ -167,21 +169,49 @@ interface CatalogUpsertResult {
   skipped: number
 }
 
+function waitForRetry(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs))
+}
+
+async function fetchCatalog(fetchImpl: CatalogFetch, headers: Headers): Promise<Response> {
+  const deadline = Date.now() + CATALOG_TIMEOUT_MS
+  let lastError: unknown
+
+  for (let attempt = 0; attempt < CATALOG_FETCH_ATTEMPTS; attempt++) {
+    const remainingMs = deadline - Date.now()
+    if (remainingMs <= 0 && lastError !== undefined) throw lastError
+
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), Math.max(1, remainingMs))
+    try {
+      return await fetchImpl(CATALOG_URL, { signal: ctrl.signal, headers })
+    } catch (error) {
+      lastError = error
+      const isLastAttempt = attempt === CATALOG_FETCH_ATTEMPTS - 1
+      const availableMs = deadline - Date.now()
+      if (isLastAttempt || availableMs <= 0) throw error
+      const retryDelay = Math.min(CATALOG_RETRY_DELAYS_MS[attempt] ?? 0, availableMs)
+      if (retryDelay > 0) await waitForRetry(retryDelay)
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('catalog fetch failed')
+}
+
 export async function syncCatalog(
   upsert: (entries: PricingEntry[]) => CatalogUpsertResult | void,
   options: CatalogFetchOptions = {},
   fetchImpl: CatalogFetch = fetch
 ): Promise<CatalogFetchResult> {
-  const ctrl = new AbortController()
-  const timer = setTimeout(() => ctrl.abort(), CATALOG_TIMEOUT_MS)
   const headers = new Headers()
   if (options.etag) headers.set('If-None-Match', options.etag)
 
   let res: Response
   try {
-    res = await fetchImpl(CATALOG_URL, { signal: ctrl.signal, headers })
+    res = await fetchCatalog(fetchImpl, headers)
   } catch (e) {
-    clearTimeout(timer)
     throw new ProviderError(
       'pricing-catalog',
       'NETWORK_ERROR',
@@ -189,8 +219,6 @@ export async function syncCatalog(
       `Failed to fetch models.dev catalog: ${(e as Error).message}`
     )
   }
-  clearTimeout(timer)
-
   const checkedAt = new Date().toISOString()
   const etag = res.headers.get('etag') ?? options.etag
   if (res.status === 304) {

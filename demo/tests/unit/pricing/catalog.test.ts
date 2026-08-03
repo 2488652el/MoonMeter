@@ -124,6 +124,26 @@ describe('syncCatalog', () => {
     )
   })
 
+  it('retries transient network failures within the catalog deadline', async () => {
+    vi.useFakeTimers()
+    try {
+      let attempts = 0
+      const fetchImpl = vi.fn(async () => {
+        attempts++
+        if (attempts < 3) throw new TypeError('net::ERR_FAILED')
+        return jsonResponse({})
+      }) as unknown as typeof fetch
+
+      const resultPromise = syncCatalog(() => undefined, {}, fetchImpl)
+      await vi.runAllTimersAsync()
+
+      await expect(resultPromise).resolves.toMatchObject({ synced: 0, notModified: false })
+      expect(attempts).toBe(3)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('reads provider model maps and reports applied/protected/skipped counts', async () => {
     const fetchCalls: Array<{ url: string; etag: string | null }> = []
     globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
