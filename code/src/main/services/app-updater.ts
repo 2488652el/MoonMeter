@@ -57,6 +57,8 @@ function unsupportedMessage(): string | null {
 function configureUpdaterEvents(): void {
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
+  // GitHub range requests can stall behind Windows proxies; use the full NSIS asset.
+  autoUpdater.disableDifferentialDownload = true
   autoUpdater.allowPrerelease = false
   autoUpdater.allowDowngrade = false
 

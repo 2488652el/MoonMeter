@@ -5,7 +5,7 @@
   <p>A local-first usage, balance, and cost workspace for developers.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.3.7-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.3.8-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -110,13 +110,13 @@ npm run build
 ### Package for Windows
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.3.7" --model "release"
+npm run dist:win -- --change "MoonMeter-1.3.8" --model "release"
 ```
 
 Output:
 
 ```text
-demo/moonmeter-1.3.7-MoonMeter-1.3.7-release/
+demo/moonmeter-1.3.8-MoonMeter-1.3.8-release/
 ```
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
@@ -181,4 +181,4 @@ Run at least `typecheck`, `test`, `lint`, and `format:check` before submitting a
 
 ## Version
 
-Current source version: **MoonMeter 1.3.7**. This release strengthens official pricing catalog recovery behind Windows proxies and keeps sidebar secondary navigation inline under its owning primary entry, while keeping user data on the device. See [CHANGELOG.md](./CHANGELOG.md).
+Current source version: **MoonMeter 1.3.8**. This release fixes stalled Windows differential update downloads and removes the space-heavy dashboard action center, while keeping user data on the device. See [CHANGELOG.md](./CHANGELOG.md).

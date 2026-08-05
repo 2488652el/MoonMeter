@@ -25,7 +25,6 @@ import {
 import { Link } from 'react-router-dom'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
-import { ActionCenter } from '../components/ActionCenter'
 import { QuotaPlanningPanel } from '../components/QuotaPlanningPanel'
 import { BudgetPlanningPanel } from '../components/BudgetPlanningPanel'
 import { LocalReportPanel } from '../components/LocalReportPanel'
@@ -690,10 +689,6 @@ export default function Dashboard() {
                 ) : null}
               </Card>
             </div>
-          </div>
-
-          <div data-action-center>
-            <ActionCenter actions={quotaPlanning.overview?.actions ?? []} />
           </div>
 
           <section data-dashboard-primary-metrics>

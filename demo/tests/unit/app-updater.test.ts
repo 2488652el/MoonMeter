@@ -9,7 +9,8 @@ const state = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   checkForUpdates: vi.fn(() => Promise.resolve(null)),
   quitAndInstall: vi.fn(),
-  send: vi.fn()
+  send: vi.fn(),
+  disableDifferentialDownload: false
 }))
 
 vi.mock('electron', () => ({
@@ -40,6 +41,12 @@ vi.mock('electron-updater', () => ({
     autoInstallOnAppQuit: false,
     allowPrerelease: true,
     allowDowngrade: true,
+    get disableDifferentialDownload() {
+      return state.disableDifferentialDownload
+    },
+    set disableDifferentialDownload(value: boolean) {
+      state.disableDifferentialDownload = value
+    },
     on: (event: string, listener: EventListener) => {
       const listeners = state.listeners.get(event) ?? []
       listeners.push(listener)
@@ -69,6 +76,7 @@ describe('application updater', () => {
     state.checkForUpdates.mockResolvedValue(null)
     state.quitAndInstall.mockReset()
     state.send.mockReset()
+    state.disableDifferentialDownload = false
     delete process.env['PORTABLE_EXECUTABLE_DIR']
   })
 
@@ -84,6 +92,7 @@ describe('application updater', () => {
 
     expect(state.handlers.has(IPC.appUpdateGetStatus)).toBe(true)
     expect(state.handlers.has(IPC.appUpdateCheck)).toBe(true)
+    expect(state.disableDifferentialDownload).toBe(true)
     expect(state.checkForUpdates).not.toHaveBeenCalled()
 
     await vi.advanceTimersByTimeAsync(15_000)
