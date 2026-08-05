@@ -36,8 +36,8 @@ type CatalogResponse = Record<string, CatalogProvider>
 /** models.dev 对外承诺的正式 Provider API。 */
 export const CATALOG_URL = 'https://models.dev/api.json'
 
-/** HTTP fetch timeout for catalog sync (30s - the file is ~500KB).
- *  目录同步的 HTTP 拉取超时(30 秒,文件约 500KB)。 */
+/** HTTP fetch timeout for catalog sync (30s - the file is a few MB).
+ *  目录同步的 HTTP 拉取总超时(30 秒,文件约数 MB)。 */
 const CATALOG_TIMEOUT_MS = 30_000
 const CATALOG_FETCH_ATTEMPTS = 3
 const CATALOG_RETRY_DELAYS_MS = [500, 1_500] as const

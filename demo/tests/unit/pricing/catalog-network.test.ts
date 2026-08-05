@@ -81,19 +81,6 @@ describe('catalog-network', () => {
     expect(mocks.sessionFetch).toHaveBeenCalledOnce()
   })
 
-  it('does not retry with an aborted request signal', async () => {
-    const controller = new AbortController()
-    controller.abort()
-    const error = new TypeError('net::ERR_FAILED')
-    mocks.sessionFetch.mockRejectedValueOnce(error)
-
-    await expect(
-      fetchCatalogThroughSystemProxy('https://models.dev/api.json', { signal: controller.signal })
-    ).rejects.toBe(error)
-    expect(mocks.sessionFetch).toHaveBeenCalledOnce()
-    expect(mocks.clearHostResolverCache).not.toHaveBeenCalled()
-  })
-
   it('drops a failed retry session before the next manual sync', async () => {
     mocks.sessionFetch.mockRejectedValueOnce(new TypeError('net::ERR_FAILED'))
     mocks.sessionFetch.mockRejectedValueOnce(new TypeError('net::ERR_FAILED'))
@@ -108,6 +95,19 @@ describe('catalog-network', () => {
       response
     )
     expect(mocks.fromPartition).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not retry with an aborted request signal', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const error = new TypeError('net::ERR_FAILED')
+    mocks.sessionFetch.mockRejectedValueOnce(error)
+
+    await expect(
+      fetchCatalogThroughSystemProxy('https://models.dev/api.json', { signal: controller.signal })
+    ).rejects.toBe(error)
+    expect(mocks.sessionFetch).toHaveBeenCalledOnce()
+    expect(mocks.clearHostResolverCache).not.toHaveBeenCalled()
   })
 
   it('falls back to a Node CONNECT request when both Electron sessions fail', async () => {

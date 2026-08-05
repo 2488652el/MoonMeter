@@ -1,6 +1,6 @@
 /** 官方价格目录的 Electron 网络出口与失败恢复。 */
-import { session } from 'electron'
 import { request as httpsRequest } from 'node:https'
+import { session } from 'electron'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import type { CatalogFetch } from '../pricing/catalog'
 import type { IncomingHttpHeaders } from 'node:http'

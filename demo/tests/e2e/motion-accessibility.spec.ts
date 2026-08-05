@@ -436,9 +436,12 @@ test.describe.serial('Electron motion and accessibility', () => {
     if (profileRoot) rmSync(profileRoot, { recursive: true, force: true })
   })
 
-  test('renders all hash routes and settles without a persistent animation', async () => {
+  test('renders all hash routes and settles without a persistent animation', async ({
+    browserName: _browserName
+  }, testInfo) => {
     const window = page
     if (!window) throw new Error('Electron window was not created')
+    expect(_browserName).toBe('chromium')
 
     await window.emulateMedia({ reducedMotion: 'no-preference' })
     for (const route of ROUTES) {
@@ -446,6 +449,37 @@ test.describe.serial('Electron motion and accessibility', () => {
       await expect(window.locator('[aria-current="page"]')).toHaveCount(1)
       await expectSettled(window)
     }
+
+    await navigateTo(
+      window,
+      ROUTES.find((item) => item.path === '/projects')!
+    )
+    const analysisSection = window.locator('[data-primary-nav-section="/projects"]')
+    const analysisLink = analysisSection.locator('[data-primary-nav-item]')
+    const analysisSecondary = analysisSection.locator('[data-secondary-nav-list]')
+    const analysisSecondaryLinks = analysisSecondary.locator('[data-secondary-nav-item]')
+    const balanceSection = window.locator('[data-primary-nav-section="/balance"]')
+
+    await expect(analysisLink).toHaveAttribute('aria-expanded', 'true')
+    await expect(analysisSecondaryLinks).toHaveCount(5)
+    const [analysisBox, secondaryBox, balanceBox] = await Promise.all([
+      analysisLink.boundingBox(),
+      analysisSecondary.boundingBox(),
+      balanceSection.boundingBox()
+    ])
+    if (!analysisBox || !secondaryBox || !balanceBox) {
+      throw new Error('inline analysis navigation bounds were unavailable')
+    }
+    expect(secondaryBox.y).toBeGreaterThanOrEqual(analysisBox.y + analysisBox.height)
+    expect(balanceBox.y).toBeGreaterThanOrEqual(secondaryBox.y + secondaryBox.height)
+
+    await analysisLink.focus()
+    await window.keyboard.press('Tab')
+    await expect(analysisSecondaryLinks.first()).toBeFocused()
+    await window.screenshot({
+      path: testInfo.outputPath('sidebar-analysis-inline.png'),
+      animations: 'disabled'
+    })
   })
 
   test('renders the dashboard metric grid and keeps range controls responsive', async ({

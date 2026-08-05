@@ -109,13 +109,13 @@ import {
   setCatalogAutoUpdate,
   syncCatalogNow
 } from '../pricing/catalog-service'
-import { fetchCatalogThroughSystemProxy } from '../services/catalog-network'
 import { refreshAll, restartAutoRefresh } from '../scheduler/refresh'
 import {
   restartSessionAutoParse,
   SESSION_AUTO_PARSE_SETTING_KEY
 } from '../scheduler/session-auto-parse'
 import { fetchCodexUsage } from '../services/codex-usage'
+import { fetchCatalogThroughSystemProxy } from '../services/catalog-network'
 import { getQuotaPlanningOverview } from '../services/quota-planning'
 import { getBudgetOverview, evaluateBudgetReminders } from '../services/budget-planning'
 import { createSanitizedDiagnosticPack } from '../services/diagnostic-pack'

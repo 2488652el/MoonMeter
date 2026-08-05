@@ -42,6 +42,13 @@ describe('dashboard information hierarchy', () => {
     expect(sidebar).not.toContain('NAV_SECTIONS')
   })
 
+  it('renders each expanded secondary list inside its owning primary section', () => {
+    expect(sidebar).toContain('data-primary-nav-section')
+    expect(sidebar).toContain('const sectionSecondaryItems = (SECONDARY_NAV[item.to] ?? [])')
+    expect(sidebar).toContain('sectionSecondaryItems.length > 0')
+    expect(sidebar).not.toContain('const secondaryItems =')
+  })
+
   it('keeps every legacy route reachable in the route table', () => {
     for (const route of [
       '/',

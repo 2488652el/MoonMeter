@@ -82,12 +82,6 @@ export function Sidebar() {
       ? undefined
       : SECONDARY_NAV[activePrimary]?.find((item) => location.pathname.startsWith(item.to))?.to
 
-  const secondaryItems = (SECONDARY_NAV[activePrimary] ?? []).map((item) =>
-    item.to === '/projects' && projectBadge
-      ? { ...item, badge: projectBadge, badgeVariant: 'count' as const }
-      : item
-  )
-
   return (
     <aside
       aria-label="MoonMeter 导航"
@@ -105,75 +99,99 @@ export function Sidebar() {
           {PRIMARY_NAV.map((item) => {
             const isSectionActive = activePrimary === item.to
             const isActive = isSectionActive && activeSecondary === undefined
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                data-primary-nav-item
-                aria-current={isActive ? 'page' : undefined}
-                className={clsx(
-                  'motion-nav-item relative grid min-h-[44px] w-full select-none grid-cols-[18px_minmax(0,1fr)_36px] items-center gap-2.5 rounded-md px-3 py-2 text-[13px]',
-                  isActive
-                    ? 'bg-text-primary font-medium text-bg-base'
-                    : isSectionActive
-                      ? 'bg-bg-hover/60 font-medium text-text-primary'
-                      : 'text-text-secondary hover:bg-bg-hover/70 hover:text-text-primary'
-                )}
-              >
-                <Icon
-                  name={item.icon}
-                  className={clsx('w-[17px]', isActive ? 'opacity-100' : 'opacity-70')}
-                />
-                <span className="min-w-0 truncate">{item.label}</span>
-                <span className="flex h-5 w-9 items-center justify-end" />
-              </Link>
+            const sectionSecondaryItems = (SECONDARY_NAV[item.to] ?? []).map((secondaryItem) =>
+              secondaryItem.to === '/projects' && projectBadge
+                ? {
+                    ...secondaryItem,
+                    badge: projectBadge,
+                    badgeVariant: 'count' as const
+                  }
+                : secondaryItem
             )
-          })}
-        </div>
-
-        {secondaryItems.length > 0 && (
-          <div className="mt-4 space-y-2 border-l border-border-light pl-2" aria-label="次级导航">
-            {secondaryItems.map((item) => {
-              const isActive = activeSecondary === item.to
-              return (
+            const secondaryNavId = `sidebar-secondary-${item.to.slice(1)}`
+            return (
+              <div key={item.to} data-primary-nav-section={item.to} className="space-y-2">
                 <Link
-                  key={item.to}
                   to={item.to}
-                  data-secondary-nav-item
+                  data-primary-nav-item
                   aria-current={isActive ? 'page' : undefined}
+                  aria-expanded={sectionSecondaryItems.length > 0 ? isSectionActive : undefined}
+                  aria-controls={
+                    isSectionActive && sectionSecondaryItems.length > 0 ? secondaryNavId : undefined
+                  }
                   className={clsx(
-                    'motion-nav-item relative grid min-h-[44px] w-full select-none grid-cols-[18px_minmax(0,1fr)_36px] items-center gap-2.5 rounded-md px-3 py-2 text-[12px]',
+                    'motion-nav-item relative grid min-h-[44px] w-full select-none grid-cols-[18px_minmax(0,1fr)_36px] items-center gap-2.5 rounded-md px-3 py-2 text-[13px]',
                     isActive
                       ? 'bg-text-primary font-medium text-bg-base'
-                      : 'text-text-secondary hover:bg-bg-hover/70 hover:text-text-primary'
+                      : isSectionActive
+                        ? 'bg-bg-hover/60 font-medium text-text-primary'
+                        : 'text-text-secondary hover:bg-bg-hover/70 hover:text-text-primary'
                   )}
                 >
                   <Icon
                     name={item.icon}
-                    className={clsx('w-[16px]', isActive ? 'opacity-100' : 'opacity-70')}
+                    className={clsx('w-[17px]', isActive ? 'opacity-100' : 'opacity-70')}
                   />
                   <span className="min-w-0 truncate">{item.label}</span>
-                  <span className="flex h-5 w-9 items-center justify-end">
-                    {item.badge && (
-                      <span
-                        className={clsx(
-                          'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-[7px] text-[9px] font-semibold leading-none',
-                          item.badgeVariant === 'new'
-                            ? isActive
-                              ? 'bg-bg-base text-text-primary'
-                              : 'bg-text-primary text-bg-base'
-                            : 'bg-accent text-text-primary'
-                        )}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </span>
+                  <span className="flex h-5 w-9 items-center justify-end" />
                 </Link>
-              )
-            })}
-          </div>
-        )}
+
+                {isSectionActive && sectionSecondaryItems.length > 0 && (
+                  <div
+                    id={secondaryNavId}
+                    data-secondary-nav-list
+                    role="group"
+                    aria-label={`${item.label}次级导航`}
+                    className="space-y-2 border-l border-border-light pl-2"
+                  >
+                    {sectionSecondaryItems.map((secondaryItem) => {
+                      const isSecondaryActive = activeSecondary === secondaryItem.to
+                      return (
+                        <Link
+                          key={secondaryItem.to}
+                          to={secondaryItem.to}
+                          data-secondary-nav-item
+                          aria-current={isSecondaryActive ? 'page' : undefined}
+                          className={clsx(
+                            'motion-nav-item relative grid min-h-[44px] w-full select-none grid-cols-[18px_minmax(0,1fr)_36px] items-center gap-2.5 rounded-md px-3 py-2 text-[12px]',
+                            isSecondaryActive
+                              ? 'bg-text-primary font-medium text-bg-base'
+                              : 'text-text-secondary hover:bg-bg-hover/70 hover:text-text-primary'
+                          )}
+                        >
+                          <Icon
+                            name={secondaryItem.icon}
+                            className={clsx(
+                              'w-[16px]',
+                              isSecondaryActive ? 'opacity-100' : 'opacity-70'
+                            )}
+                          />
+                          <span className="min-w-0 truncate">{secondaryItem.label}</span>
+                          <span className="flex h-5 w-9 items-center justify-end">
+                            {secondaryItem.badge && (
+                              <span
+                                className={clsx(
+                                  'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-[7px] text-[9px] font-semibold leading-none',
+                                  secondaryItem.badgeVariant === 'new'
+                                    ? isSecondaryActive
+                                      ? 'bg-bg-base text-text-primary'
+                                      : 'bg-text-primary text-bg-base'
+                                    : 'bg-accent text-text-primary'
+                                )}
+                              >
+                                {secondaryItem.badge}
+                              </span>
+                            )}
+                          </span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </nav>
 
       <div className="mt-auto border-t border-border-light p-3">
