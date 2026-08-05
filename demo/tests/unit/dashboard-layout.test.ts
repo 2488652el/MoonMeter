@@ -9,25 +9,24 @@ function readRendererFile(path: string): string {
 const source = readRendererFile('pages/Dashboard.tsx')
 const sidebar = readRendererFile('layout/Sidebar.tsx')
 const app = readRendererFile('App.tsx')
-const actionCenter = readRendererFile('components/ActionCenter.tsx')
 
 describe('dashboard information hierarchy', () => {
-  it('puts scope, actions, core metrics, trend, and secondary details in order', () => {
+  it('puts scope, core metrics, trend, and secondary details in order', () => {
     const scope = source.indexOf('data-dashboard-scope')
-    const actions = source.indexOf('data-action-center')
     const metrics = source.indexOf('data-dashboard-primary-metrics')
     const trend = source.indexOf('data-dashboard-trend')
     const secondary = source.indexOf('data-dashboard-secondary')
 
     expect(scope).toBeGreaterThan(0)
-    expect(actions).toBeGreaterThan(scope)
-    expect(metrics).toBeGreaterThan(actions)
+    expect(metrics).toBeGreaterThan(scope)
     expect(trend).toBeGreaterThan(metrics)
     expect(secondary).toBeGreaterThan(trend)
+    expect(source).not.toContain('ActionCenter')
+    expect(source).not.toContain('components/ActionCenter')
+    expect(source).not.toContain('data-action-center')
     expect(source.match(/data-dashboard-primary-metric(?!s)/g)).toHaveLength(4)
     expect(source.match(/data-dashboard-secondary-metric(?!s)/g)).toHaveLength(4)
     expect(source).toContain('<details')
-    expect(actionCenter).toContain('slice(0, 3)')
     expect(source.match(/<SourceActivation/g)).toHaveLength(1)
   })
 

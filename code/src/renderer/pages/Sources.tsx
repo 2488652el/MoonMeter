@@ -492,7 +492,7 @@ export default function Sources() {
       <Card
         className="mt-4"
         title="已有来源健康记录"
-        subtitle="Provider 与传统本地 CLI 同样在这里集中查看；异常项从行动中心深链到本页"
+        subtitle="Provider 与传统本地 CLI 同样在这里集中查看；异常项可在本页直接处理"
       >
         {quota?.sources.length ? (
           <div className="grid grid-cols-2 gap-2 max-lg:grid-cols-1">
