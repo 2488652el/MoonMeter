@@ -586,7 +586,10 @@ test.describe.serial('Electron motion and accessibility', () => {
           await window.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
         ).toBe(true)
 
-        // 四张主指标卡必须等高且顶端对齐(auto-rows-fr + h-full + 固定页脚的回归断言)
+        // 主指标卡同行内必须顶端对齐且等高(auto-rows-fr + h-full + 固定页脚的回归断言)。
+        // 卡片带 motion 入场动画,先等动画稳定再测量,否则会把动画中的位移误判为不齐。
+        // 注:desktop 下 4 卡一行;compact 下换行为 2×2,因此按 y 聚类成行,校验每行内部齐平。
+        await expectSettled(window)
         const primaryBoxes = await window
           .locator('[data-dashboard-primary-metric]')
           .evaluateAll((elements) =>
@@ -596,9 +599,20 @@ test.describe.serial('Electron motion and accessibility', () => {
             })
           )
         expect(primaryBoxes).toHaveLength(4)
+        const rows = new Map<number, { y: number; height: number }[]>()
         for (const box of primaryBoxes) {
-          expect(Math.abs(box.y - primaryBoxes[0]!.y)).toBeLessThanOrEqual(1)
-          expect(Math.abs(box.height - primaryBoxes[0]!.height)).toBeLessThanOrEqual(1)
+          const key = Math.round(box.y)
+          const row = rows.get(key) ?? []
+          row.push(box)
+          rows.set(key, row)
+        }
+        for (const row of rows.values()) {
+          const rowTop = row[0]!.y
+          const rowHeight = row[0]!.height
+          for (const box of row) {
+            expect(box.height, '同一行主指标卡高度应一致(auto-rows-fr)').toEqual(rowHeight)
+            expect(Math.abs(box.y - rowTop)).toBeLessThanOrEqual(1)
+          }
         }
 
         await window.screenshot({
