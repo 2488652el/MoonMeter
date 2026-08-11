@@ -30,6 +30,7 @@ import { BudgetPlanningPanel } from '../components/BudgetPlanningPanel'
 import { LocalReportPanel } from '../components/LocalReportPanel'
 import { SourceActivation } from '../components/SourceActivation'
 import { AnimatedNumber, MotionGroup, ProgressBar } from '../components/motion'
+import { MetricCard, type MetricDelta } from '../components/MetricCard'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { useQuotaPlanning } from '../hooks/useQuotaPlanning'
 import { useBudgetPlanning } from '../hooks/useBudgetPlanning'
@@ -45,6 +46,7 @@ import type {
 import type { BalanceSnapshot } from '../../shared/types/provider'
 import {
   buildModelUsageSeries,
+  compareUsageSeriesWindows,
   type UsageTrendModel,
   type UsageTrendRange,
   type UsageTrendSeries
@@ -140,7 +142,7 @@ function fillMissingDays(
     const d = new Date(today)
     d.setDate(today.getDate() - i)
     const key = d.toISOString().slice(0, 10)
-    out.push(byDate.get(key) ?? { date: key, cost: 0, byCurrency: [], tokens: 0 })
+    out.push(byDate.get(key) ?? { date: key, cost: 0, byCurrency: [], tokens: 0, requests: 0 })
   }
   return out
 }
@@ -378,6 +380,32 @@ export default function Dashboard() {
     (filter.projectContains ? 1 : 0)
   const hasCnySpend = Boolean(spend && spend.totalRequests > 0)
   const estimatedCostValue = hasCnySpend ? (spend?.cnyTotal ?? 0) : (summary?.totalCost ?? 0)
+
+  // —— 绑定到各核心指标的真实趋势序列与涨跌(供 MetricCard sparkline) ——
+  // 成本 / Tokens / 请求数序列直接取 Main 进程聚合并按天补齐的 DashboardSummary.daily。
+  const daily = useMemo(() => summary?.daily ?? [], [summary])
+  const costSeries = useMemo(() => daily.map((d) => d.cost), [daily])
+  const tokensSeries = useMemo(() => daily.map((d) => d.tokens), [daily])
+  const requestsSeries = useMemo(() => daily.map((d) => d.requests), [daily])
+
+  /** 由日序列计算涨跌:后半窗口 vs 前半窗口(等价长度的相邻两段)。 */
+  function deltaFromSeries(series: number[]): MetricDelta | undefined {
+    const delta = compareUsageSeriesWindows(series)
+    if (!delta) return undefined
+    return {
+      direction: delta.direction,
+      label:
+        delta.percent === null
+          ? delta.direction === 'up'
+            ? '新增'
+            : '变化'
+          : `${delta.percent >= 100 ? Math.round(delta.percent) : delta.percent.toFixed(1)}%`
+    }
+  }
+  const costDelta = useMemo(() => deltaFromSeries(costSeries), [costSeries])
+  const tokensDelta = useMemo(() => deltaFromSeries(tokensSeries), [tokensSeries])
+  const requestsDelta = useMemo(() => deltaFromSeries(requestsSeries), [requestsSeries])
+
   const health = useMemo(
     () => buildDashboardHealth(spend, records, refreshResult),
     [records, refreshResult, spend]
@@ -712,17 +740,14 @@ export default function Dashboard() {
 
             <MotionGroup className="grid grid-cols-4 gap-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
               <div data-dashboard-primary-metric>
-                <OverviewMetricCard
+                <MetricCard
                   label="总成本"
                   icon="fa-coins"
                   tone="accent"
-                  value={
-                    <AnimatedNumber
-                      value={estimatedCostValue}
-                      format={(value) => (hasCnySpend ? fmtMoney(value, 'CNY') : fmtMoney(value))}
-                      durationMs={520}
-                    />
-                  }
+                  value={estimatedCostValue}
+                  format={(value) => (hasCnySpend ? fmtMoney(value, 'CNY') : fmtMoney(value))}
+                  delta={costDelta}
+                  series={costSeries}
                   sub={
                     hasCnySpend
                       ? spend && spend.estimatedRequests > 0
@@ -734,16 +759,14 @@ export default function Dashboard() {
                 />
               </div>
               <div data-dashboard-primary-metric>
-                <OverviewMetricCard
+                <MetricCard
                   label="真实消耗 Tokens"
                   icon="fa-bolt"
-                  value={
-                    heroNumber !== null ? (
-                      <AnimatedNumber value={heroNumber} format={fmtCount} durationMs={520} />
-                    ) : (
-                      '—'
-                    )
-                  }
+                  tone="blue"
+                  value={heroNumber ?? 0}
+                  format={fmtCount}
+                  delta={tokensDelta}
+                  series={tokensSeries}
                   sub={
                     totalTokens > 0
                       ? 'API 请求 + 本地 CLI 会话'
@@ -755,33 +778,26 @@ export default function Dashboard() {
                 />
               </div>
               <div data-dashboard-primary-metric>
-                <OverviewMetricCard
+                <MetricCard
                   label="总请求数"
                   icon="fa-arrow-right-arrow-left"
-                  tone="blue"
-                  value={
-                    <AnimatedNumber
-                      value={summary?.totalRequests ?? 0}
-                      format={(value) => Math.round(value).toLocaleString('en-US')}
-                      durationMs={480}
-                    />
-                  }
+                  tone="purple"
+                  value={summary?.totalRequests ?? 0}
+                  format={(value) => Math.round(value).toLocaleString('en-US')}
+                  delta={requestsDelta}
+                  series={requestsSeries}
                   sub={`${summary?.providers.length ?? 0} 个活跃来源`}
                   motionOrder={2}
                 />
               </div>
               <div data-dashboard-primary-metric>
-                <OverviewMetricCard
+                <MetricCard
                   label="计价覆盖"
                   icon="fa-tag"
                   tone={health.tone === 'error' ? 'red' : health.coverage < 1 ? 'amber' : 'accent'}
-                  value={
-                    <AnimatedNumber
-                      value={health.coverage * 100}
-                      format={(value) => `${value.toFixed(0)}%`}
-                      durationMs={480}
-                    />
-                  }
+                  value={health.coverage * 100}
+                  format={(value) => `${value.toFixed(0)}%`}
+                  progress={health.coverage}
                   sub={
                     health.failedSources > 0
                       ? `${health.failedSources} 个来源刷新失败`

@@ -93,7 +93,7 @@ describe('getCnyRateQuote', () => {
         totalCacheReadTokens: 0,
         totalRequests: 2,
         providers: [{ providerId: 'mixed', cost: 2, byCurrency, tokens: 2, pct: 1 }],
-        daily: [{ date: '2026-07-25', cost: 2, byCurrency, tokens: 2 }]
+        daily: [{ date: '2026-07-25', cost: 2, byCurrency, tokens: 2, requests: 2 }]
       }),
       withCnyModelSpendConversion([
         {
