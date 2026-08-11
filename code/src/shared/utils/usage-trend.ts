@@ -152,3 +152,60 @@ export function buildModelUsageSeries(
 
   return { points, models, bucketKind }
 }
+
+/**
+ * 单调三次插值(Fritsch–Carlson)→ SVG 平滑路径命令。
+ *
+ * 与折线相比转角更圆润,且通过限制切线斜率保证曲线不越过任何数据点、
+ * 不产生回勾或负值过冲——对稀疏、含零桶的用量序列尤为重要(镜像流图、
+ * sparkline 都依赖这一点)。供 Dashboard sparkline / 流图等复用。
+ *
+ * @param points 按 x 升序的 [x, y] 坐标点
+ * @returns SVG path 命令字符串(M + 若干 C 段);少于 2 点时退化为 M/L
+ */
+export function monotonePath(points: Array<[number, number]>): string {
+  const n = points.length
+  if (n === 0) return ''
+  if (n === 1) return `M${points[0]![0]},${points[0]![1]}`
+  if (n === 2) return `M${points[0]![0]},${points[0]![1]}L${points[1]![0]},${points[1]![1]}`
+
+  // 每个区间的斜率 m 与每个点的切线斜率 t
+  const m: number[] = []
+  for (let i = 0; i < n - 1; i++) {
+    const dx = points[i + 1]![0] - points[i]![0] || 1e-6
+    m.push((points[i + 1]![1] - points[i]![1]) / dx)
+  }
+  const t: number[] = new Array(n)
+  t[0] = m[0]!
+  t[n - 1] = m[n - 2]!
+  for (let i = 1; i < n - 1; i++) {
+    // 局部极值处切线归零,避免越过数据点
+    t[i] = m[i - 1]! * m[i]! <= 0 ? 0 : (m[i - 1]! + m[i]!) / 2
+  }
+  // Fritsch–Carlson 单调性约束:限制切线幅度
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) {
+      t[i] = 0
+      t[i + 1] = 0
+      continue
+    }
+    const a = t[i]! / m[i]!
+    const b = t[i + 1]! / m[i]!
+    const s = a * a + b * b
+    if (s > 9) {
+      const tau = 3 / Math.sqrt(s)
+      t[i] = tau * a * m[i]!
+      t[i + 1] = tau * b * m[i]!
+    }
+  }
+
+  let d = `M${points[0]![0].toFixed(2)},${points[0]![1].toFixed(2)}`
+  for (let i = 0; i < n - 1; i++) {
+    const dx = (points[i + 1]![0] - points[i]![0]) / 3
+    d +=
+      `C${(points[i]![0] + dx).toFixed(2)},${(points[i]![1] + t[i]! * dx).toFixed(2)} ` +
+      `${(points[i + 1]![0] - dx).toFixed(2)},${(points[i + 1]![1] - t[i + 1]! * dx).toFixed(2)} ` +
+      `${points[i + 1]![0].toFixed(2)},${points[i + 1]![1].toFixed(2)}`
+  }
+  return d
+}
