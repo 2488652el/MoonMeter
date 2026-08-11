@@ -6,7 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { MoonMeterAppIcon } from '../components/Brand'
-import { AnimatedNumber, ProgressBar } from '../components/motion'
+import { AnimatedNumber, SegmentedProgress } from '../components/motion'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { useTheme, type ThemeMode } from '../theme'
 import type { SyncMode } from '../../shared/sync-mode'
@@ -457,11 +457,13 @@ export default function Settings() {
             )}
             {appUpdateStatus?.phase === 'downloading' && (
               <div className="mt-3 flex items-center gap-2">
-                <ProgressBar
+                <SegmentedProgress
                   value={(appUpdateStatus.percent ?? 0) / 100}
                   label="更新下载进度"
                   tone="accent"
-                  trackClassName="h-1.5 flex-1"
+                  showTicks={false}
+                  height={10}
+                  className="flex-1"
                 />
                 <span className="w-10 text-right font-mono text-[11px] text-text-muted">
                   <AnimatedNumber

@@ -9,7 +9,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { Modal } from '../components/Modal'
-import { AnimatedNumber, ProgressBar } from '../components/motion'
+import { AnimatedNumber, SegmentedProgress } from '../components/motion'
 import { fmtMoney } from '../../shared/utils/money'
 import type {
   AlertEvent,
@@ -531,11 +531,13 @@ function ThresholdCell({ rule, value }: { rule: AlertRule; value: string }) {
         value={threshold}
         format={(next) => `${Number.isInteger(next) ? next.toFixed(0) : next.toFixed(1)}%`}
       />
-      <ProgressBar
+      <SegmentedProgress
         value={threshold / 100}
         label="剩余百分比告警阈值"
         tone="amber"
-        trackClassName="mt-1 h-1 w-16"
+        showTicks={false}
+        height={8}
+        className="mt-1 w-16"
       />
     </div>
   )

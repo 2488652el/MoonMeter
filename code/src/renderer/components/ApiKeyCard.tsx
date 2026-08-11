@@ -7,7 +7,7 @@ import { Icon } from './Icon'
 import { useEffect, useState } from 'react'
 import { CARD_SURFACE_CLASS } from './cardStyles'
 import { ProviderIcon } from './ProviderIcon'
-import { ProgressBar } from './motion'
+import { SegmentedProgress } from './motion'
 import { fmtMoney, fmtCount } from '../../shared/utils/money'
 import { extractCodingPlanQuotas, type CodingPlanQuota } from '../../shared/utils/minimax-quota'
 import { extractKimiCodingQuotas, type KimiQuotaWindow } from '../../shared/utils/kimi-quota'
@@ -396,12 +396,12 @@ function KimiCodingQuotaRow({ label, quota }: { label: string; quota: KimiQuotaW
           {quota?.remainingText ?? '暂无自动读取'}
         </span>
       </div>
-      <ProgressBar
+      <SegmentedProgress
         value={width / 100}
         label={`${label}已用比例`}
         tone={tone}
-        trackClassName="h-1.5 bg-bg-hover"
-        fillClassName={!hasPct ? 'bg-neutral-200' : ''}
+        showTicks={false}
+        height={12}
       />
       <div className="flex justify-between gap-3 text-[11px] text-text-muted leading-snug">
         <span>{quota?.resetText ?? 'Kimi Coding Plan 套餐限额'}</span>
@@ -461,12 +461,12 @@ function CodingPlanQuotaRow({ label, quota }: { label: string; quota: CodingPlan
         <span className="text-text-muted text-[12px]">{label}</span>
         <span className="font-mono text-[12px] text-text-primary text-right">{value}</span>
       </div>
-      <ProgressBar
+      <SegmentedProgress
         value={width / 100}
         label={`${label}已用比例`}
         tone={tone}
-        trackClassName="h-1.5 bg-bg-hover"
-        fillClassName={!hasPct ? 'bg-neutral-200' : ''}
+        showTicks={false}
+        height={12}
       />
       <div className="flex justify-between gap-3 text-[11px] text-text-muted leading-snug">
         <span>{detail}</span>
@@ -525,12 +525,12 @@ function UsageBar({
   const tone = pct !== null && pct >= 90 ? 'accent' : pct !== null && pct >= 70 ? 'amber' : 'red'
   return (
     <div className="pt-1" title={showPlaceholder ? '暂无总额数据' : `剩余 ${pct!.toFixed(1)}%`}>
-      <ProgressBar
+      <SegmentedProgress
         value={width / 100}
         label={showPlaceholder ? '暂无总额数据' : `剩余额度 ${pct!.toFixed(1)}%`}
         tone={tone}
-        trackClassName="h-1.5 bg-bg-hover"
-        fillClassName={showPlaceholder ? 'bg-neutral-200' : ''}
+        showTicks={false}
+        height={12}
       />
     </div>
   )

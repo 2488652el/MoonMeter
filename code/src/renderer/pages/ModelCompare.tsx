@@ -8,8 +8,8 @@ import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { ModelUsageCard } from '../components/ModelUsageCard'
-import { StatTile } from '../components/StatTile'
-import { AnimatedNumber, MotionGroup } from '../components/motion'
+import { MetricCard } from '../components/MetricCard'
+import { MotionGroup } from '../components/motion'
 import { fmtCount } from '../../shared/utils/money'
 import { buildModelCompareSummary } from '../../shared/utils/model-compare'
 import type { ModelSpendAggregate } from '../../shared/types/usage'
@@ -74,40 +74,40 @@ export default function ModelCompare() {
       ) : (
         <>
           <MotionGroup className="mb-4 grid grid-cols-4 gap-3 max-xl:grid-cols-2">
-            <StatTile
+            <MetricCard
               label="活跃模型"
               icon="fa-cubes"
-              value={<AnimatedNumber value={summary.modelCount} />}
+              value={summary.modelCount}
+              format={(v) => Math.round(v).toLocaleString('en-US')}
               sub={`展示费用最高的前 ${Math.min(models.length, MAX_VISIBLE_MODELS)} 个`}
               motionOrder={0}
             />
-            <StatTile
+            <MetricCard
               label="模型请求"
               icon="fa-arrow-right-arrow-left"
-              value={<AnimatedNumber value={summary.requests} />}
+              tone="blue"
+              value={summary.requests}
+              format={(v) => Math.round(v).toLocaleString('en-US')}
               sub="跨 Provider 聚合"
-              accent="blue"
               motionOrder={1}
             />
-            <StatTile
+            <MetricCard
               label="总 Token"
               icon="fa-coins"
-              value={<AnimatedNumber value={summary.tokens} format={(value) => fmtCount(value)} />}
+              tone="purple"
+              value={summary.tokens}
+              format={fmtCount}
               sub="Input + Output"
-              accent="purple"
               motionOrder={2}
             />
-            <StatTile
+            <MetricCard
               label="计价覆盖"
               icon="fa-tag"
-              value={
-                <AnimatedNumber
-                  value={summary.coverage * 100}
-                  format={(value) => `${value.toFixed(0)}%`}
-                />
-              }
+              tone={summary.coverage < 1 ? 'amber' : 'accent'}
+              value={summary.coverage * 100}
+              format={(v) => `${v.toFixed(0)}%`}
+              progress={summary.coverage}
               sub={`${summary.pricedRequests}/${summary.requests} 次请求`}
-              accent={summary.coverage < 1 ? 'amber' : 'accent'}
               motionOrder={3}
             />
           </MotionGroup>
