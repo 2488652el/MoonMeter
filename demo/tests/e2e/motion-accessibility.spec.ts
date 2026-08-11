@@ -585,6 +585,43 @@ test.describe.serial('Electron motion and accessibility', () => {
         expect(
           await window.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
         ).toBe(true)
+
+        // 主指标卡同行内必须顶端对齐且等高(auto-rows-fr + h-full + 固定页脚的回归断言)。
+        // 卡片带 motion 入场动画,先等动画稳定再测量,否则会把动画中的位移误判为不齐。
+        // 注:desktop 下 4 卡一行;compact 下换行为 2×2,因此按 y 聚类成行,校验每行内部齐平。
+        await expectSettled(window)
+        const primaryBoxes = await window
+          .locator('[data-dashboard-primary-metric]')
+          .evaluateAll((elements) =>
+            elements.map((element) => {
+              const rect = element.getBoundingClientRect()
+              return { y: rect.y, height: rect.height }
+            })
+          )
+        expect(primaryBoxes).toHaveLength(4)
+        const sortedBoxes = [...primaryBoxes].sort((left, right) => left.y - right.y)
+        const sameRowThreshold = Math.min(...sortedBoxes.map((box) => box.height)) / 2
+        const rows: Array<Array<{ y: number; height: number }>> = []
+        for (const box of sortedBoxes) {
+          const row = rows.at(-1)
+          if (!row || Math.abs(box.y - row[0]!.y) > sameRowThreshold) {
+            rows.push([box])
+          } else {
+            row.push(box)
+          }
+        }
+        const expectedColumns = viewport.width >= 1280 ? 4 : 2
+        expect(rows).toHaveLength(4 / expectedColumns)
+        for (const row of rows) {
+          expect(row).toHaveLength(expectedColumns)
+          const rowTop = row[0]!.y
+          const rowHeight = row[0]!.height
+          for (const box of row) {
+            expect(box.height, '同一行主指标卡高度应一致(auto-rows-fr)').toEqual(rowHeight)
+            expect(Math.abs(box.y - rowTop)).toBeLessThanOrEqual(1)
+          }
+        }
+
         await window.screenshot({
           path: testInfo.outputPath(`dashboard-${viewport.name}.png`),
           animations: 'disabled'

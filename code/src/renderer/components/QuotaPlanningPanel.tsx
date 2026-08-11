@@ -2,6 +2,7 @@ import type { QuotaPlanningOverview } from '../../shared/types/quota-planning'
 import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Card } from './Card'
+import { SegmentedProgress } from './motion'
 
 const FORECAST_LABEL = {
   'exhausts-early': '会提前耗尽',
@@ -67,6 +68,18 @@ export function QuotaPlanningPanel({ overview }: { overview: QuotaPlanningOvervi
                   : `${(100 - window.usedPercent).toFixed(1)}%`}
               </div>
             </div>
+            {window.usedPercent === undefined ? null : (
+              <SegmentedProgress
+                label={`${window.sourceId} ${window.windowKey} 剩余额度`}
+                value={(100 - window.usedPercent) / 100}
+                tone={
+                  window.usedPercent >= 90 ? 'red' : window.usedPercent >= 70 ? 'amber' : 'accent'
+                }
+                showTicks={false}
+                height={22}
+                className="mt-2"
+              />
+            )}
             <div className="mt-3 border-t border-border-light pt-3 text-[11.5px]">
               {forecast.available ? (
                 <>

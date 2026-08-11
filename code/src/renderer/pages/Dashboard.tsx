@@ -29,7 +29,7 @@ import { QuotaPlanningPanel } from '../components/QuotaPlanningPanel'
 import { BudgetPlanningPanel } from '../components/BudgetPlanningPanel'
 import { LocalReportPanel } from '../components/LocalReportPanel'
 import { SourceActivation } from '../components/SourceActivation'
-import { AnimatedNumber, MotionGroup, ProgressBar } from '../components/motion'
+import { AnimatedNumber, MotionGroup, SegmentedProgress } from '../components/motion'
 import { MetricCard, type MetricDelta } from '../components/MetricCard'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { useQuotaPlanning } from '../hooks/useQuotaPlanning'
@@ -868,50 +868,36 @@ export default function Dashboard() {
             <div className="space-y-6 border-t border-border-light p-5">
               <div className="grid grid-cols-4 gap-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
                 <div data-dashboard-secondary-metric>
-                  <OverviewMetricCard
+                  <MetricCard
                     label="新增输入"
                     icon="fa-arrow-down"
                     tone="blue"
-                    value={
-                      <AnimatedNumber
-                        value={summary?.totalInputTokens ?? 0}
-                        format={fmtCount}
-                        durationMs={480}
-                      />
-                    }
+                    value={summary?.totalInputTokens ?? 0}
+                    format={fmtCount}
                     sub="Input tokens"
                     motionOrder={4}
                   />
                 </div>
                 <div data-dashboard-secondary-metric>
-                  <OverviewMetricCard
+                  <MetricCard
                     label="模型输出"
                     icon="fa-arrow-up"
                     tone="purple"
-                    value={
-                      <AnimatedNumber
-                        value={summary?.totalOutputTokens ?? 0}
-                        format={fmtCount}
-                        durationMs={480}
-                      />
-                    }
+                    value={summary?.totalOutputTokens ?? 0}
+                    format={fmtCount}
                     sub="Output tokens"
                     motionOrder={5}
                   />
                 </div>
                 <div data-dashboard-secondary-metric>
-                  <OverviewMetricCard
+                  <MetricCard
                     label="缓存命中率"
                     icon="fa-database"
-                    value={
-                      <AnimatedNumber
-                        value={cacheHitRate * 100}
-                        format={(value) => `${value.toFixed(1)}%`}
-                        durationMs={480}
-                      />
-                    }
-                    sub={`${fmtCount(summary?.totalCacheReadTokens ?? 0)} 缓存读取`}
+                    tone="green"
+                    value={cacheHitRate * 100}
+                    format={(v) => `${v.toFixed(1)}%`}
                     progress={cacheHitRate}
+                    sub={`${fmtCount(summary?.totalCacheReadTokens ?? 0)} 缓存读取`}
                     motionOrder={6}
                   />
                 </div>
@@ -1162,12 +1148,13 @@ function OverviewMetricCard({
       </div>
       {progress !== undefined ? (
         <>
-          <ProgressBar
+          <SegmentedProgress
             value={progress}
             label={`${label}进度`}
-            className="mt-auto pt-3"
-            trackClassName="bg-bg-hover"
             tone="green"
+            showTicks={false}
+            height={12}
+            className="mt-auto pt-3"
           />
           <div className="mt-2 truncate text-[11px] text-text-secondary" title={sub}>
             {sub}

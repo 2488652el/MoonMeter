@@ -1,6 +1,6 @@
 import { Icon } from './Icon'
 import type { CodexUsageSnapshot, CodexUsageWindow } from '../../shared/types/codex-usage'
-import { AnimatedNumber, ProgressBar } from './motion'
+import { AnimatedNumber, SegmentedProgress } from './motion'
 
 function formatPercent(value: number): string {
   return `${Math.round(value)}%`
@@ -70,11 +70,13 @@ function QuotaRow({
           <div className="text-[10px] text-text-muted">剩余</div>
         </div>
       </div>
-      <ProgressBar
+      <SegmentedProgress
         value={width / 100}
         label={`${label}剩余额度`}
         tone={tone}
-        trackClassName="mt-3 h-2 bg-bg-hover"
+        showTicks={false}
+        height={26}
+        className="mt-3"
       />
       <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px] text-text-muted">
         <span>

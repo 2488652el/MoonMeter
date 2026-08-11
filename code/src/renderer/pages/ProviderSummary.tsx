@@ -18,7 +18,7 @@ import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { Tabs, type TabDef } from '../components/Tabs'
-import { AnimatedNumber, MotionGroup, ProgressBar } from '../components/motion'
+import { AnimatedNumber, MotionGroup, SegmentedProgress } from '../components/motion'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { fmtCount, fmtMoney, formatPct } from '../../shared/utils/money'
 import {
@@ -406,10 +406,13 @@ export default function ProviderSummary() {
                         className="text-text-secondary font-mono"
                       />
                     </div>
-                    <ProgressBar
+                    <SegmentedProgress
                       value={topProviders[0]?.cost ? p.cost / topProviders[0].cost : 0}
                       label={`${p.providerId} 费用排行`}
-                      className="ml-8 mt-1"
+                      tone="accent"
+                      showTicks={false}
+                      height={10}
+                      className="mt-1 pl-8"
                     />
                   </li>
                 ))}

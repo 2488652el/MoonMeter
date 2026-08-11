@@ -5,7 +5,7 @@
   <p>面向开发者的本地优先用量、余额与成本工作台。</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.3.9-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.4.0-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -110,13 +110,13 @@ npm run build
 ### Windows 打包
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.3.9" --model "release"
+npm run dist:win -- --change "MoonMeter-1.4.0" --model "release"
 ```
 
 输出目录：
 
 ```text
-demo/moonmeter-1.3.9-MoonMeter-1.3.9-release/
+demo/moonmeter-1.4.0-MoonMeter-1.4.0-release/
 ```
 
 macOS 可使用 `npm run dist:mac:x64`、`npm run dist:mac:arm64` 或 `npm run dist:mac`。正式构建与历史版本请前往 [GitHub Releases](https://github.com/2488652el/MoonMeter/releases)。
@@ -181,4 +181,4 @@ Electron 31 · React 19 · TypeScript · Vite · Tailwind CSS · Recharts · Zus
 
 ## 版本
 
-当前源码版本：**MoonMeter 1.3.9**。本版升级仪表盘核心指标卡，加入真实趋势与分段计价覆盖，并修正请求、缓存 Token 和涨跌窗口的统计口径；继续保持所有本地数据控制在用户设备上。详见 [CHANGELOG.md](./CHANGELOG.md)。
+当前源码版本：**MoonMeter 1.4.0**。本版将 MetricCard 与 SegmentedProgress 统一落地到各仪表盘，修复首页主指标卡对齐、预算进度口径及紧凑进度条显示问题；继续保持所有本地数据控制在用户设备上。详见 [CHANGELOG.md](./CHANGELOG.md)。
