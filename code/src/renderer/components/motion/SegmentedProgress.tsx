@@ -24,6 +24,8 @@ export type SegmentedProgressProps = {
   height?: number | undefined
   /** 是否显示 0/50/100 刻度(默认 true)。 */
   showTicks?: boolean | undefined
+  /** 自定义填充色(CSS 颜色);提供时覆盖 tone(仅对"未达阈值"常态生效由调用方控制)。 */
+  color?: string | undefined
   className?: string | undefined
 }
 
@@ -43,12 +45,13 @@ export function SegmentedProgress({
   segments = 20,
   height = 34,
   showTicks = true,
+  color,
   className
 }: SegmentedProgressProps) {
   const reducedMotion = useReducedMotion()
   const progress = clampProgress(value)
   const filledCount = Math.round(progress * segments)
-  const fill = TONE_FILL[tone]
+  const fill = color ?? TONE_FILL[tone]
 
   return (
     <div className={clsx('w-full', className)}>

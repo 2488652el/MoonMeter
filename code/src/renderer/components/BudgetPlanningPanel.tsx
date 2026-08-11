@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Card } from './Card'
-import { ProgressBar } from './motion'
+import { SegmentedProgress } from './motion'
 import type { BudgetOverview, BudgetRuleInput, BudgetScope } from '../../shared/types/budget'
 
 const scopeLabels: Record<BudgetScope, string> = {
@@ -245,7 +245,8 @@ export function BudgetPlanningPanel({
                 </span>
               </div>
               <div className="mt-2">
-                <ProgressBar label="预算已用" value={percent} tone={tone} />
+                {/* percentUsed 为 0–100,SegmentedProgress 收 0–1;20 段×5% 贴合 80/100 阶梯 */}
+                <SegmentedProgress label="预算已用" value={percent / 100} tone={tone} />
               </div>
               <div className="mt-3 space-y-1 text-[11px] text-text-secondary">
                 <div>
