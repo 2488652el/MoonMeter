@@ -85,7 +85,7 @@ window.addEventListener('online', () => {
  * the same zod schema before dispatching. Validating twice is YAGNI.
  */
 const api = {
-  version: '1.3.8',
+  version: '1.3.9',
 
   keys: {
     list: (): Promise<ApiKeyRecord[]> => ipcRenderer.invoke(IPC.keysList),
