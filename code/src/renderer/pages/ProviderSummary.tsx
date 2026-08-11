@@ -412,7 +412,7 @@ export default function ProviderSummary() {
                       tone="accent"
                       showTicks={false}
                       height={10}
-                      className="ml-8 mt-1"
+                      className="mt-1 pl-8"
                     />
                   </li>
                 ))}

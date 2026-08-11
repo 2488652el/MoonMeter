@@ -599,14 +599,21 @@ test.describe.serial('Electron motion and accessibility', () => {
             })
           )
         expect(primaryBoxes).toHaveLength(4)
-        const rows = new Map<number, { y: number; height: number }[]>()
-        for (const box of primaryBoxes) {
-          const key = Math.round(box.y)
-          const row = rows.get(key) ?? []
-          row.push(box)
-          rows.set(key, row)
+        const sortedBoxes = [...primaryBoxes].sort((left, right) => left.y - right.y)
+        const sameRowThreshold = Math.min(...sortedBoxes.map((box) => box.height)) / 2
+        const rows: Array<Array<{ y: number; height: number }>> = []
+        for (const box of sortedBoxes) {
+          const row = rows.at(-1)
+          if (!row || Math.abs(box.y - row[0]!.y) > sameRowThreshold) {
+            rows.push([box])
+          } else {
+            row.push(box)
+          }
         }
-        for (const row of rows.values()) {
+        const expectedColumns = viewport.width >= 1280 ? 4 : 2
+        expect(rows).toHaveLength(4 / expectedColumns)
+        for (const row of rows) {
+          expect(row).toHaveLength(expectedColumns)
           const rowTop = row[0]!.y
           const rowHeight = row[0]!.height
           for (const box of row) {

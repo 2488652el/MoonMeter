@@ -535,6 +535,7 @@ function ThresholdCell({ rule, value }: { rule: AlertRule; value: string }) {
         value={threshold / 100}
         label="剩余百分比告警阈值"
         tone="amber"
+        segments={10}
         showTicks={false}
         height={8}
         className="mt-1 w-16"
