@@ -26,9 +26,22 @@ tmp-visual-audit/
 .codex/
 .omc/
 /.worktrees/
-AGENTS.md
 docs/ADVERSARIAL-REPORTS/
 docs/superpowers/
 design/site/
 _temp/
-plan/
+
+# 双 Agent 协作:仅放行协作文档,其余本地文档保持忽略
+# (plan/ 下除 handoffs/ 与 COLLABORATION.md 外的规划/决策文档仍本地)
+!AGENTS.md
+!CLAUDE.md
+plan/*
+!plan/COLLABORATION.md
+!plan/handoffs/
+plan/handoffs/*
+!plan/handoffs/*.md
+
+# 本地过程文档(不入 Git)
+PROGRESS.md
+BLOCKED.md
+design-qa.md
