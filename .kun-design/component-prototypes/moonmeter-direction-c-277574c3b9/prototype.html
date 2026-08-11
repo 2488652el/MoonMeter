@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline' 'self'; script-src 'unsafe-inline' 'self'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="kun-component-prototype" content="1" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoonMeter — Direction C 精修 · 仪表盘</title>
+    <style>
+      /* ============ Direction C 精修 · 设计 token ============ */
+      :root {
+        color-scheme: light;
+        /* 纸墨基底（沿用线上） */
+        --paper: #f4f1e9;
+        --paper-strong: #ebe6dc;
+        --ink: #151515;
+        --ink-2: #55514a;
+        --ink-3: #85807a;
+        --hairline: rgba(21, 21, 21, 0.14);
+        --hairline-strong: rgba(21, 21, 21, 0.24);
+        --gold: #b59a58;
+        --gold-strong: #917638;
+
+        /* 精修 1：卡片实底化 —— 去掉 backdrop-blur 与半透明 */
+        --card: #fbf9f4;
+        --card-hover: #f3efe6;
+
+        /* 精修 2：语义色 token 化，降饱和、向纸墨靠拢 */
+        --ok: #4d7a5e;
+        --warn: #9a7b3a;
+        --err: #a85546;
+        --info: #5f7390;
+        --ok-bg: rgba(77, 122, 94, 0.1);
+        --warn-bg: rgba(154, 123, 58, 0.1);
+        --err-bg: rgba(168, 85, 70, 0.1);
+
+        /* 阴影（极轻） */
+        --shadow-card: 0 1px 0 rgba(21, 21, 21, 0.02), 0 14px 36px rgba(31, 28, 20, 0.04);
+
+        /* 字 */
+        --sans: system-ui, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+      }
+      [data-theme='dark'] {
+        color-scheme: dark;
+        --paper: #121212;
+        --paper-strong: #1b1b1b;
+        --ink: #f2efe7;
+        --ink-2: #b3aea2;
+        --ink-3: #8b877d;
+        --hairline: rgba(242, 239, 231, 0.14);
+        --hairline-strong: rgba(242, 239, 231, 0.26);
+        --gold: #c2a663;
+        --gold-strong: #cfb475;
+        --card: #1e1e1c;
+        --card-hover: #26251f;
+        --ok: #7ea88e;
+        --warn: #c2a263;
+        --err: #c4816f;
+        --info: #8ba0b8;
+        --shadow-card: 0 1px 0 rgba(0, 0, 0, 0.2), 0 14px 36px rgba(0, 0, 0, 0.28);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        -webkit-font-smoothing: antialiased;
+      }
+      /* 纸张噪点（保留——纸感与 AI 玻璃感的分水岭） */
+      body::before {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        content: '';
+        opacity: 0.14;
+        mix-blend-mode: multiply;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.22'/%3E%3C/svg%3E");
+      }
+      [data-theme='dark'] body::before {
+        opacity: 0.05;
+        mix-blend-mode: screen;
+      }
+
+      /* ============ 布局 ============ */
+      .shell {
+        display: flex;
+        min-height: 100vh;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* 侧栏 216px */
+      .sidebar {
+        width: 216px;
+        flex: none;
+        border-right: 1px solid var(--hairline);
+        background: var(--paper-strong);
+        padding: 20px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: sticky;
+        top: 0;
+        height: 100vh;
+      }
+      .brand {
+        padding: 0 10px 16px;
+        border-bottom: 1px solid var(--hairline);
+        margin-bottom: 12px;
+      }
+      .brand-name {
+        font-size: 14px;
+        font-weight: 500;
+        letter-spacing: 0.18em;
+      }
+      .brand-tag {
+        font-size: 9px;
+        letter-spacing: 0.22em;
+        color: var(--ink-3);
+        margin-top: 5px;
+        text-transform: uppercase;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: var(--ink-2);
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .nav-item .ico {
+        width: 15px;
+        height: 15px;
+        opacity: 0.75;
+      }
+      .nav-item.active {
+        background: var(--ink);
+        color: var(--paper);
+        font-weight: 500;
+      }
+      .nav-item.active .ico {
+        opacity: 1;
+      }
+      .nav-sub {
+        margin: 2px 0 2px 15px;
+        padding-left: 12px;
+        border-left: 1px solid var(--hairline);
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .nav-sub a {
+        padding: 5px 8px;
+        font-size: 12px;
+        color: var(--ink-3);
+        border-radius: 6px;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .nav-sub a.on {
+        color: var(--ink);
+        font-weight: 500;
+      }
+      .sidebar-foot {
+        margin-top: auto;
+        padding-top: 12px;
+        border-top: 1px solid var(--hairline);
+      }
+      .theme-seg {
+        display: flex;
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 999px;
+        padding: 2px;
+      }
+      .theme-seg button {
+        flex: 1;
+        border: 0;
+        background: transparent;
+        font-size: 11px;
+        padding: 4px 0;
+        border-radius: 999px;
+        cursor: pointer;
+        color: var(--ink-3);
+        font-family: var(--sans);
+      }
+      .theme-seg button.on {
+        background: var(--ink);
+        color: var(--paper);
+      }
+      .ver {
+        font-size: 10px;
+        color: var(--ink-3);
+        text-align: center;
+        margin-top: 10px;
+        font-family: var(--mono);
+      }
+
+      /* 主区 */
+      .main {
+        flex: 1;
+        min-width: 0;
+        padding: 28px 32px 48px;
+      }
+
+      /* 精修 3：成文字阶
+     display 30 / title 22 / body 13.5 / label 12 / eyebrow 9.5 / micro 10.5 */
+      .pagehead {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        border-bottom: 1px solid var(--hairline);
+        padding-bottom: 18px;
+        margin-bottom: 20px;
+      }
+      .eyebrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 9.5px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        margin-bottom: 8px;
+      }
+      .eyebrow::before {
+        content: '';
+        width: 24px;
+        height: 1px;
+        background: currentColor;
+      }
+      h1 {
+        font-size: 22px;
+        font-weight: 500;
+        letter-spacing: -0.03em;
+        margin: 0;
+        line-height: 1.2;
+      }
+      .pagedesc {
+        font-size: 12px;
+        color: var(--ink-2);
+        margin-top: 6px;
+      }
+      .btn {
+        font-family: var(--sans);
+        font-size: 12px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--hairline-strong);
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .btn.primary {
+        background: var(--ink);
+        color: var(--paper);
+        border-color: var(--ink);
+      }
+
+      /* 筛选条 */
+      .filterbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        font-size: 12px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--hairline);
+        background: var(--card);
+        color: var(--ink-2);
+        cursor: pointer;
+        font-family: var(--sans);
+      }
+      .chip.on {
+        border-color: var(--gold);
+        color: var(--gold-strong);
+        background: transparent;
+      }
+      .filter-note {
+        margin-left: auto;
+        font-size: 10.5px;
+        color: var(--ink-3);
+        font-family: var(--mono);
+      }
+
+      /* 指标卡网格 */
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+      .g4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .g-main {
+        grid-template-columns: 2fr 1fr;
+        margin-top: 14px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--hairline);
+        border-radius: 14px;
+        box-shadow: var(--shadow-card);
+        padding: 18px;
+        transition: background 180ms ease;
+      }
+      .card.lift:hover {
+        background: var(--card-hover);
+      }
+      .card-h {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .card-title {
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+      .card-sub {
+        font-size: 10.5px;
+        color: var(--ink-3);
+        font-family: var(--mono);
+      }
+
+      .metric-label {
+        font-size: 12px;
+        color: var(--ink-2);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .metric-label .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 2px;
+      }
+      .metric-value {
+        font-family: var(--mono);
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin-top: 8px;
+        font-variant-numeric: tabular-nums;
+      }
+      .metric-value .unit {
+        font-size: 13px;
+        color: var(--ink-3);
+        font-weight: 400;
+        margin-left: 2px;
+      }
+      .metric-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10px;
+      }
+      .delta {
+        font-family: var(--mono);
+        font-size: 11px;
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .delta.up {
+        color: var(--ok);
+      }
+      .delta.down {
+        color: var(--err);
+      }
+      .metric-sub {
+        font-size: 10.5px;
+        color: var(--ink-3);
+      }
+      .spark {
+        margin-top: 12px;
+        height: 40px;
+        display: block;
+        width: 100%;
+      }
+
+      /* 状态徽标（实底低饱和） */
+      .pill {
+        font-size: 10.5px;
+        font-family: var(--mono);
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+      .pill.ok {
+        background: var(--ok-bg);
+        color: var(--ok);
+      }
+      .pill.warn {
+        background: var(--warn-bg);
+        color: var(--warn);
+      }
+      .pill.err {
+        background: var(--err-bg);
+        color: var(--err);
+      }
+
+      /* 表格 */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        text-align: left;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      td {
+        font-size: 12.5px;
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--hairline);
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td.num,
+      th.num {
+        text-align: right;
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .src-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500;
+      }
+      .src-name .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+
+      .foot-note {
+        margin-top: 22px;
+        font-size: 10.5px;
+        color: var(--ink-3);
+        font-family: var(--mono);
+        display: flex;
+        gap: 18px;
+        border-top: 1px solid var(--hairline);
+        padding-top: 12px;
+        flex-wrap: wrap;
+      }
+
+      @media (max-width: 860px) {
+        .g4 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .g-main {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition-duration: 0.01ms !important;
+          animation-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body data-kun-component-root>
+    <div class="shell">
+      <!-- 侧栏 -->
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-name">MOONMETER</div>
+          <div class="brand-tag">Every token, clearer.</div>
+        </div>
+        <a class="nav-item active"
+          ><svg
+            class="ico"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <rect x="1.5" y="1.5" width="5" height="5" rx="1" />
+            <rect x="9.5" y="1.5" width="5" height="5" rx="1" />
+            <rect x="1.5" y="9.5" width="5" height="5" rx="1" />
+            <rect x="9.5" y="9.5" width="5" height="5" rx="1" /></svg
+          >概览</a
+        >
+        <a class="nav-item"
+          ><svg
+            class="ico"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M2 13V7M6 13V3M10 13v-4M14 13V5" /></svg
+          >分析</a
+        >
+        <div class="nav-sub">
+          <a>项目用量</a><a>Provider 汇总</a><a>模型对比</a><a class="on">请求日志</a><a>时间线</a>
+        </div>
+        <a class="nav-item"
+          ><svg
+            class="ico"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <circle cx="8" cy="8" r="6" />
+            <path d="M8 5v3l2 2" /></svg
+          >额度</a
+        >
+        <a class="nav-item"
+          ><svg
+            class="ico"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path d="M8 1.5 14 5v6l-6 3.5L2 11V5z" /></svg
+          >来源</a
+        >
+        <a class="nav-item"
+          ><svg
+            class="ico"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <path
+              d="M8 2a5 5 0 0 1 5 5v3l1.5 2.5h-13L3 10V7a5 5 0 0 1 5-5zM6.5 13a1.5 1.5 0 0 0 3 0"
+            /></svg
+          >告警</a
+        >
+        <a class="nav-item"
+          ><svg
+            class="ico"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          >
+            <circle cx="8" cy="8" r="2.2" />
+            <path
+              d="M13 8a5 5 0 0 0-.1-1l1.8-1.4-1.7-2.9-2.1.8a5 5 0 0 0-1.7-1L8.9.3H7.1l-.3 2.2a5 5 0 0 0-1.7 1l-2.1-.8-1.7 2.9L3.1 7a5 5 0 0 0 0 2l-1.8 1.4 1.7 2.9 2.1-.8a5 5 0 0 0 1.7 1l.3 2.2h1.8l.3-2.2h1.8z"
+            /></svg
+          >设置</a
+        >
+        <div class="sidebar-foot">
+          <div class="theme-seg">
+            <button data-t="light">浅色</button>
+            <button data-t="system" class="on">系统</button>
+            <button data-t="dark">深色</button>
+          </div>
+          <div class="ver">MoonMeter v1.4.0</div>
+        </div>
+      </aside>
+
+      <!-- 主区 -->
+      <main class="main">
+        <div class="pagehead">
+          <div>
+            <div class="eyebrow">Overview · 概览</div>
+            <h1>使用统计</h1>
+            <div class="pagedesc">全部来源 · 最近 30 天 · 数据更新于 2 分钟前</div>
+          </div>
+          <div style="display: flex; gap: 8px">
+            <button class="btn">导出</button>
+            <button class="btn primary">立即刷新</button>
+          </div>
+        </div>
+
+        <div class="filterbar">
+          <button class="chip on">最近 30 天</button>
+          <button class="chip">最近 7 天</button>
+          <button class="chip">本月</button>
+          <button class="chip">全部来源 ▾</button>
+          <button class="chip">全部模型 ▾</button>
+          <span class="filter-note">12 来源在线 · 2 异常</span>
+        </div>
+
+        <!-- 4 张主指标卡 -->
+        <div class="grid g4">
+          <div class="card lift">
+            <div class="metric-label">
+              <span class="dot" style="background: var(--gold)"></span>总成本
+            </div>
+            <div class="metric-value">¥1,284.56<span class="unit">CNY</span></div>
+            <div class="metric-foot">
+              <span class="delta up">▲ 12.4%</span>
+              <span class="metric-sub">vs 上周期</span>
+            </div>
+            <svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <polyline
+                fill="none"
+                stroke="var(--gold)"
+                stroke-width="1.5"
+                points="0,32 25,28 50,30 75,22 100,24 125,16 150,18 175,10 200,8"
+              />
+            </svg>
+          </div>
+          <div class="card lift">
+            <div class="metric-label">
+              <span class="dot" style="background: var(--info)"></span>总 Tokens
+            </div>
+            <div class="metric-value">48.2<span class="unit">M</span></div>
+            <div class="metric-foot">
+              <span class="delta up">▲ 8.1%</span>
+              <span class="metric-sub">输入 31M / 输出 17M</span>
+            </div>
+            <svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <polyline
+                fill="none"
+                stroke="var(--info)"
+                stroke-width="1.5"
+                points="0,30 25,26 50,28 75,20 100,22 125,25 150,14 175,16 200,12"
+              />
+            </svg>
+          </div>
+          <div class="card lift">
+            <div class="metric-label">
+              <span class="dot" style="background: var(--ok)"></span>活跃项目
+            </div>
+            <div class="metric-value">7<span class="unit">个</span></div>
+            <div class="metric-foot">
+              <span class="delta up">▲ 2</span>
+              <span class="metric-sub">Claude Code ×5 · Codex ×2</span>
+            </div>
+            <svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <polyline
+                fill="none"
+                stroke="var(--ok)"
+                stroke-width="1.5"
+                points="0,34 25,34 50,26 75,26 100,18 125,18 150,18 175,10 200,10"
+              />
+            </svg>
+          </div>
+          <div class="card lift">
+            <div class="metric-label">
+              <span class="dot" style="background: var(--warn)"></span>缓存命中率
+            </div>
+            <div class="metric-value">64.8<span class="unit">%</span></div>
+            <div class="metric-foot">
+              <span class="delta down">▼ 3.2%</span>
+              <span class="metric-sub">节省 ¥212.40</span>
+            </div>
+            <svg class="spark" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <polyline
+                fill="none"
+                stroke="var(--warn)"
+                stroke-width="1.5"
+                points="0,10 25,12 50,9 75,14 100,18 125,16 150,22 175,20 200,26"
+              />
+            </svg>
+          </div>
+        </div>
+
+        <!-- 趋势 + 来源健康 -->
+        <div class="grid g-main">
+          <div class="card">
+            <div class="card-h">
+              <span class="card-title">成本趋势</span>
+              <span class="card-sub">daily · cny</span>
+            </div>
+            <svg
+              viewBox="0 0 560 180"
+              style="width: 100%; display: block"
+              preserveAspectRatio="none"
+            >
+              <defs>
+                <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#b59a58" stop-opacity=".22" />
+                  <stop offset="1" stop-color="#b59a58" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              <g stroke="var(--hairline)" stroke-width="1">
+                <line x1="0" y1="45" x2="560" y2="45" />
+                <line x1="0" y1="90" x2="560" y2="90" />
+                <line x1="0" y1="135" x2="560" y2="135" />
+              </g>
+              <path
+                d="M0,150 C40,140 60,120 90,118 C130,114 150,88 190,84 C230,80 250,98 290,92 C330,86 350,58 390,54 C430,50 450,66 490,58 C520,52 540,40 560,36 L560,180 L0,180 Z"
+                fill="url(#tg)"
+              />
+              <path
+                d="M0,150 C40,140 60,120 90,118 C130,114 150,88 190,84 C230,80 250,98 290,92 C330,86 350,58 390,54 C430,50 450,66 490,58 C520,52 540,40 560,36"
+                fill="none"
+                stroke="var(--gold)"
+                stroke-width="1.8"
+              />
+              <circle cx="390" cy="54" r="3" fill="var(--gold)" />
+              <circle cx="560" cy="36" r="3" fill="var(--gold)" />
+            </svg>
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                font-size: 10.5px;
+                color: var(--ink-3);
+                font-family: var(--mono);
+                margin-top: 6px;
+              "
+            >
+              <span>04-07</span><span>04-14</span><span>04-21</span><span>04-28</span
+              ><span>05-05</span>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-h">
+              <span class="card-title">来源健康</span>
+              <span class="pill warn">2 需处理</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  padding: 7px 0;
+                  border-bottom: 1px solid var(--hairline);
+                "
+              >
+                <span class="src-name"
+                  ><span class="dot" style="background: var(--ok)"></span>Anthropic API</span
+                >
+                <span class="pill ok">正常</span>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  padding: 7px 0;
+                  border-bottom: 1px solid var(--hairline);
+                "
+              >
+                <span class="src-name"
+                  ><span class="dot" style="background: var(--ok)"></span>Claude Code 日志</span
+                >
+                <span class="pill ok">正常</span>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  padding: 7px 0;
+                  border-bottom: 1px solid var(--hairline);
+                "
+              >
+                <span class="src-name"
+                  ><span class="dot" style="background: var(--warn)"></span>Codex CLI 日志</span
+                >
+                <span class="pill warn">权限受限</span>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  padding: 7px 0;
+                  border-bottom: 1px solid var(--hairline);
+                "
+              >
+                <span class="src-name"
+                  ><span class="dot" style="background: var(--ok)"></span>OpenRouter</span
+                >
+                <span class="pill ok">正常</span>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  padding: 7px 0;
+                "
+              >
+                <span class="src-name"
+                  ><span class="dot" style="background: var(--err)"></span>WSL 会话目录</span
+                >
+                <span class="pill err">不可读</span>
+              </div>
+            </div>
+            <div style="margin-top: 12px; font-size: 11px; color: var(--ink-2)">
+              WSL 目录无读取权限 →
+              <span style="color: var(--gold-strong); cursor: pointer">查看修复步骤</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 明细表 -->
+        <div class="card" style="margin-top: 14px">
+          <div class="card-h">
+            <span class="card-title">Provider 成本明细</span>
+            <span class="card-sub">top 5 / 12</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th class="num">请求数</th>
+                <th class="num">输入 Tokens</th>
+                <th class="num">输出 Tokens</th>
+                <th class="num">缓存命中</th>
+                <th class="num">成本 (CNY)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="src-name">
+                  <span class="dot" style="background: var(--gold)"></span>Anthropic
+                </td>
+                <td class="num">12,847</td>
+                <td class="num">18.2M</td>
+                <td class="num">9.4M</td>
+                <td class="num">71%</td>
+                <td class="num">¥742.18</td>
+              </tr>
+              <tr>
+                <td class="src-name">
+                  <span class="dot" style="background: var(--info)"></span>OpenAI
+                </td>
+                <td class="num">6,203</td>
+                <td class="num">8.1M</td>
+                <td class="num">4.2M</td>
+                <td class="num">58%</td>
+                <td class="num">¥318.65</td>
+              </tr>
+              <tr>
+                <td class="src-name">
+                  <span class="dot" style="background: var(--ok)"></span>Moonshot
+                </td>
+                <td class="num">3,418</td>
+                <td class="num">3.2M</td>
+                <td class="num">2.1M</td>
+                <td class="num">62%</td>
+                <td class="num">¥128.40</td>
+              </tr>
+              <tr>
+                <td class="src-name">
+                  <span class="dot" style="background: var(--warn)"></span>DeepSeek
+                </td>
+                <td class="num">2,156</td>
+                <td class="num">1.4M</td>
+                <td class="num">0.9M</td>
+                <td class="num">49%</td>
+                <td class="num">¥62.33</td>
+              </tr>
+              <tr>
+                <td class="src-name">
+                  <span class="dot" style="background: var(--ink-3)"></span>Zhipu
+                </td>
+                <td class="num">1,042</td>
+                <td class="num">0.8M</td>
+                <td class="num">0.4M</td>
+                <td class="num">55%</td>
+                <td class="num">¥33.00</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="foot-note">
+          <span>Direction C 精修</span>
+          <span>卡片实底 · 无毛玻璃</span>
+          <span>语义色低饱和 token 化</span>
+          <span>字阶 display30 / title22 / body13.5 / label12 / eyebrow9.5</span>
+        </div>
+      </main>
+    </div>
+
+    <script>
+      var root = document.documentElement
+      var media = matchMedia('(prefers-color-scheme: dark)')
+      var mode = 'system'
+      function apply() {
+        var dark = mode === 'dark' || (mode === 'system' && media.matches)
+        if (dark) {
+          root.setAttribute('data-theme', 'dark')
+        } else {
+          root.removeAttribute('data-theme')
+        }
+        var btns = document.querySelectorAll('.theme-seg button')
+        for (var i = 0; i < btns.length; i++) {
+          btns[i].classList.toggle('on', btns[i].dataset.t === mode)
+        }
+      }
+      var segBtns = document.querySelectorAll('.theme-seg button')
+      for (var i = 0; i < segBtns.length; i++) {
+        ;(function (btn) {
+          btn.addEventListener('click', function () {
+            mode = btn.dataset.t
+            apply()
+          })
+        })(segBtns[i])
+      }
+      media.addEventListener('change', apply)
+      apply()
+    </script>
+  </body>
+</html>

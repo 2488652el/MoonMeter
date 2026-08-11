@@ -179,7 +179,7 @@ export function BudgetPlanningPanel({
             >
               {saving ? '保存中…' : '保存预算'}
             </button>
-            {formError ? <span className="text-[11px] text-red-600">{formError}</span> : null}
+            {formError ? <span className="text-[11px] text-status-err">{formError}</span> : null}
           </div>
         </div>
       ) : null}
@@ -187,7 +187,7 @@ export function BudgetPlanningPanel({
       {loading && !overview ? (
         <div className="text-[12px] text-text-muted">正在读取预算…</div>
       ) : null}
-      {error ? <div className="text-[12px] text-red-600">{error}</div> : null}
+      {error ? <div className="text-[12px] text-status-err">{error}</div> : null}
       {!loading && !error && overview?.evaluations.length === 0 ? (
         <div className="text-[12px] text-text-muted">
           尚未设置预算。可按总额、Provider 或项目设置自然月/自定义账期上限。
@@ -267,7 +267,7 @@ export function BudgetPlanningPanel({
                       : '暂无可计价消耗，暂不预测'}
                 </div>
                 {evaluation.reachedThreshold ? (
-                  <div className="font-semibold text-amber-700">
+                  <div className="font-semibold text-status-warn">
                     已达到 {evaluation.reachedThreshold}% 阶梯提醒
                   </div>
                 ) : null}

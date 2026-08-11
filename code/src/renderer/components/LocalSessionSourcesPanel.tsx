@@ -323,7 +323,7 @@ export function LocalSessionSourcesPanel() {
               type="button"
               className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-3 py-1 text-[11.5px] font-medium transition-colors ${
                 sessionAutoParse
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                  ? 'border-status-ok/30 bg-status-ok-dim text-status-ok hover:bg-status-ok-dim'
                   : 'border-neutral-200 bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
               }`}
               onClick={() => void changeSessionAutoParse(!sessionAutoParse)}
@@ -332,7 +332,7 @@ export function LocalSessionSourcesPanel() {
             >
               <span
                 className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  sessionAutoParse ? 'bg-emerald-500' : 'bg-neutral-400'
+                  sessionAutoParse ? 'bg-status-ok' : 'bg-neutral-400'
                 }`}
               />
               自动解析：{sessionAutoParse ? '开' : '关'}

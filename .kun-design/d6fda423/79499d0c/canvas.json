@@ -1,0 +1,85 @@
+{
+  "version": 2,
+  "rootId": "__root__",
+  "objects": {
+    "__root__": {
+      "id": "__root__",
+      "type": "frame",
+      "name": "Root",
+      "parentId": null,
+      "frameId": null,
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "rotation": 0,
+      "opacity": 1,
+      "visible": true,
+      "locked": false,
+      "fills": [],
+      "strokes": [],
+      "cornerRadius": 0,
+      "children": ["s_msofs78o_1"]
+    },
+    "s_msofs78o_1": {
+      "id": "s_msofs78o_1",
+      "type": "frame",
+      "name": "MoonMeter Direction C 精修预览 — 仪表盘",
+      "parentId": "__root__",
+      "frameId": null,
+      "x": 160,
+      "y": 150,
+      "width": 1200,
+      "height": 860,
+      "rotation": 0,
+      "opacity": 1,
+      "visible": true,
+      "locked": false,
+      "fills": [
+        {
+          "type": "solid",
+          "color": "#ffffff",
+          "opacity": 1
+        }
+      ],
+      "strokes": [],
+      "cornerRadius": 0,
+      "children": [],
+      "clipContent": true,
+      "htmlArtifactId": "ec3986ef",
+      "embeddedArtifact": {
+        "id": "ec3986ef",
+        "kind": "html",
+        "versionId": "ec3986ef-v1"
+      },
+      "devicePreset": "desktop"
+    }
+  },
+  "motion": {
+    "version": 1,
+    "timelines": {}
+  },
+  "codeBindings": [
+    {
+      "id": "binding_s_msofs78o_1_kun-design_d6fda423_ec3986ef_v1_html",
+      "designObjectId": "s_msofs78o_1",
+      "kind": "file",
+      "target": {
+        "sourceFile": ".kun-design/d6fda423/ec3986ef/v1.html"
+      },
+      "status": "active",
+      "createdAt": "2026-08-11T09:06:54.849Z",
+      "updatedAt": "2026-08-11T09:06:54.849Z",
+      "metadata": {
+        "tagName": "main",
+        "text": "OVERVIEW · 概览 使用统计 全部来源 · 最近 30 天 · 数据更新于 2 分钟前 导出 立即刷新 最近 30 天 最近 7 天 本月 全部来源 ▾ 全部模型 ▾ 12 来源在线 · 2 异常 总成本 ¥1,284.56CNY ▲ 12.4% vs 上周期 总 Tokens 48.2M ▲ 8.1% 输入 31M / 输出 17M 活跃项目 7个 ▲ 2 Claude Code ×5 · Codex ×2 缓存命中率 64.8% ▼ 3.2% 节省 ¥212.40",
+        "rect": {
+          "left": 216,
+          "top": 0,
+          "width": 966,
+          "height": 1030
+        }
+      }
+    }
+  ]
+}

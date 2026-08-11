@@ -212,7 +212,7 @@ export default function BalanceQuery() {
       <div className="absolute inset-x-0 top-0 h-1 bg-[#10A37F]" />
       <header className="flex items-start justify-between gap-4 bg-bg-base/30 px-5 pb-4 pt-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card/70">
+          <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card">
             <ProviderIcon providerId="openai-admin" title="ChatGPT" size={23} />
           </span>
           <div className="min-w-0">
@@ -221,7 +221,7 @@ export default function BalanceQuery() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-status-ok/30 bg-status-ok-dim px-2.5 py-1 text-[11px] font-medium text-status-ok">
             <Icon name="fa-bolt" className="text-[9px]" />
             订阅计划
           </span>
@@ -327,7 +327,7 @@ function ProviderBalanceCard({
       <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: theme.accent }} />
       <header className="flex items-start justify-between gap-4 bg-bg-base/30 px-5 pb-4 pt-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card/70">
+          <span className="flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card">
             <ProviderIcon
               providerId={keyRecord.providerId}
               title={providerName}

@@ -514,7 +514,9 @@ function notificationDeliveryLabel(event: AlertEvent): string {
 /** 作用域徽标:区分 global 与 provider */
 function ScopeBadge({ scope }: { scope: AlertScope }) {
   const isGlobal = scope === 'global'
-  const cls = isGlobal ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+  const cls = isGlobal
+    ? 'bg-status-purple-dim text-status-purple'
+    : 'bg-status-info-dim text-status-info'
   return (
     <span className={`inline-block px-2 py-[2px] rounded text-[11.5px] font-medium ${cls}`}>
       {isGlobal ? 'global' : 'provider'}

@@ -52,7 +52,7 @@ export default function MiniPanel() {
             ['Token', project ? project.tokens.toLocaleString() : '—'],
             ['会话', project ? project.sessions.toLocaleString() : '—']
           ].map(([label, value]) => (
-            <div key={label} className="rounded border border-border-light bg-bg-card/50 px-2 py-2">
+            <div key={label} className="rounded border border-border-light bg-bg-card px-2 py-2">
               <div className="text-[9px] text-text-muted">{label}</div>
               <div className="mt-1 truncate font-mono text-[12px] text-text-primary">{value}</div>
             </div>

@@ -44,21 +44,33 @@ const UPDATE_PHASE_META: Record<
     label: '等待检查',
     badgeClassName: 'border-border-light bg-bg-card text-text-secondary'
   },
-  checking: { label: '检查中', badgeClassName: 'border-sky-200 bg-sky-50 text-sky-700' },
-  available: { label: '发现新版本', badgeClassName: 'border-sky-200 bg-sky-50 text-sky-700' },
-  downloading: { label: '下载中', badgeClassName: 'border-sky-200 bg-sky-50 text-sky-700' },
+  checking: {
+    label: '检查中',
+    badgeClassName: 'border-status-info/30 bg-status-info-dim text-status-info'
+  },
+  available: {
+    label: '发现新版本',
+    badgeClassName: 'border-status-info/30 bg-status-info-dim text-status-info'
+  },
+  downloading: {
+    label: '下载中',
+    badgeClassName: 'border-status-info/30 bg-status-info-dim text-status-info'
+  },
   downloaded: {
     label: '正在安装',
-    badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    badgeClassName: 'border-status-ok/30 bg-status-ok-dim text-status-ok'
   },
   'up-to-date': {
     label: '已是最新',
-    badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    badgeClassName: 'border-status-ok/30 bg-status-ok-dim text-status-ok'
   },
-  error: { label: '更新失败', badgeClassName: 'border-red-200 bg-red-50 text-red-700' },
+  error: {
+    label: '更新失败',
+    badgeClassName: 'border-status-err/30 bg-status-err-dim text-status-err'
+  },
   unsupported: {
     label: '不可自动更新',
-    badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700'
+    badgeClassName: 'border-status-warn/30 bg-status-warn-dim text-status-warn'
   }
 }
 
@@ -87,26 +99,26 @@ const SYNC_STATE_META: Record<
   idle: {
     label: '已连接',
     description: '云端同步连接正常',
-    dotClassName: 'bg-emerald-500',
-    badgeClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    dotClassName: 'bg-status-ok',
+    badgeClassName: 'border-status-ok/30 bg-status-ok-dim text-status-ok'
   },
   syncing: {
     label: '同步中',
     description: '正在安全地更新云端快照',
-    dotClassName: 'bg-sky-500',
-    badgeClassName: 'border-sky-200 bg-sky-50 text-sky-700'
+    dotClassName: 'bg-status-info',
+    badgeClassName: 'border-status-info/30 bg-status-info-dim text-status-info'
   },
   error: {
     label: '同步异常',
     description: '最近一次同步未完成，请检查连接后重试',
-    dotClassName: 'bg-red-500',
-    badgeClassName: 'border-red-200 bg-red-50 text-red-700'
+    dotClassName: 'bg-status-err',
+    badgeClassName: 'border-status-err/30 bg-status-err-dim text-status-err'
   },
   needs_login: {
     label: '需要重新登录',
     description: '登录凭据已失效，请重新连接同步服务',
-    dotClassName: 'bg-amber-500',
-    badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700'
+    dotClassName: 'bg-status-warn',
+    badgeClassName: 'border-status-warn/30 bg-status-warn-dim text-status-warn'
   }
 }
 
@@ -448,7 +460,7 @@ export default function Settings() {
             </p>
             {appUpdateStatus?.message && (
               <div
-                className={`mt-2 text-[12px] ${appUpdateStatus.phase === 'error' ? 'text-red-600' : 'text-text-secondary'}`}
+                className={`mt-2 text-[12px] ${appUpdateStatus.phase === 'error' ? 'text-status-err' : 'text-text-secondary'}`}
                 role="status"
                 aria-live="polite"
               >
@@ -593,7 +605,7 @@ export default function Settings() {
           >
             <Icon
               name="fa-circle-notch"
-              className={`${!reducedMotion ? 'icon-spin' : ''} text-emerald-600`}
+              className={`${!reducedMotion ? 'icon-spin' : ''} text-status-ok`}
             />
             正在读取同步状态…
           </div>
@@ -609,7 +621,7 @@ export default function Settings() {
                 </p>
               </div>
               {!syncStatus?.configured && (
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11.5px] font-medium text-emerald-700">
+                <span className="rounded-full bg-status-ok-dim px-2.5 py-1 text-[11.5px] font-medium text-status-ok">
                   本地优先
                 </span>
               )}
@@ -693,7 +705,7 @@ export default function Settings() {
             </div>
 
             {syncPreview && (
-              <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50/50 px-4 py-3 text-[12px] text-text-secondary">
+              <div className="mt-4 rounded-lg border border-status-ok/30 bg-status-ok-dim px-4 py-3 text-[12px] text-text-secondary">
                 <div className="grid gap-2 sm:grid-cols-3">
                   <span>
                     <strong className="font-medium text-text-primary">本机实体</strong>
@@ -720,8 +732,8 @@ export default function Settings() {
                     </button>
                   </span>
                 </div>
-                <div className="mt-2 border-t border-emerald-100 pt-2 text-text-primary">
-                  <Icon name="fa-shield-halved" className="mr-1.5 text-emerald-600" />
+                <div className="mt-2 border-t border-status-ok/30 pt-2 text-text-primary">
+                  <Icon name="fa-shield-halved" className="mr-1.5 text-status-ok" />
                   风险提示：{syncPreview.risk}
                 </div>
               </div>
@@ -745,7 +757,7 @@ export default function Settings() {
                   取消
                 </button>
               )}
-              <div className="min-h-5 text-[12px] text-red-600" role="alert" aria-live="polite">
+              <div className="min-h-5 text-[12px] text-status-err" role="alert" aria-live="polite">
                 {loginError}
               </div>
             </div>
@@ -773,7 +785,7 @@ export default function Settings() {
               </div>
             </div>
             {syncStatus?.lastError && (
-              <div className="mt-3 rounded-md border border-red-100 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+              <div className="mt-3 rounded-md border border-status-err/30 bg-status-err-dim px-3 py-2 text-[12px] text-status-err">
                 {syncStatus.lastError}
               </div>
             )}
@@ -782,7 +794,7 @@ export default function Settings() {
 
         <div className="min-h-0 px-5" role="status" aria-live="polite">
           {syncError && (
-            <div className="mb-4 rounded-md border border-red-100 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            <div className="mb-4 rounded-md border border-status-err/30 bg-status-err-dim px-3 py-2 text-[12px] text-status-err">
               {syncError}
             </div>
           )}
@@ -866,7 +878,7 @@ export default function Settings() {
           </button>
         </div>
         {accountIdentityError && (
-          <p className="mt-3 text-[12px] text-red-600" role="alert">
+          <p className="mt-3 text-[12px] text-status-err" role="alert">
             {accountIdentityError}
           </p>
         )}
@@ -959,7 +971,7 @@ export default function Settings() {
           </button>
         </div>
         {diagnosticError && (
-          <p className="mt-3 text-[12px] text-red-600" role="alert">
+          <p className="mt-3 text-[12px] text-status-err" role="alert">
             {diagnosticError}
           </p>
         )}

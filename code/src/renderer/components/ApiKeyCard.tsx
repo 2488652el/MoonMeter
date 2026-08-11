@@ -92,7 +92,7 @@ export function ApiKeyCard({
       <header className="relative bg-bg-base/30 px-5 pb-4 pt-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card/70">
+            <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card">
               <ProviderIcon
                 providerId={keyRecord.providerId}
                 title={providerDisplayName}
@@ -135,18 +135,18 @@ export function ApiKeyCard({
             {profileMeta.label}
           </span>
           <SourceBadge source={keyRecord.source} />
-          <span className="inline-flex items-center gap-1 rounded-full border border-border-light bg-bg-card/70 px-2.5 py-1 font-mono text-[11px] text-text-muted">
+          <span className="inline-flex items-center gap-1 rounded-full border border-border-light bg-bg-card px-2.5 py-1 font-mono text-[11px] text-text-muted">
             <Icon name="fa-key" className="text-[9px]" />…{keyRecord.keyTail}
           </span>
           <span
             className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
               usageEnabled
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                ? 'border-status-ok/30 bg-status-ok-dim text-status-ok'
                 : 'border-neutral-200 bg-neutral-100 text-neutral-600'
             }`}
           >
             <span
-              className={`h-1.5 w-1.5 rounded-full ${usageEnabled ? 'bg-emerald-500' : 'bg-neutral-400'}`}
+              className={`h-1.5 w-1.5 rounded-full ${usageEnabled ? 'bg-status-ok' : 'bg-neutral-400'}`}
             />
             用量查询 {usageEnabled ? '开启' : '关闭'}
           </span>
@@ -483,9 +483,9 @@ function CodingPlanQuotaRow({ label, quota }: { label: string; quota: CodingPlan
 function SourceBadge({ source }: { source: ApiKeyRecord['source'] }) {
   const cls =
     source === 'manual'
-      ? 'bg-blue-100 text-blue-700'
+      ? 'bg-status-info-dim text-status-info'
       : source === 'session-log'
-        ? 'bg-amber-100 text-amber-700'
+        ? 'bg-status-warn-dim text-status-warn'
         : 'bg-neutral-100 text-neutral-600'
   const label = source === 'api-key' ? 'manual' : source
   return (
@@ -557,13 +557,13 @@ function UsageToggle({
       title={enabled ? '点击关闭用量查询' : '点击开启用量查询'}
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-medium border transition-colors ${
         enabled
-          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+          ? 'bg-status-ok-dim text-status-ok border-status-ok/30 hover:bg-status-ok-dim'
           : 'bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200'
       }`}
     >
       <span
         className={`inline-block w-1.5 h-1.5 rounded-full ${
-          enabled ? 'bg-emerald-500' : 'bg-neutral-400'
+          enabled ? 'bg-status-ok' : 'bg-neutral-400'
         }`}
       />
       用量查询:{enabled ? ' 开' : ' 关'}

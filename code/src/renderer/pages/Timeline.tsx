@@ -47,8 +47,8 @@ function eventLabel(event: TimelineEvent): string {
 
 function statusClass(status: TimelineEventStatus): string {
   if (status === 'failed' || status === 'blocked') return 'text-status-red'
-  if (status === 'warning') return 'text-amber-700'
-  return 'text-emerald-700'
+  if (status === 'warning') return 'text-status-warn'
+  return 'text-status-ok'
 }
 
 function eventSummary(event: TimelineEvent): string {

@@ -81,17 +81,17 @@ const HEALTH_META: Record<
   healthy: {
     label: '数据完整',
     description: '当前范围内的请求均已匹配价格',
-    dotClass: 'bg-emerald-500'
+    dotClass: 'bg-status-ok'
   },
   partial: {
     label: '部分待补价',
     description: '存在尚未匹配价格的请求',
-    dotClass: 'bg-amber-500'
+    dotClass: 'bg-status-warn'
   },
   error: {
     label: '刷新有异常',
     description: '部分数据源最近一次刷新失败',
-    dotClass: 'bg-red-500'
+    dotClass: 'bg-status-err'
   },
   empty: {
     label: '等待数据',
@@ -476,7 +476,7 @@ export default function Dashboard() {
           </Card>
         </MotionGroup>
       ) : loadError && !summary ? (
-        <Card className="border-red-200/60 bg-red-50/40 shadow-sm">
+        <Card className="border-status-err/30 bg-status-err-dim shadow-sm">
           <div role="alert" aria-live="assertive">
             <EmptyState
               icon="fa-triangle-exclamation"
@@ -728,7 +728,7 @@ export default function Dashboard() {
                 </p>
               </div>
               <div
-                className="inline-flex items-center gap-2 rounded-full border border-border-light bg-bg-card/70 px-3 py-1.5 text-[11.5px] text-text-secondary shadow-sm"
+                className="inline-flex items-center gap-2 rounded-full border border-border-light bg-bg-card px-3 py-1.5 text-[11.5px] text-text-secondary shadow-sm"
                 title={healthMeta.description}
               >
                 <span className={clsx('h-1.5 w-1.5 rounded-full', healthMeta.dotClass)} />
@@ -814,7 +814,7 @@ export default function Dashboard() {
                 {topProviders.map((provider) => (
                   <span
                     key={provider.providerId}
-                    className="rounded-full border border-border-light bg-bg-card/55 px-2.5 py-1 font-mono"
+                    className="rounded-full border border-border-light bg-bg-card px-2.5 py-1 font-mono"
                   >
                     {provider.providerId} · {fmtCount(provider.tokens)}
                   </span>
@@ -825,7 +825,7 @@ export default function Dashboard() {
 
           <section
             data-dashboard-trend
-            className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]"
+            className="rounded-lg border border-border-light bg-bg-card p-6 shadow-card"
           >
             <div className="mb-5 flex items-center justify-between gap-3">
               <div>
@@ -854,7 +854,7 @@ export default function Dashboard() {
 
           <details
             data-dashboard-secondary
-            className="rounded-lg border border-border-light bg-bg-card/45 shadow-card backdrop-blur-[2px]"
+            className="rounded-lg border border-border-light bg-bg-card shadow-card"
           >
             <summary className="flex min-h-[56px] cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-[14px] font-semibold text-text-primary [&::-webkit-details-marker]:hidden">
               <span className="inline-flex items-center gap-2">
@@ -914,7 +914,7 @@ export default function Dashboard() {
               </div>
 
               <section className="grid grid-cols-[minmax(0,1fr)_minmax(360px,0.6fr)] gap-6 max-xl:grid-cols-1">
-                <div className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
+                <div className="rounded-lg border border-border-light bg-bg-card p-6 shadow-card">
                   <div className="mb-5 flex items-center justify-between gap-3">
                     <div>
                       <h2 className="text-[20px] font-bold text-text-primary">消费统计</h2>
@@ -984,7 +984,7 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                <div className="rounded-lg border border-border-light bg-bg-card/60 p-6 shadow-card backdrop-blur-[2px]">
+                <div className="rounded-lg border border-border-light bg-bg-card p-6 shadow-card">
                   <div className="mb-5 flex items-center justify-between gap-3">
                     <div>
                       <h2 className="text-[20px] font-bold text-text-primary">余额快照</h2>
@@ -1129,7 +1129,7 @@ function OverviewMetricCard({
   return (
     <div
       data-dashboard-metric={label}
-      className="motion-card flex min-h-[132px] flex-col rounded-lg border border-border-light bg-bg-card/60 p-4 shadow-card backdrop-blur-[2px] transition-colors hover:bg-bg-card/80"
+      className="motion-card flex min-h-[132px] flex-col rounded-lg border border-border-light bg-bg-card p-4 shadow-card transition-colors hover:bg-bg-hover"
       style={{ '--motion-order': motionOrder } as CSSProperties}
     >
       <div className="flex items-start justify-between gap-3">

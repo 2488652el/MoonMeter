@@ -97,7 +97,7 @@ export function IntegrationsPanel() {
             </button>
           </div>
           {otel?.lastErrorCode && (
-            <p className="mt-2 text-[11px] text-amber-700">状态：{otel.lastErrorCode}</p>
+            <p className="mt-2 text-[11px] text-status-warn">状态：{otel.lastErrorCode}</p>
           )}
           {otelError && <p className="mt-2 text-[11px] text-status-red">{otelError}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
@@ -111,7 +111,7 @@ export function IntegrationsPanel() {
             {token && (
               <button
                 type="button"
-                className="max-w-full truncate rounded border border-amber-300 bg-amber-50 px-2 py-1 text-left font-mono text-[10px] text-amber-900"
+                className="max-w-full truncate rounded border border-status-warn/30 bg-status-warn-dim px-2 py-1 text-left font-mono text-[10px] text-status-warn"
                 title="点击复制 Token"
                 onClick={() => void navigator.clipboard?.writeText(token)}
               >
@@ -120,14 +120,14 @@ export function IntegrationsPanel() {
             )}
           </div>
           {preview && (
-            <details className="mt-3 rounded border border-border-light bg-bg-card/35 px-3 py-2 text-[11px]">
+            <details className="mt-3 rounded border border-border-light bg-bg-card px-3 py-2 text-[11px]">
               <summary className="cursor-pointer text-text-secondary">
                 查看接入预览与字段边界
               </summary>
               <div className="mt-2 text-text-muted">端点：{preview.endpoint}</div>
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 <div>
-                  <div className="font-medium text-emerald-700">允许字段</div>
+                  <div className="font-medium text-status-ok">允许字段</div>
                   <div className="mt-1 break-words">{preview.acceptedFields.join(' · ')}</div>
                 </div>
                 <div>
@@ -216,7 +216,7 @@ export function IntegrationsPanel() {
             </div>
           )}
           {mini?.errorCode === 'hotkey-conflict' && (
-            <p className="mt-2 text-[11px] text-amber-700">
+            <p className="mt-2 text-[11px] text-status-warn">
               快捷键注册失败，已安全保持快捷键关闭；请换一个组合后重试。
             </p>
           )}

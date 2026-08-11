@@ -1,0 +1,28 @@
+{
+  "id": "ec3986ef",
+  "kind": "html",
+  "title": "MoonMeter Direction C 精修预览 — 仪表盘",
+  "relativePath": ".kun-design/d6fda423/ec3986ef/v1.html",
+  "createdAt": "2026-08-11T09:06:53.515Z",
+  "updatedAt": "2026-08-11T09:06:53.515Z",
+  "versions": [
+    {
+      "id": "ec3986ef-v1",
+      "relativePath": ".kun-design/d6fda423/ec3986ef/v1.html",
+      "createdAt": "2026-08-11T09:06:53.515Z",
+      "summary": ""
+    }
+  ],
+  "designMdPath": ".kun-design/d6fda423/ec3986ef/DESIGN.md",
+  "previewStatus": "ready",
+  "node": {
+    "x": 160,
+    "y": 150,
+    "width": 1200,
+    "height": 860,
+    "sizeMode": "manual",
+    "viewMode": "preview",
+    "boardHidden": false
+  },
+  "importedFromPath": ".kun-design/component-prototypes/moonmeter-direction-c-277574c3b9/prototype.html"
+}

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Direction C 精修：卡片改为实底并移除全部毛玻璃效果（含侧栏），纸张噪点保留。
+- 语义色收编为低饱和 token（ok/warn/err/info/purple，双主题），替换全页面 110 处 Tailwind 默认高饱和色；Provider 汇总图表改用纸墨体系校准的分类色板。
+- 设计 token 增补成文字阶变量（display 30 / title 22 / body 13.5 / label 12 / eyebrow 9.5 / micro 10.5）。
+
 ## 1.4.0 - 2026-08-11
 
 - 将各仪表盘的进度展示统一为分段进度条（SegmentedProgress)：预算、Codex/套餐额度、余额用量、计价覆盖率、费用 Top 5、更新下载与告警阈值等，替换原实心进度条。

@@ -290,7 +290,7 @@ export default function Sources() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 text-[13px] font-semibold text-text-primary">
                       <span
-                        className={`h-2 w-2 rounded-full ${distribution.state === 'running' ? 'bg-emerald-500' : 'bg-status-amber'}`}
+                        className={`h-2 w-2 rounded-full ${distribution.state === 'running' ? 'bg-status-ok' : 'bg-status-amber'}`}
                       />
                       <span className="truncate">{distribution.name}</span>
                       {distribution.isDefault && (
@@ -432,7 +432,7 @@ export default function Sources() {
                       <span
                         className={
                           config.status === 'ready'
-                            ? 'text-emerald-600'
+                            ? 'text-status-ok'
                             : config.status === 'error'
                               ? 'text-status-red'
                               : 'text-status-amber'

@@ -223,7 +223,7 @@ function ProjectDetailPanel({
                   {delivery.commitId?.slice(0, 8) ?? delivery.prLabel ?? '手动 PR'} ·{' '}
                   {delivery.title ?? delivery.prUrl ?? '未命名交付'}
                   {delivery.taskId && (
-                    <span className="ml-2 text-[10px] text-emerald-700">已归属任务</span>
+                    <span className="ml-2 text-[10px] text-status-ok">已归属任务</span>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2 font-mono text-text-muted">

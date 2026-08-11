@@ -34,17 +34,16 @@ import {
   usageRangeLabel
 } from '../../shared/utils/usage-analysis-filter'
 
-/** 8-color palette — derived from tailwind status colors. */
-// 供应商配色:8 色调色板,源自 tailwind 状态色。
+/** 8-color categorical palette — Direction C 精修低饱和分类色（随纸墨体系校准）。 */
 const PROVIDER_PALETTE = [
-  '#10B981',
-  '#3B82F6',
-  '#8B5CF6',
-  '#F59E0B',
-  '#EF4444',
-  '#EC4899',
-  '#F97316',
-  '#6366F1'
+  '#4D7A5E',
+  '#5F7390',
+  '#7A6F9E',
+  '#9A7B3A',
+  '#A85546',
+  '#A8657C',
+  '#A8703F',
+  '#5C6480'
 ]
 
 /** 标签页类型:按供应商 / 按模型 / 按费用趋势 */

@@ -31,7 +31,7 @@ describe('ModelUsageCard', () => {
     expect(html).toContain('10/12 · 83%')
     expect(html).toContain('2 次请求尚未匹配价格')
     expect(html).toContain('rounded-lg')
-    expect(html).toContain('bg-bg-card/60')
+    expect(html).toContain('bg-bg-card')
     expect(html).toContain('shadow-card')
     expect(html).not.toContain('rounded-xl')
   })
