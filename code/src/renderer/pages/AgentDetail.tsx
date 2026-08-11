@@ -15,9 +15,9 @@ import {
 } from 'recharts'
 import { PageHeader } from '../components/PageHeader'
 import { Card } from '../components/Card'
-import { StatTile } from '../components/StatTile'
+import { MetricCard } from '../components/MetricCard'
 import { EmptyState } from '../components/EmptyState'
-import { AnimatedNumber, MotionGroup } from '../components/motion'
+import { MotionGroup } from '../components/motion'
 import { useReducedMotion } from '../hooks/useReducedMotion'
 import { fmtCount, fmtMoney } from '../../shared/utils/money'
 import {
@@ -393,40 +393,39 @@ export default function AgentDetail() {
       {header}
 
       <MotionGroup className="mb-5 grid grid-cols-4 gap-4 max-md:grid-cols-2">
-        <StatTile
+        <MetricCard
           label="项目数"
           icon="fa-folder-tree"
-          value={
-            <AnimatedNumber
-              value={report.projects.length}
-              format={(value) => Math.round(value).toLocaleString('en-US')}
-            />
-          }
+          value={report.projects.length}
+          format={(v) => Math.round(v).toLocaleString('en-US')}
           sub={`最近 ${rangeDays} 天 · ${totalRequests.toLocaleString('en-US')} 次请求`}
           motionOrder={0}
         />
-        <StatTile
+        <MetricCard
           label="总费用"
           icon="fa-coins"
-          value={<AnimatedNumber value={totalCost} format={fmtMoney} />}
+          tone="amber"
+          value={totalCost}
+          format={fmtMoney}
           sub={`覆盖 ${logs.length.toLocaleString('en-US')} 条 session-log 记录`}
-          accent="amber"
           motionOrder={1}
         />
-        <StatTile
+        <MetricCard
           label="总 Tokens"
           icon="fa-arrow-right-to-line"
-          value={<AnimatedNumber value={totalTokens} format={fmtCount} />}
+          tone="blue"
+          value={totalTokens}
+          format={fmtCount}
           sub={`最近 ${rangeDays} 天的项目 Token 用量`}
-          accent="blue"
           motionOrder={2}
         />
-        <StatTile
+        <MetricCard
           label="平均每次请求 Tokens"
           icon="fa-scale-balanced"
-          value={<AnimatedNumber value={avgTokensPerRequest} format={fmtCount} />}
+          tone="purple"
+          value={avgTokensPerRequest}
+          format={fmtCount}
           sub={`基于 ${totalRequests.toLocaleString('en-US')} 次请求`}
-          accent="purple"
           motionOrder={3}
         />
       </MotionGroup>

@@ -1,6 +1,6 @@
 import { Icon } from './Icon'
 import { CARD_SURFACE_CLASS } from './cardStyles'
-import { AnimatedNumber, ProgressBar } from './motion'
+import { AnimatedNumber, SegmentedProgress } from './motion'
 import { ModelLogo } from './ModelLogo'
 import { ProviderIcon } from './ProviderIcon'
 import { fmtCount, fmtMoney } from '../../shared/utils/money'
@@ -162,11 +162,13 @@ export function ModelUsageCard({ model, rank }: { model: ModelSpendAggregate; ra
               {model.pricedRequests}/{model.requests} · {(pricedCoverage * 100).toFixed(0)}%
             </span>
           </div>
-          <ProgressBar
+          <SegmentedProgress
             value={pricedCoverage}
             label={`${displayName}计价覆盖率`}
             tone={model.unpricedRequests > 0 ? 'amber' : 'accent'}
-            trackClassName="h-1.5 bg-bg-hover"
+            showTicks={false}
+            height={10}
+            className="mt-1"
           />
           {model.unpricedRequests > 0 ? (
             <p className="mt-1.5 text-[10.5px] text-status-amber">

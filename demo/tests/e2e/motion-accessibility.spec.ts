@@ -585,6 +585,22 @@ test.describe.serial('Electron motion and accessibility', () => {
         expect(
           await window.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
         ).toBe(true)
+
+        // 四张主指标卡必须等高且顶端对齐(auto-rows-fr + h-full + 固定页脚的回归断言)
+        const primaryBoxes = await window
+          .locator('[data-dashboard-primary-metric]')
+          .evaluateAll((elements) =>
+            elements.map((element) => {
+              const rect = element.getBoundingClientRect()
+              return { y: rect.y, height: rect.height }
+            })
+          )
+        expect(primaryBoxes).toHaveLength(4)
+        for (const box of primaryBoxes) {
+          expect(Math.abs(box.y - primaryBoxes[0]!.y)).toBeLessThanOrEqual(1)
+          expect(Math.abs(box.height - primaryBoxes[0]!.height)).toBeLessThanOrEqual(1)
+        }
+
         await window.screenshot({
           path: testInfo.outputPath(`dashboard-${viewport.name}.png`),
           animations: 'disabled'
