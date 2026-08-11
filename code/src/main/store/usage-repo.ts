@@ -667,6 +667,7 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
     cost: number
     byCurrency: Array<{ currency: string; amount: number }>
     tokens: number
+    requests: number
   }>
 } {
   const db = getDb()
@@ -737,7 +738,7 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
     if (priced.currency && priced.cost !== null) {
       cur.byCurrency.set(priced.currency, (cur.byCurrency.get(priced.currency) ?? 0) + cost)
     }
-    cur.tokens += g.pt + g.ct
+    cur.tokens += g.pt + g.ct + g.crt
     providerTotals.set(g.provider_id, cur)
   }
 
@@ -768,7 +769,8 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
            COALESCE(SUM(completion_tokens), 0) AS ct,
            COALESCE(SUM(cache_read_tokens), 0) AS crt,
            COALESCE(SUM(cache_creation_tokens), 0) AS cct,
-           SUM(cost) AS stored_cost
+           SUM(cost) AS stored_cost,
+           COUNT(*) AS n
     FROM usage_records ${where}
     GROUP BY date, provider_id, billing_scope, model, currency, cost_basis ORDER BY date ASC
   `
@@ -777,7 +779,13 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
 
   const dailyMap = new Map<
     string,
-    { date: string; cost: number; byCurrency: Map<string, number>; tokens: number }
+    {
+      date: string
+      cost: number
+      byCurrency: Map<string, number>
+      tokens: number
+      requests: number
+    }
   >()
   for (const g of dailyGroups) {
     const priced = priceUsageGroup({
@@ -796,13 +804,15 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
       date: g.date,
       cost: 0,
       byCurrency: new Map<string, number>(),
-      tokens: 0
+      tokens: 0,
+      requests: 0
     }
     cur.cost += priced.cost ?? 0
     if (priced.currency && priced.cost !== null) {
       cur.byCurrency.set(priced.currency, (cur.byCurrency.get(priced.currency) ?? 0) + priced.cost)
     }
-    cur.tokens += g.pt + g.ct
+    cur.tokens += g.pt + g.ct + g.crt
+    cur.requests += g.n
     dailyMap.set(g.date, cur)
   }
 
@@ -814,7 +824,8 @@ export function getDashboardSummary(filter: number | UsageAnalysisFilter = 30): 
         currency,
         amount
       })),
-      tokens: row.tokens
+      tokens: row.tokens,
+      requests: row.requests
     }))
     .sort((a, b) => a.date.localeCompare(b.date))
 

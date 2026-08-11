@@ -89,7 +89,7 @@ function DeltaChip({ delta }: { delta: MetricDelta }) {
       <span aria-hidden="true" className="text-[9px]">
         {arrow}
       </span>
-      {delta.label}
+      <span aria-hidden="true">{delta.label}</span>
       <span className="sr-only">
         {delta.direction === 'up' ? '上涨' : delta.direction === 'down' ? '下降' : '持平'}
         {delta.label}
@@ -112,7 +112,7 @@ export function MetricCard({
   onLabelClick,
   motionOrder = 0
 }: MetricCardProps) {
-  const hasSpark = !progress && series && series.length > 1
+  const hasSpark = progress === undefined && series && series.length > 1
   const showProgress = progress !== undefined
 
   return (
@@ -124,17 +124,18 @@ export function MetricCard({
       )}
       style={{ '--motion-order': motionOrder } as CSSProperties}
     >
-      {/* 悬停上浮出现的操作图标 */}
-      <div className="pointer-events-none absolute right-3.5 top-3.5 flex translate-y-[-4px] gap-1.5 opacity-0 transition-all duration-200 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
-        <button
-          type="button"
-          aria-label={`查看${label}详情`}
-          onClick={onLabelClick}
-          className="grid h-7 w-7 place-items-center rounded-md border border-border-light bg-bg-hover text-[11px] text-text-secondary transition-colors hover:border-border hover:text-text-primary"
-        >
-          <Icon name="fa-arrow-right" />
-        </button>
-      </div>
+      {onLabelClick ? (
+        <div className="pointer-events-none absolute right-3.5 top-3.5 flex translate-y-[-4px] gap-1.5 opacity-0 transition-all duration-200 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100">
+          <button
+            type="button"
+            aria-label={`查看${label}详情`}
+            onClick={onLabelClick}
+            className="grid h-7 w-7 place-items-center rounded-md border border-border-light bg-bg-hover text-[11px] text-text-secondary transition-colors hover:border-border hover:text-text-primary"
+          >
+            <Icon name="fa-arrow-right" />
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex flex-1 flex-col px-4 pt-4">
         <div className="flex items-start justify-between gap-3">

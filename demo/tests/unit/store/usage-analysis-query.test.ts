@@ -44,6 +44,8 @@ describe('usage analysis aggregate filters', () => {
       expect(call.sql).toContain("LOWER(COALESCE(agent_label, '')) LIKE LOWER(?)")
       expect(call.args).toEqual(['session-log', '%GPT%', '%TokenLub%'])
     }
+    expect(queryCalls[2]?.sql).toContain('COUNT(*) AS n')
+    expect(queryCalls[2]?.sql).toContain('COALESCE(SUM(cache_read_tokens), 0) AS crt')
   })
 
   it('uses the same filter builder for spend aggregation', async () => {

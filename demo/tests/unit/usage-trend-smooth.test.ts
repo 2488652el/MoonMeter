@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { monotonePath } from '../../../code/src/shared/utils/usage-trend'
+import { compareUsageSeriesWindows, monotonePath } from '../../../code/src/shared/utils/usage-trend'
 
 /** 解析 path 命令中出现的所有 y 坐标(M/L/C 的最后一个数值)。 */
 function pathYs(d: string): number[] {
@@ -78,5 +78,21 @@ describe('monotonePath (Fritsch–Carlson)', () => {
       expect(y).toBeGreaterThanOrEqual(10 - 0.5)
       expect(y).toBeLessThanOrEqual(40 + 0.5)
     }
+  })
+})
+
+describe('compareUsageSeriesWindows', () => {
+  it('奇数长度使用等长首尾窗口,不会把中间样本算入后半段', () => {
+    expect(compareUsageSeriesWindows([1, 1, 1, 1, 1, 1, 1])).toEqual({
+      direction: 'flat',
+      percent: 0
+    })
+  })
+
+  it('前一窗口为零时返回无百分比的新增状态', () => {
+    expect(compareUsageSeriesWindows([0, 0, 2, 3])).toEqual({
+      direction: 'up',
+      percent: null
+    })
   })
 })

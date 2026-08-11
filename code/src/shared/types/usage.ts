@@ -171,6 +171,7 @@ export interface DashboardSummary {
     cost: number
     byCurrency: Array<{ currency: string; amount: number }>
     tokens: number
+    requests: number
   }>
 }
 

@@ -46,6 +46,7 @@ import type {
 import type { BalanceSnapshot } from '../../shared/types/provider'
 import {
   buildModelUsageSeries,
+  compareUsageSeriesWindows,
   type UsageTrendModel,
   type UsageTrendRange,
   type UsageTrendSeries
@@ -141,7 +142,7 @@ function fillMissingDays(
     const d = new Date(today)
     d.setDate(today.getDate() - i)
     const key = d.toISOString().slice(0, 10)
-    out.push(byDate.get(key) ?? { date: key, cost: 0, byCurrency: [], tokens: 0 })
+    out.push(byDate.get(key) ?? { date: key, cost: 0, byCurrency: [], tokens: 0, requests: 0 })
   }
   return out
 }
@@ -381,34 +382,24 @@ export default function Dashboard() {
   const estimatedCostValue = hasCnySpend ? (spend?.cnyTotal ?? 0) : (summary?.totalCost ?? 0)
 
   // —— 绑定到各核心指标的真实趋势序列与涨跌(供 MetricCard sparkline) ——
-  // 成本 / Tokens 序列直接取 DashboardSummary.daily(已按天补齐);请求数序列从
-  // 原始日志按天聚合;缓存命中率取全期占比(与 0–100 细条一致)。
+  // 成本 / Tokens / 请求数序列直接取 Main 进程聚合并按天补齐的 DashboardSummary.daily。
   const daily = useMemo(() => summary?.daily ?? [], [summary])
   const costSeries = useMemo(() => daily.map((d) => d.cost), [daily])
   const tokensSeries = useMemo(() => daily.map((d) => d.tokens), [daily])
-  const requestsSeries = useMemo(() => {
-    if (!records.length) return [] as number[]
-    const dates = daily.map((d) => d.date)
-    const byDate = new Map<string, number>(dates.map((d) => [d, 0]))
-    for (const r of records) {
-      const key = new Date(r.capturedAt).toISOString().slice(0, 10)
-      if (byDate.has(key)) byDate.set(key, (byDate.get(key) ?? 0) + 1)
-    }
-    return dates.map((d) => byDate.get(d) ?? 0)
-  }, [records, daily])
+  const requestsSeries = useMemo(() => daily.map((d) => d.requests), [daily])
 
   /** 由日序列计算涨跌:后半窗口 vs 前半窗口(等价长度的相邻两段)。 */
   function deltaFromSeries(series: number[]): MetricDelta | undefined {
-    if (series.length < 2) return undefined
-    const mid = Math.floor(series.length / 2)
-    const prev = series.slice(0, mid).reduce((s, v) => s + v, 0)
-    const curr = series.slice(mid).reduce((s, v) => s + v, 0)
-    if (curr === prev) return { direction: 'flat', label: '0%' }
-    if (prev === 0) return { direction: 'up', label: '新增' }
-    const pct = ((curr - prev) / prev) * 100
+    const delta = compareUsageSeriesWindows(series)
+    if (!delta) return undefined
     return {
-      direction: pct >= 0 ? 'up' : 'down',
-      label: `${Math.abs(pct) >= 100 ? Math.round(Math.abs(pct)) : Math.abs(pct).toFixed(1)}%`
+      direction: delta.direction,
+      label:
+        delta.percent === null
+          ? delta.direction === 'up'
+            ? '新增'
+            : '变化'
+          : `${delta.percent >= 100 ? Math.round(delta.percent) : delta.percent.toFixed(1)}%`
     }
   }
   const costDelta = useMemo(() => deltaFromSeries(costSeries), [costSeries])
@@ -801,13 +792,17 @@ export default function Dashboard() {
               </div>
               <div data-dashboard-primary-metric>
                 <MetricCard
-                  label="缓存命中率"
-                  icon="fa-database"
-                  tone="green"
-                  value={cacheHitRate * 100}
-                  format={(value) => `${value.toFixed(1)}%`}
-                  progress={cacheHitRate}
-                  sub={`${fmtCount(summary?.totalCacheReadTokens ?? 0)} 缓存读取`}
+                  label="计价覆盖"
+                  icon="fa-tag"
+                  tone={health.tone === 'error' ? 'red' : health.coverage < 1 ? 'amber' : 'accent'}
+                  value={health.coverage * 100}
+                  format={(value) => `${value.toFixed(0)}%`}
+                  progress={health.coverage}
+                  sub={
+                    health.failedSources > 0
+                      ? `${health.failedSources} 个来源刷新失败`
+                      : `${health.pricedRequests} 已计价 · ${health.unpricedRequests} 待补价`
+                  }
                   motionOrder={3}
                 />
               </div>

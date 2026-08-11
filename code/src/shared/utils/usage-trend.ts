@@ -21,6 +21,33 @@ export interface UsageTrendSeries {
   bucketKind: 'hour' | 'day'
 }
 
+export interface UsageSeriesDelta {
+  direction: 'up' | 'down' | 'flat'
+  /** Absolute percentage change. Null means the previous window was zero. */
+  percent: number | null
+}
+
+/** Compare equally sized leading and trailing windows, dropping the middle sample when needed. */
+export function compareUsageSeriesWindows(series: readonly number[]): UsageSeriesDelta | undefined {
+  if (series.length < 2) return undefined
+  const windowSize = Math.floor(series.length / 2)
+  const sum = (values: readonly number[]) =>
+    values.reduce((total, value) => total + (Number.isFinite(value) ? value : 0), 0)
+  const previous = sum(series.slice(0, windowSize))
+  const current = sum(series.slice(-windowSize))
+
+  if (current === previous) return { direction: 'flat', percent: 0 }
+  if (previous === 0) {
+    return { direction: current > 0 ? 'up' : 'down', percent: null }
+  }
+
+  const percent = ((current - previous) / previous) * 100
+  return {
+    direction: percent >= 0 ? 'up' : 'down',
+    percent: Math.abs(percent)
+  }
+}
+
 /** 模型折线颜色循环表。 */
 const MODEL_COLORS = ['#10B981', '#2563EB', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#64748B']
 

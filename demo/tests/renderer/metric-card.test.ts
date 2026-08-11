@@ -32,12 +32,26 @@ describe('MetricCard + Sparkline (dashboard stat cards)', () => {
       })
     )
     expect(html).toContain('data-dashboard-metric="总成本"')
+    expect(html).not.toContain('<button')
     // 大数字(末态文本经 sr-only 暴露)
     expect(html).toContain('¥1284.56')
     // 涨跌箭头(绿涨)
     expect(html).toContain('12.4%')
     // 趋势曲线已渲染(C 段)
     expect(html).toContain('C')
+  })
+
+  it('只有提供详情回调时才渲染可交互按钮', () => {
+    const html = renderToStaticMarkup(
+      createElement(MetricCard, {
+        label: '总请求数',
+        icon: 'fa-arrow-right-arrow-left',
+        value: 12,
+        onLabelClick: () => undefined
+      })
+    )
+    expect(html).toContain('<button')
+    expect(html).toContain('aria-label="查看总请求数详情"')
   })
 
   it('MetricCard 占比模式渲染分段竖条(20 段,按进度填充)而非实心细条', () => {
@@ -80,5 +94,21 @@ describe('MetricCard + Sparkline (dashboard stat cards)', () => {
     )
     expect(html).toContain('1.2%')
     expect(html).toContain('下降')
+    expect(html).toContain('aria-hidden="true">1.2%</span>')
+    expect(html).toContain('<span class="sr-only">下降1.2%</span>')
+  })
+
+  it('零进度仍然使用进度模式而不渲染 sparkline', () => {
+    const html = renderToStaticMarkup(
+      createElement(MetricCard, {
+        label: '计价覆盖',
+        icon: 'fa-tag',
+        value: 0,
+        progress: 0,
+        series: [1, 2, 3]
+      })
+    )
+    expect(html).toContain('role="progressbar"')
+    expect(html).not.toContain('linearGradient')
   })
 })
