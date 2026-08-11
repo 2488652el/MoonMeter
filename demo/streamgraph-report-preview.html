@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoonMeter — 用量报告(流图)</title>
+    <style>
+      /* ============================================================
+     MoonMeter 用量报告 — 流图(streamgraph)版
+     浅色纸张 token 锁定;平滑居中流图由运行时脚本按
+     Fritsch–Carlson 单调三次 + inside-out 居中堆叠生成
+     ============================================================ */
+      :root {
+        --paper: 244 241 233;
+        --surface: 250 248 242;
+        --surface-hover: 238 234 225;
+        --ink: 21 21 21;
+        --muted: 119 115 107;
+        --faint: 151 146 136;
+        --line: 21 21 21;
+        --line-a: 0.14;
+        --line-s: 0.24;
+        --accent: 181 154 88;
+        --accent-strong: 145 118 56;
+        --blue: #3b82f6;
+        --purple: #8b5cf6;
+        --amber: #f59e0b;
+        --green: #10b981;
+        --red: #ef4444;
+        --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+        --sans: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        --r: 14px;
+        --shadow: 0 1px 0 rgb(21 21 21/0.02), 0 14px 36px rgb(31 28 20/0.05);
+        --shadow-hover: 0 2px 0 rgb(21 21 21/0.02), 0 22px 50px rgb(31 28 20/0.1);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: var(--sans);
+        background: rgb(var(--paper));
+        color: rgb(var(--ink));
+        -webkit-font-smoothing: antialiased;
+        padding: 36px clamp(20px, 4vw, 52px) 72px;
+      }
+      ::selection {
+        background: rgb(var(--accent) / 0.34);
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.075;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitchTiles'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.24'/%3E%3C/svg%3E");
+        mix-blend-mode: multiply;
+      }
+      body::after {
+        content: '';
+        position: fixed;
+        inset: -30% -20% auto;
+        height: 80%;
+        z-index: 0;
+        pointer-events: none;
+        background: radial-gradient(55% 50% at 50% 0%, rgb(var(--accent) / 0.08), transparent 65%);
+      }
+      .wrap {
+        position: relative;
+        z-index: 1;
+        max-width: 1280px;
+        margin: 0 auto;
+      }
+      .mono {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* page head */
+      .ph {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+      .ph .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        color: rgb(var(--accent-strong));
+        text-transform: uppercase;
+      }
+      .ph h1 {
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        margin-top: 6px;
+      }
+      .ph .sub {
+        margin-top: 5px;
+        font-size: 13.5px;
+        color: rgb(var(--muted));
+      }
+
+      /* 分段控件(参考:实心深色选中胶囊 + 悬浮白卡) */
+      .seg-r {
+        display: inline-flex;
+        align-items: center;
+        height: 44px;
+        border-radius: 99px;
+        padding: 4px;
+        background: rgb(var(--surface));
+        border: 1px solid rgb(var(--line) / var(--line-a));
+        box-shadow: var(--shadow);
+      }
+      .seg-r button {
+        border: 0;
+        background: transparent;
+        color: rgb(var(--muted));
+        font-size: 13px;
+        font-weight: 600;
+        padding: 9px 16px;
+        border-radius: 99px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.16s;
+        min-height: 36px;
+      }
+      .seg-r button:hover {
+        color: rgb(var(--ink));
+        background: rgb(var(--surface-hover));
+      }
+      .seg-r button.on {
+        background: rgb(var(--ink));
+        color: rgb(var(--paper));
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgb(21 21 21/0.18);
+      }
+
+      /* 12 列网格:主卡 8 / 右列 4 */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 22px;
+      }
+      .col-main {
+        grid-column: span 8;
+      }
+      .col-side {
+        grid-column: span 4;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      @media (max-width: 1080px) {
+        .col-main,
+        .col-side {
+          grid-column: span 12;
+        }
+      }
+
+      .card {
+        background: rgb(var(--surface));
+        border: 1px solid rgb(var(--line) / var(--line-a));
+        border-radius: var(--r);
+        box-shadow: var(--shadow);
+        transition:
+          box-shadow 0.2s,
+          transform 0.2s,
+          border-color 0.2s;
+      }
+      .card:hover {
+        box-shadow: var(--shadow-hover);
+        border-color: rgb(var(--line) / var(--line-s));
+      }
+
+      /* 主卡 */
+      .report {
+        padding: 24px 26px 20px;
+      }
+      .report .rh {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+      .report .rt {
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .report .rs {
+        font-size: 12.5px;
+        color: rgb(var(--muted));
+        margin-top: 4px;
+      }
+
+      /* 三连周期统计 */
+      .tri {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 22px;
+      }
+      @media (max-width: 640px) {
+        .tri {
+          grid-template-columns: 1fr;
+        }
+      }
+      .tri .tcell {
+        padding: 4px 2px;
+      }
+      .tri .tl {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: rgb(var(--faint));
+      }
+      .tri .tv {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-top: 6px;
+        font-family: var(--mono);
+        font-size: 24px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+      .chg {
+        font-family: var(--mono);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .chg.up {
+        color: var(--green);
+      }
+      .chg.dn {
+        color: var(--red);
+      }
+      .tri .tc {
+        font-size: 11px;
+        color: rgb(var(--faint));
+        margin-top: 5px;
+      }
+      .tri .tc b {
+        color: rgb(var(--muted));
+        font-weight: 600;
+      }
+
+      /* 流图容器 */
+      .stream-wrap {
+        margin-top: 18px;
+        position: relative;
+      }
+      #mainStream {
+        display: block;
+        width: 100%;
+        height: 330px;
+      }
+      .cap {
+        position: absolute;
+        transform: translateX(-50%);
+        pointer-events: none;
+        background: rgb(var(--surface));
+        border: 1px solid rgb(var(--line) / var(--line-s));
+        border-radius: 99px;
+        padding: 4px 11px;
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+        color: rgb(var(--ink));
+        box-shadow: var(--shadow);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.2;
+      }
+      .cap.top {
+        transform: translate(-50%, -100%);
+      }
+      .cap .dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        margin-right: 5px;
+        vertical-align: 1px;
+      }
+
+      /* 明细表 */
+      .dtab {
+        margin-top: 20px;
+        border-top: 1px solid rgb(var(--line) / var(--line-a));
+        padding-top: 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgb(var(--faint));
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid rgb(var(--line) / var(--line-a));
+      }
+      th.r,
+      td.r {
+        text-align: right;
+      }
+      td {
+        font-size: 12.5px;
+        padding: 11px 12px;
+        border-bottom: 1px solid rgb(var(--line) / 0.07);
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      tbody tr {
+        transition: background 0.13s;
+      }
+      tbody tr:hover {
+        background: rgb(var(--ink) / 0.025);
+      }
+      .prov {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        color: rgb(var(--muted));
+        font-weight: 500;
+      }
+      .prov .sw {
+        width: 12px;
+        height: 12px;
+        border-radius: 4px;
+        flex: none;
+      }
+      .num {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        color: rgb(var(--ink));
+      }
+
+      /* 迷你流图卡 */
+      .mini {
+        padding: 18px 20px 14px;
+        display: flex;
+        flex-direction: column;
+        min-height: 236px;
+      }
+      .mini .mh {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .mini .mt {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: rgb(var(--muted));
+      }
+      .mini .mt .d {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+      .mini .mrange {
+        font-size: 11px;
+        color: rgb(var(--faint));
+      }
+      .mini .mv {
+        font-family: var(--mono);
+        font-size: 31px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        margin-top: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+      .mini .mv .unit {
+        font-size: 14px;
+        color: rgb(var(--faint));
+        font-weight: 600;
+      }
+      .mini .mcmp {
+        font-size: 11px;
+        color: rgb(var(--faint));
+        margin-top: 7px;
+      }
+      .mini .mcmp b {
+        color: rgb(var(--muted));
+        font-weight: 600;
+      }
+      .mini .spark {
+        margin-top: auto;
+        padding-top: 10px;
+      }
+      .mini .spark svg {
+        display: block;
+        width: 100%;
+        height: 74px;
+      }
+      .mini .ticks {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        color: rgb(var(--faint));
+        font-family: var(--mono);
+        padding-top: 6px;
+      }
+
+      .foot {
+        margin-top: 26px;
+        font-size: 11.5px;
+        color: rgb(var(--faint));
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="ph">
+        <div>
+          <div class="eyebrow">MoonMeter · Report</div>
+          <h1>用量报告</h1>
+          <div class="sub">按模型分层的用量分布、周期对比与明细 —— 流图(streamgraph)呈现</div>
+        </div>
+        <div class="seg-r" role="group" aria-label="时间范围">
+          <button>当日</button><button>7 天</button
+          ><button class="on" aria-pressed="true">30 天</button><button>本月</button
+          ><button>全部</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- ============ 主卡:流图报告 ============ -->
+        <section class="card report col-main">
+          <div class="rh">
+            <div>
+              <div class="rt">使用分布</div>
+              <div class="rs">各模型近 30 天的 Token 用量流动 · 金色为总量占比</div>
+            </div>
+            <span class="chg up" style="font-size: 12.5px">▲ 较上周期 +12.4%</span>
+          </div>
+
+          <!-- 三连周期统计 -->
+          <div class="tri">
+            <div class="tcell">
+              <div class="tl">本周</div>
+              <div class="tv">¥312<span class="chg up">▲19.6%</span></div>
+              <div class="tc">Compared to <b>¥261</b> last week</div>
+            </div>
+            <div class="tcell">
+              <div class="tl">本月</div>
+              <div class="tv">¥1,284<span class="chg up">▲1.9%</span></div>
+              <div class="tc">Compared to <b>¥1,260</b> last month</div>
+            </div>
+            <div class="tcell">
+              <div class="tl">今年</div>
+              <div class="tv">¥9,134<span class="chg up">▲22%</span></div>
+              <div class="tc">Compared to <b>¥7,487</b> last year</div>
+            </div>
+          </div>
+
+          <!-- 主流图(脚本生成) -->
+          <div class="stream-wrap" id="streamWrap">
+            <svg
+              id="mainStream"
+              viewBox="0 0 720 330"
+              preserveAspectRatio="none"
+              aria-label="模型用量流图"
+            ></svg>
+            <!-- 数值胶囊由脚本插入 -->
+          </div>
+
+          <!-- 明细表 -->
+          <div class="dtab">
+            <table>
+              <thead>
+                <tr>
+                  <th>模型</th>
+                  <th class="r">Tokens</th>
+                  <th class="r">成本</th>
+                  <th class="r">占比</th>
+                </tr>
+              </thead>
+              <tbody id="detailRows">
+                <!-- 脚本生成 -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============ 右列:两张迷你流图卡 ============ -->
+        <div class="col-side">
+          <!-- 成本(金) -->
+          <section class="card mini">
+            <div class="mh">
+              <span class="mt"><span class="d" style="background: #b59a58"></span>成本</span>
+              <span class="mrange">近 30 天</span>
+            </div>
+            <div class="mv">¥1,284<span class="unit">.56</span></div>
+            <div style="margin-top: 6px"><span class="chg up">▲ 2.5%</span></div>
+            <div class="mcmp">Compared to <b>¥1,253</b> last month</div>
+            <div class="spark">
+              <svg id="miniCost" viewBox="0 0 300 74" preserveAspectRatio="none"></svg>
+            </div>
+            <div class="ticks"><span>07/12</span><span>07/26</span><span>08/10</span></div>
+          </section>
+          <!-- Tokens(蓝) -->
+          <section class="card mini">
+            <div class="mh">
+              <span class="mt"><span class="d" style="background: #3b82f6"></span>Tokens</span>
+              <span class="mrange">近 30 天</span>
+            </div>
+            <div class="mv">48.2<span class="unit">M</span></div>
+            <div style="margin-top: 6px"><span class="chg up">▲ 8.1%</span></div>
+            <div class="mcmp">Compared to <b>44.6M</b> last month</div>
+            <div class="spark">
+              <svg id="miniTok" viewBox="0 0 300 74" preserveAspectRatio="none"></svg>
+            </div>
+            <div class="ticks"><span>07/12</span><span>07/26</span><span>08/10</span></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="foot">
+        流图由 Fritsch–Carlson 单调三次插值 + inside-out
+        居中堆叠在运行时生成,主卡多模型分层(金系渐变),迷你卡为单系列总量趋势。配色锁定当前 App
+        浅色纸张 token。
+      </div>
+    </div>
+
+    <script>
+      /* ============================================================
+   Streamgraph 生成(纯 JS,无依赖)
+   — 采用多智能体几何方案:镜像居中堆叠 + 单调三次平滑
+   ============================================================ */
+
+      /* ---------- 示例数据(模拟 buildModelUsageSeries 输出) ---------- */
+      /* points: 30 个日桶,每层一个模型;models: key/label/color */
+      const DAYS = 30
+      const DAY_MS = 86400000
+      const today = new Date('2026-08-10T12:00:00')
+      function iso(d) {
+        const y = d.getFullYear(),
+          m = String(d.getMonth() + 1).padStart(2, '0'),
+          da = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${da}`
+      }
+
+      /* 手工塑造的有机趋势(每模型一组 30 天相对量),叠加出起伏流动感 */
+      function wave(n, peaks) {
+        // peaks: [{at(0..1), h, w}] 高斯叠加
+        const out = []
+        for (let i = 0; i < n; i++) {
+          const t = i / (n - 1)
+          let v = 0
+          for (const p of peaks) {
+            v += p.h * Math.exp(-((t - p.at) * (t - p.at)) / (2 * p.w * p.w))
+          }
+          out.push(Math.max(0, v))
+        }
+        return out
+      }
+      const modelSeries = [
+        {
+          key: 'm0',
+          label: 'claude-opus-4',
+          color: '#B59A58',
+          vals: wave(DAYS, [
+            { at: 0.25, h: 30, w: 0.1 },
+            { at: 0.55, h: 52, w: 0.12 },
+            { at: 0.85, h: 44, w: 0.1 }
+          ])
+        },
+        {
+          key: 'm1',
+          label: 'gpt-5',
+          color: '#C9A96B',
+          vals: wave(DAYS, [
+            { at: 0.2, h: 22, w: 0.09 },
+            { at: 0.5, h: 34, w: 0.11 },
+            { at: 0.82, h: 38, w: 0.1 }
+          ])
+        },
+        {
+          key: 'm2',
+          label: 'gemini-2.5-pro',
+          color: '#D9C08A',
+          vals: wave(DAYS, [
+            { at: 0.3, h: 16, w: 0.1 },
+            { at: 0.62, h: 24, w: 0.12 },
+            { at: 0.9, h: 20, w: 0.09 }
+          ])
+        },
+        {
+          key: 'm3',
+          label: 'deepseek-v3',
+          color: '#E4D2A6',
+          vals: wave(DAYS, [
+            { at: 0.35, h: 12, w: 0.11 },
+            { at: 0.7, h: 16, w: 0.12 }
+          ])
+        },
+        {
+          key: 'm4',
+          label: '其他模型',
+          color: '#EBDCC0',
+          vals: wave(DAYS, [
+            { at: 0.4, h: 8, w: 0.12 },
+            { at: 0.75, h: 10, w: 0.12 }
+          ])
+        }
+      ]
+      const points = []
+      for (let i = 0; i < DAYS; i++) {
+        const d = new Date(today.getTime() - (DAYS - 1 - i) * DAY_MS)
+        const p = { bucket: iso(d), label: iso(d).slice(5) }
+        modelSeries.forEach((m) => (p[m.key] = Math.round(m.vals[i] * 1000)))
+        points.push(p)
+      }
+      const models = modelSeries.map(({ key, label, color }) => ({ key, label, color }))
+      /* 每日成本(用于底部胶囊),随总量起伏 —— 取真实感单价使月成本≈¥1284 */
+      const dailyCost = points.map((p) => {
+        const t = models.reduce((s, m) => s + p[m.key], 0)
+        return { date: p.bucket, cost: +((t / 1000) * 0.8).toFixed(2) }
+      })
+      const costByDate = new Map(dailyCost.map((d) => [d.date, d.cost]))
+
+      /* ---------- 几何:单调三次(Fritsch–Carlson) ---------- */
+      function sum(a) {
+        return a.reduce((s, x) => s + x, 0)
+      }
+
+      /* 单调三次 Hermite → 三次贝塞尔 path 命令(开口路径)。reverse=true 时反向。 */
+      function monotonePath(xs, ys, n, reverse) {
+        const idx = [...Array(n).keys()]
+        if (reverse) idx.reverse()
+        const X = idx.map((i) => xs(i)),
+          Y = idx.map((i) => ys[i])
+        if (n < 3) {
+          return `M${X[0]},${Y[0]}` + (n === 2 ? `L${X[1]},${Y[1]}` : '')
+        }
+        const m = [],
+          t = []
+        for (let i = 0; i < n - 1; i++) {
+          const dx = X[i + 1] - X[i] || 1e-6
+          m.push((Y[i + 1] - Y[i]) / dx)
+        }
+        t[0] = m[0]
+        t[n - 1] = m[n - 2]
+        for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2
+        for (let i = 0; i < n - 1; i++) {
+          if (m[i] === 0) {
+            t[i] = 0
+            t[i + 1] = 0
+            continue
+          }
+          const a = t[i] / m[i],
+            b = t[i + 1] / m[i],
+            s = a * a + b * b
+          if (s > 9) {
+            const tau = 3 / Math.sqrt(s)
+            t[i] = tau * a * m[i]
+            t[i + 1] = tau * b * m[i]
+          }
+        }
+        let d = `M${X[0].toFixed(2)},${Y[0].toFixed(2)}`
+        for (let i = 0; i < n - 1; i++) {
+          const dx = (X[i + 1] - X[i]) / 3
+          d += `C${(X[i] + dx).toFixed(2)},${(Y[i] + t[i] * dx).toFixed(2)} ${(X[i + 1] - dx).toFixed(2)},${(Y[i + 1] - t[i + 1] * dx).toFixed(2)} ${X[i + 1].toFixed(2)},${Y[i + 1].toFixed(2)}`
+        }
+        return d
+      }
+      function bandPath(xs, top, bot, n) {
+        const topD = monotonePath(xs, top, n, false)
+        const botSeg = monotonePath(xs, bot, n, true).replace(/^M/, 'L')
+        return `${topD}${botSeg}Z`
+      }
+
+      /* ---------- 构建 streamgraph(镜像居中 + inside-out) ---------- */
+      function buildStreamgraph(points, models, W, H, pad) {
+        const n = points.length,
+          k = models.length
+        if (!n || !k) return { layers: [], caps: [], total: [] }
+        const v = models.map((m) => points.map((p) => Math.max(0, Number(p[m.key]) || 0)))
+        const total = points.map((_, i) => v.reduce((s, row) => s + row[i], 0))
+        const maxTotal = Math.max(...total, 0)
+        const scale = maxTotal > 0 ? (H / 2 - pad) / (maxTotal / 2) : 0
+
+        /* inside-out:总量降序,交替向中→外铺 */
+        const order = models.map((_, ki) => ki).sort((a, b) => sum(v[b]) - sum(v[a]))
+        const stackOrder = []
+        let take = 0
+        order.forEach((ki) => {
+          if (take % 2 === 0) stackOrder.unshift(ki)
+          else stackOrder.push(ki)
+          take++
+        })
+
+        const x = (i) => pad + (n === 1 ? (W - 2 * pad) / 2 : (i * (W - 2 * pad)) / (n - 1))
+        const yTop = {},
+          yBot = {}
+        models.forEach((_, ki) => {
+          yTop[ki] = []
+          yBot[ki] = []
+        })
+        for (let i = 0; i < n; i++) {
+          let acc = -total[i] / 2
+          for (const ki of stackOrder) {
+            const y0 = acc,
+              y1 = acc + v[ki][i]
+            yBot[ki][i] = H / 2 - y1 * scale
+            yTop[ki][i] = H / 2 - y0 * scale
+            acc = y1
+          }
+        }
+        const layers = stackOrder.map((ki) => ({
+          key: models[ki].key,
+          color: models[ki].color,
+          label: models[ki].label,
+          d: bandPath(x, yTop[ki], yBot[ki], n)
+        }))
+
+        /* 胶囊:首 / 峰 / 末 */
+        const peak = total.indexOf(Math.max(...total))
+        const picks = [...new Set([0, peak, n - 1])].sort((a, b) => a - b)
+        const topLayer = stackOrder[stackOrder.length - 1],
+          botLayer = stackOrder[0]
+        const caps = picks.map((i) => ({
+          i,
+          x: x(i),
+          topY: yTop[topLayer][i],
+          botY: yBot[botLayer][i],
+          total: total[i],
+          date: String(points[i].bucket)
+        }))
+        return { layers, caps, total, x }
+      }
+
+      /* ---------- 渲染主流图 ---------- */
+      const NS = 'http://www.w3.org/2000/svg'
+      function el(name, attrs) {
+        const e = document.createElementNS(NS, name)
+        for (const k in attrs) e.setAttribute(k, attrs[k])
+        return e
+      }
+      function fmtCount(n) {
+        if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'
+        if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'
+        return String(Math.round(n))
+      }
+      function fmtMoney(n) {
+        return '¥' + Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 0 })
+      }
+
+      ;(function renderMain() {
+        const W = 720,
+          H = 330,
+          pad = 26
+        const { layers, caps } = buildStreamgraph(points, models, W, H, pad)
+        const svg = document.getElementById('mainStream')
+        /* 中线 */
+        svg.appendChild(
+          el('line', {
+            x1: pad,
+            y1: H / 2,
+            x2: W - pad,
+            y2: H / 2,
+            stroke: 'rgb(21 21 21 / .10)',
+            'stroke-dasharray': '2 4'
+          })
+        )
+        /* 层 */
+        for (const l of layers) {
+          const path = el('path', { d: l.d, fill: l.color, 'fill-opacity': 0.9 })
+          path.style.transition = 'fill-opacity .15s'
+          path.addEventListener('mouseenter', () => {
+            layers.forEach(
+              (o) => o.node && o.node.setAttribute('fill-opacity', o === l ? 0.95 : 0.25)
+            )
+          })
+          path.addEventListener('mouseleave', () => {
+            layers.forEach((o) => o.node && o.node.setAttribute('fill-opacity', 0.9))
+          })
+          l.node = path
+          svg.appendChild(path)
+        }
+        /* 竖向连接线(SVG 坐标,恒定) + 端点圆点 */
+        caps.forEach((c) => {
+          svg.appendChild(
+            el('line', {
+              x1: c.x,
+              y1: c.topY,
+              x2: c.x,
+              y2: c.topY - 16,
+              stroke: 'rgb(21 21 21 / .28)',
+              'stroke-width': 1.5
+            })
+          )
+          svg.appendChild(el('circle', { cx: c.x, cy: c.topY, r: 3, fill: '#917938' }))
+          svg.appendChild(
+            el('line', {
+              x1: c.x,
+              y1: c.botY,
+              x2: c.x,
+              y2: c.botY + 16,
+              stroke: 'rgb(21 21 21 / .28)',
+              'stroke-width': 1.5
+            })
+          )
+          svg.appendChild(el('circle', { cx: c.x, cy: c.botY, r: 3, fill: '#917938' }))
+        })
+        /* HTML 数值胶囊:存数据点,布局函数按当前渲染尺寸换算(抗 resize) */
+        const wrap = document.getElementById('streamWrap')
+        const items = []
+        caps.forEach((c) => {
+          const topCap = document.createElement('div')
+          topCap.className = 'cap top'
+          topCap.innerHTML = `<span class="dot" style="background:#B59A58"></span>${fmtCount(c.total)}`
+          wrap.appendChild(topCap)
+          items.push({ el: topCap, px: c.x, py: c.topY - 16, gap: 8 })
+          const cost = costByDate.get(c.date)
+          const botCap = document.createElement('div')
+          botCap.className = 'cap bot'
+          botCap.innerHTML = `<span class="dot" style="background:#3B82F6"></span>${cost != null ? fmtMoney(cost) : '—'}`
+          wrap.appendChild(botCap)
+          items.push({ el: botCap, px: c.x, py: c.botY + 16, gap: 8 })
+        })
+        function layoutCaps() {
+          const rect = svg.getBoundingClientRect()
+          if (!rect.width) return
+          const sx = rect.width / W,
+            sy = rect.height / H
+          items.forEach((it) => {
+            it.el.style.left = it.px * sx + 'px'
+            it.el.style.top = it.py * sy + it.gap + 'px'
+          })
+        }
+        layoutCaps()
+        window.addEventListener('resize', layoutCaps)
+      })()
+
+      /* ---------- 明细表 ---------- */
+      ;(function renderTable() {
+        const totals = models.map((m) => ({
+          label: m.label,
+          color: m.color,
+          tokens: sum(points.map((p) => p[m.key]))
+        }))
+        const grand = sum(totals.map((t) => t.tokens))
+        totals.sort((a, b) => b.tokens - a.tokens)
+        const tbody = document.getElementById('detailRows')
+        totals.forEach((t) => {
+          const cost = (t.tokens / 1000) * 0.8
+          const pct = grand > 0 ? (t.tokens / grand) * 100 : 0
+          const tr = document.createElement('tr')
+          tr.innerHTML = `
+      <td><span class="prov"><span class="sw" style="background:${t.color}"></span>${t.label}</span></td>
+      <td class="r num">${fmtCount(t.tokens)}</td>
+      <td class="r num">${fmtMoney(cost)}</td>
+      <td class="r num" style="color:rgb(var(--muted))">${pct.toFixed(1)}%</td>`
+          tbody.appendChild(tr)
+        })
+      })()
+
+      /* ---------- 迷你流图(单系列居中镜像带) ---------- */
+      function renderMini(svgId, values, color) {
+        const svg = document.getElementById(svgId)
+        const W = 300,
+          H = 74,
+          pad = 4
+        const n = values.length
+        const max = Math.max(...values, 1)
+        const usable = H / 2 - pad
+        const x = (i) => pad + (n === 1 ? (W - 2 * pad) / 2 : (i * (W - 2 * pad)) / (n - 1))
+        const top = values.map((v) => H / 2 - (v / max) * usable)
+        const bot = values.map((v) => H / 2 + (v / max) * usable)
+        const grad = document.createElementNS(NS, 'defs')
+        const gid = svgId + 'g'
+        grad.innerHTML = `<linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity=".9"/>
+      <stop offset="50%" stop-color="${color}" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity=".9"/></linearGradient>`
+        svg.appendChild(grad)
+        svg.appendChild(el('path', { d: bandPath(x, top, bot, n), fill: `url(#${gid})` }))
+      }
+      /* 成本/Token 单系列(取每日总量,造有机起伏) */
+      const dailyTotals = points.map((p) => models.reduce((s, m) => s + p[m.key], 0))
+      renderMini(
+        'miniCost',
+        dailyTotals.map((v) => v * 0.9),
+        '#B59A58'
+      )
+      renderMini('miniTok', dailyTotals, '#3B82F6')
+
+      /* 流图由脚本生成;resize 时胶囊经 layoutCaps 重定位,无需整页重载 */
+    </script>
+  </body>
+</html>

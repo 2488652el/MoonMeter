@@ -1,0 +1,1634 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoonMeter — 仪表盘组件库</title>
+    <style>
+      /* ============================================================
+     MoonMeter 组件库预览 — 浅色纸张风(锁定当前 App 真实 token)
+     多智能体设计提案的落地实现:KPI 统计卡 / 余额分段柱 / 预算半圆弧 /
+     组合 KPI 条 / Sankey 流向 / 堆叠构成条 / 用量排行 / 来源健康
+     ============================================================ */
+      :root {
+        --paper: 244 241 233;
+        --paper-strong: 235 230 220;
+        --surface: 250 248 242;
+        --surface-hover: 238 234 225;
+        --ink: 21 21 21;
+        --muted: 119 115 107;
+        --faint: 151 146 136;
+        --line: 21 21 21;
+        --line-a: 0.14;
+        --line-s: 0.24;
+        --accent: 181 154 88;
+        --accent-strong: 145 118 56;
+
+        --blue: #3b82f6;
+        --purple: #8b5cf6;
+        --amber: #f59e0b;
+        --green: #10b981;
+        --red: #ef4444;
+
+        --mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+        --sans: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        --r: 14px;
+        --shadow: 0 1px 0 rgb(21 21 21 / 0.02), 0 14px 36px rgb(31 28 20 / 0.05);
+        --shadow-hover: 0 2px 0 rgb(21 21 21 / 0.02), 0 20px 46px rgb(31 28 20 / 0.1);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: var(--sans);
+        background: rgb(var(--paper));
+        color: rgb(var(--ink));
+        -webkit-font-smoothing: antialiased;
+        padding: 40px clamp(20px, 4vw, 56px) 80px;
+      }
+      ::selection {
+        background: rgb(var(--accent) / 0.34);
+      }
+      /* 纸张噪点 */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.075;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitchTiles'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.24'/%3E%3C/svg%3E");
+        mix-blend-mode: multiply;
+      }
+      body::after {
+        content: '';
+        position: fixed;
+        inset: -30% -20% auto;
+        height: 80%;
+        z-index: 0;
+        pointer-events: none;
+        background: radial-gradient(55% 50% at 50% 0%, rgb(var(--accent) / 0.08), transparent 65%);
+      }
+      .wrap {
+        position: relative;
+        z-index: 1;
+        max-width: 1240px;
+        margin: 0 auto;
+      }
+
+      .lib-head .eyebrow {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        color: rgb(var(--accent-strong));
+        text-transform: uppercase;
+      }
+      .lib-head h1 {
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        margin-top: 8px;
+      }
+      .lib-head p {
+        margin-top: 8px;
+        font-size: 14px;
+        color: rgb(var(--muted));
+        max-width: 640px;
+        line-height: 1.6;
+      }
+
+      .group {
+        margin-top: 48px;
+      }
+      .group > .gh {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin-bottom: 6px;
+      }
+      .group > .gh .idx {
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+        color: rgb(var(--accent-strong));
+        background: rgb(var(--accent) / 0.12);
+        padding: 3px 8px;
+        border-radius: 7px;
+      }
+      .group > .gh h2 {
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .group > .gd {
+        font-size: 12.5px;
+        color: rgb(var(--muted));
+        margin-bottom: 18px;
+      }
+
+      .row {
+        display: grid;
+        gap: 16px;
+      }
+      .c4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+      .c3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .c2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .c21 {
+        grid-template-columns: 1.5fr 1fr;
+      }
+      @media (max-width: 1080px) {
+        .c4 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .c3 {
+          grid-template-columns: 1fr;
+        }
+        .c2,
+        .c21 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .card {
+        background: rgb(var(--surface));
+        border: 1px solid rgb(var(--line) / var(--line-a));
+        border-radius: var(--r);
+        box-shadow: var(--shadow);
+      }
+      .lift {
+        transition:
+          transform 0.18s,
+          box-shadow 0.18s,
+          border-color 0.18s;
+      }
+      .lift:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-hover);
+        border-color: rgb(var(--line) / var(--line-s));
+      }
+
+      .mono {
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .lab-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: rgb(var(--muted));
+        cursor: pointer;
+        transition: color 0.15s;
+      }
+      .lab-link .arr {
+        font-size: 11px;
+        transition: transform 0.15s;
+      }
+      .lift:hover .lab-link {
+        color: rgb(var(--ink));
+      }
+      .lift:hover .lab-link .arr {
+        transform: translate(2px, -2px);
+      }
+
+      .chg {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        font-weight: 700;
+      }
+      .chg.up {
+        color: var(--green);
+      }
+      .chg.dn {
+        color: var(--red);
+      }
+
+      /* ============ ① KPI 统计卡(参考形态) ============ */
+      .stat {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .stat .pad {
+        padding: 18px 18px 0;
+      }
+      .stat .num {
+        font-family: var(--mono);
+        font-size: 41px;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat .num .unit {
+        font-size: 16px;
+        color: rgb(var(--faint));
+        font-weight: 600;
+      }
+      .stat .sub {
+        font-size: 11px;
+        color: rgb(var(--faint));
+        margin-top: 8px;
+      }
+      .stat .spark {
+        margin-top: 12px;
+        display: block;
+        width: 100%;
+        height: 60px;
+      }
+      .stat .act {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        display: flex;
+        gap: 6px;
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: all 0.18s;
+      }
+      .stat:hover .act {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .stat .act span {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        background: rgb(var(--surface-hover));
+        border: 1px solid rgb(var(--line) / var(--line-a));
+        color: rgb(var(--muted));
+        cursor: pointer;
+      }
+      .stat .act span:hover {
+        color: rgb(var(--ink));
+        border-color: rgb(var(--line) / var(--line-s));
+      }
+
+      /* ============ ② 余额分段柱卡(深色参考→浅色) ============ */
+      .seg-bars {
+        display: flex;
+        gap: 4px;
+        height: 34px;
+      }
+      .seg-bars i {
+        flex: 1;
+        border-radius: 5px;
+        background: rgb(var(--ink) / 0.06);
+        transition: transform 0.12s;
+      }
+      .seg-bars i.on {
+        background: var(--seg, rgb(var(--accent)));
+      }
+      .seg-bars i.th {
+        position: relative;
+      }
+      .seg-bars i.th::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: -5px;
+        bottom: -5px;
+        width: 1.5px;
+        background: rgb(var(--ink) / 0.25);
+        transform: translateX(2px);
+      }
+      .bal-card {
+        position: relative;
+        padding: 18px 18px 16px;
+      }
+      .bal-card .warn-edge {
+        position: absolute;
+        left: 0;
+        top: 14px;
+        bottom: 14px;
+        width: 3px;
+        border-radius: 3px;
+      }
+      .bal-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: 99px;
+        background: rgb(var(--paper) / 0.7);
+        border: 1px solid rgb(var(--line) / var(--line-a));
+        color: rgb(var(--muted));
+      }
+      .tag .pd {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+      .tag.warn {
+        color: #a16207;
+        background: rgba(245, 158, 11, 0.12);
+        border-color: rgba(245, 158, 11, 0.35);
+      }
+      .tag.bad {
+        color: #b91c1c;
+        background: rgba(239, 68, 68, 0.1);
+        border-color: rgba(239, 68, 68, 0.3);
+      }
+      .bal-num {
+        font-family: var(--mono);
+        font-size: 34px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      .bal-num .unit {
+        font-size: 13px;
+        color: rgb(var(--faint));
+        font-weight: 600;
+      }
+      .bal-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        margin-top: 12px;
+      }
+      .bal-meta .m1 {
+        color: rgb(var(--muted));
+      }
+      .bal-meta .m2 {
+        color: rgb(var(--faint));
+      }
+
+      /* ============ ③ 预算半圆弧卡(参考形态) ============ */
+      .goal {
+        padding: 18px 20px 0;
+        overflow: hidden;
+      }
+      .goal .g-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .goal .g-cycle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        color: rgb(var(--muted));
+      }
+      .goal .g-cycle .ci {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        background: rgb(var(--accent) / 0.12);
+        color: rgb(var(--accent-strong));
+      }
+      .goal .g-org {
+        font-size: 11.5px;
+        color: rgb(var(--faint));
+        margin-top: 5px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 5px 11px;
+        border-radius: 99px;
+      }
+      .badge .d {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+      }
+      .badge.ok {
+        color: #047857;
+        background: rgba(16, 185, 129, 0.12);
+      }
+      .badge.ok .d {
+        background: var(--green);
+      }
+      .badge.warn {
+        color: #a16207;
+        background: rgba(245, 158, 11, 0.14);
+      }
+      .badge.warn .d {
+        background: var(--amber);
+      }
+      .badge.mid {
+        color: #6d28d9;
+        background: rgba(139, 92, 246, 0.12);
+      }
+      .badge.mid .d {
+        background: var(--purple);
+      }
+      .goal .g-amt {
+        font-family: var(--mono);
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-top: 16px;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      .goal .g-amt .of {
+        font-size: 15px;
+        color: rgb(var(--faint));
+        font-weight: 600;
+      }
+      .goal .arc {
+        display: block;
+        width: 100%;
+        height: 118px;
+        margin-top: 6px;
+      }
+
+      /* ============ ④ 组合 KPI 条 ============ */
+      .kpi-strip {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        overflow: hidden;
+      }
+      .kpi-strip .seg {
+        padding: 16px 18px 12px;
+        border-left: 1px solid rgb(var(--line) / var(--line-a));
+        transition: background 0.15s;
+        cursor: pointer;
+      }
+      .kpi-strip .seg:first-child {
+        border-left: 0;
+      }
+      .kpi-strip .seg:hover {
+        background: rgb(var(--surface-hover) / 0.6);
+      }
+      .kpi-strip .sl {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        color: rgb(var(--faint));
+        font-weight: 600;
+      }
+      .kpi-strip .sv {
+        font-family: var(--mono);
+        font-size: 19px;
+        font-weight: 700;
+        margin-top: 6px;
+        font-variant-numeric: tabular-nums;
+      }
+      .kpi-strip .spark2 {
+        display: block;
+        width: 100%;
+        height: 26px;
+        margin-top: 8px;
+      }
+      @media (max-width: 1080px) {
+        .kpi-strip {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .kpi-strip .seg {
+          border-left: 0;
+          border-top: 1px solid rgb(var(--line) / var(--line-a));
+        }
+      }
+
+      /* ============ ⑤ Sankey 流向 ============ */
+      .sankey {
+        padding: 18px 20px 20px;
+      }
+      .sankey .sh {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+      .sankey .st {
+        font-size: 14.5px;
+        font-weight: 700;
+      }
+      .sankey .ss {
+        font-size: 12px;
+        color: rgb(var(--muted));
+        margin-top: 3px;
+      }
+
+      /* ============ ⑥ 横向堆叠构成条 ============ */
+      .stack {
+        padding: 18px 20px 20px;
+      }
+      .stackbar {
+        display: flex;
+        height: 12px;
+        border-radius: 99px;
+        overflow: hidden;
+        margin-top: 14px;
+      }
+      .stackbar i {
+        display: block;
+        height: 100%;
+        border-right: 1.5px solid rgb(var(--surface));
+      }
+      .stackbar i:last-child {
+        border-right: 0;
+      }
+      .legend-rows {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .legend-rows .lr {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 8px;
+        border-radius: 9px;
+        font-size: 12.5px;
+        transition: background 0.13s;
+        cursor: pointer;
+      }
+      .legend-rows .lr:hover {
+        background: rgb(var(--surface-hover) / 0.7);
+      }
+      .legend-rows .lr .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 3px;
+        flex: none;
+      }
+      .legend-rows .lr .nm {
+        color: rgb(var(--ink));
+        font-weight: 500;
+      }
+      .legend-rows .lr .vv {
+        margin-left: auto;
+        font-family: var(--mono);
+        color: rgb(var(--muted));
+        font-variant-numeric: tabular-nums;
+      }
+      .legend-rows .lr .pp {
+        font-family: var(--mono);
+        color: rgb(var(--faint));
+        width: 52px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ============ ⑦ 用量排行条 ============ */
+      .rank {
+        padding: 6px 0;
+      }
+      .rank .rh {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px 6px;
+      }
+      .rank .rt {
+        font-size: 14.5px;
+        font-weight: 700;
+      }
+      .rank .rswitch {
+        font-size: 11px;
+        color: rgb(var(--muted));
+        display: inline-flex;
+        gap: 2px;
+        background: rgb(var(--paper) / 0.6);
+        border: 1px solid rgb(var(--line) / var(--line-a));
+        border-radius: 99px;
+        padding: 2px;
+      }
+      .rank .rswitch b {
+        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 99px;
+        color: rgb(var(--faint));
+        cursor: pointer;
+      }
+      .rank .rswitch b.on {
+        background: rgb(var(--ink));
+        color: rgb(var(--paper));
+      }
+      .rank .rhead {
+        display: grid;
+        grid-template-columns: 24px 1fr 120px 48px 84px;
+        gap: 12px;
+        padding: 10px 20px 6px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgb(var(--faint));
+      }
+      .rank .rrow {
+        display: grid;
+        grid-template-columns: 24px 1fr 120px 48px 84px;
+        gap: 12px;
+        align-items: center;
+        padding: 11px 20px;
+        border-top: 1px solid rgb(var(--line) / 0.07);
+        cursor: pointer;
+        transition: background 0.13s;
+        position: relative;
+      }
+      .rank .rrow:hover {
+        background: rgb(var(--surface-hover) / 0.6);
+      }
+      .rank .rrow:hover::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 2px;
+        background: rgb(var(--accent));
+        border-radius: 2px;
+      }
+      .rank .ridx {
+        font-family: var(--mono);
+        font-size: 11px;
+        font-weight: 700;
+        color: rgb(var(--accent-strong));
+        background: rgb(var(--accent) / 0.12);
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+      }
+      .rank .rname {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .rank .rnum {
+        text-align: right;
+      }
+      .rank .rnum .a {
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+      .rank .rnum .b {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: rgb(var(--faint));
+        font-variant-numeric: tabular-nums;
+      }
+      .rank .rbar {
+        height: 3px;
+        border-radius: 99px;
+        background: rgb(var(--ink) / 0.06);
+        margin-top: 5px;
+        overflow: hidden;
+      }
+      .rank .rbar i {
+        display: block;
+        height: 100%;
+        border-radius: 99px;
+        background: rgb(var(--accent));
+      }
+      .rank .rpct {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: rgb(var(--muted));
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ============ ⑧ 来源健康列表 ============ */
+      .health {
+        padding: 6px 0;
+      }
+      .health .hh {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 20px 6px;
+      }
+      .health .ht {
+        font-size: 14.5px;
+        font-weight: 700;
+      }
+      .health .hsum {
+        font-size: 11.5px;
+        color: rgb(var(--muted));
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .health .hsum .d {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+      .health .hrow {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 20px;
+        border-top: 1px solid rgb(var(--line) / 0.07);
+        cursor: pointer;
+        transition: background 0.13s;
+      }
+      .health .hrow:hover {
+        background: rgb(var(--surface-hover) / 0.6);
+      }
+      .health .hdot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .health .hdot.err {
+        position: relative;
+      }
+      .health .hdot.err::after {
+        content: '';
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+        border: 2px solid rgba(239, 68, 68, 0.5);
+      }
+      .health .hname {
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .health .htype {
+        font-size: 11px;
+        color: rgb(var(--faint));
+      }
+      .health .htime {
+        margin-left: auto;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: rgb(var(--muted));
+        font-variant-numeric: tabular-nums;
+      }
+      .health .htime.err {
+        color: var(--red);
+        font-weight: 600;
+      }
+      .health .htime.stale {
+        color: var(--amber);
+        font-weight: 600;
+      }
+
+      .note {
+        margin-top: 14px;
+        font-size: 11.5px;
+        color: rgb(var(--faint));
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="lib-head">
+        <div class="eyebrow">MoonMeter · Component Library</div>
+        <h1>仪表盘组件库</h1>
+        <p>
+          多智能体并行设计、统一套当前 App 的浅色纸张 token
+          落版。每个组件都映射真实数据字段,并尽量做到「简洁但信息量足」。悬停卡片可查看交互。
+        </p>
+      </header>
+
+      <!-- ================= ① KPI 统计卡 ================= -->
+      <section class="group">
+        <div class="gh">
+          <span class="idx">01</span>
+          <h2>核心指标 · KPI 统计卡</h2>
+        </div>
+        <div class="gd">
+          大数字 + 数字旁涨跌箭头(绿涨红跌) + label 链接箭头 + 底部无边框渐变 sparkline +
+          悬停上浮出现操作图标。语义色:钱=金 / 量=蓝 / 请求=紫 / 命中=绿。
+        </div>
+        <div class="row c4">
+          <!-- 总成本 -->
+          <div class="card lift stat">
+            <div class="pad">
+              <div class="num">
+                ¥1,284<span class="unit">.56</span><span class="chg up">▲12.4%</span>
+              </div>
+              <div class="lab-link" style="margin-top: 9px">总成本 <span class="arr">↗</span></div>
+              <div class="sub">$176.20 · 实时汇率</div>
+            </div>
+            <div class="act"><span>↗</span><span>⧉</span></div>
+            <svg
+              class="spark"
+              viewBox="0 0 200 60"
+              preserveAspectRatio="none"
+              data-points="46,42,45,34,38,27,31,20,24,14"
+              data-stroke="#917938"
+              data-fill="url(#kA)"
+            >
+              <defs>
+                <linearGradient id="kA" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#B59A58" stop-opacity=".3" />
+                  <stop offset="100%" stop-color="#B59A58" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <!-- 真实消耗 -->
+          <div class="card lift stat">
+            <div class="pad">
+              <div class="num">
+                48.2<span class="unit">M</span><span class="chg up">▲8.1%</span>
+              </div>
+              <div class="lab-link" style="margin-top: 9px">
+                真实消耗 Tokens <span class="arr">↗</span>
+              </div>
+              <div class="sub">快照已用 22.8M</div>
+            </div>
+            <div class="act"><span>↗</span><span>⧉</span></div>
+            <svg
+              class="spark"
+              viewBox="0 0 200 60"
+              preserveAspectRatio="none"
+              data-points="48,46,48,40,43,34,37,29,32,25"
+              data-stroke="#3B82F6"
+              data-fill="url(#kB)"
+            >
+              <defs>
+                <linearGradient id="kB" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#3B82F6" stop-opacity=".28" />
+                  <stop offset="100%" stop-color="#3B82F6" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <!-- 总请求 -->
+          <div class="card lift stat">
+            <div class="pad">
+              <div class="num">9,214<span class="chg up">▲3.6%</span></div>
+              <div class="lab-link" style="margin-top: 9px">
+                总请求数 <span class="arr">↗</span>
+              </div>
+              <div class="sub">
+                已计价 8,742 · <span style="color: var(--amber); font-weight: 600">未计价 53</span>
+              </div>
+            </div>
+            <div class="act"><span>↗</span><span>⧉</span></div>
+            <svg
+              class="spark"
+              viewBox="0 0 200 60"
+              preserveAspectRatio="none"
+              data-points="50,48,49,44,46,40,42,36,38,33"
+              data-stroke="#8B5CF6"
+              data-fill="url(#kP)"
+            >
+              <defs>
+                <linearGradient id="kP" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#8B5CF6" stop-opacity=".28" />
+                  <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <!-- 缓存命中率(占比条) -->
+          <div class="card lift stat">
+            <div class="pad">
+              <div class="num">
+                67.3<span class="unit">%</span><span class="chg dn">▼1.2%</span>
+              </div>
+              <div class="lab-link" style="margin-top: 9px">
+                缓存命中率 <span class="arr">↗</span>
+              </div>
+              <div class="sub">缓存读取 32.4M tokens</div>
+            </div>
+            <div class="act"><span>↗</span><span>⧉</span></div>
+            <div style="padding: 0 18px 18px; margin-top: 14px">
+              <div
+                style="
+                  height: 8px;
+                  border-radius: 99px;
+                  background: rgb(var(--ink) / 0.06);
+                  overflow: hidden;
+                "
+              >
+                <div
+                  style="width: 67.3%; height: 100%; border-radius: 99px; background: var(--green)"
+                ></div>
+              </div>
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  font-size: 10px;
+                  color: rgb(var(--faint));
+                  margin-top: 6px;
+                "
+                class="mono"
+              >
+                <span>0</span><span>50</span><span>100</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          计价覆盖率卡(圆环 + 细条双编码、色随 health.tone)与「组合 KPI 条」见 04。
+        </div>
+      </section>
+
+      <!-- ================= ② 余额分段柱卡 ================= -->
+      <section class="group">
+        <div class="gh">
+          <span class="idx">02</span>
+          <h2>余额 / 额度 · 分段柱进度卡</h2>
+        </div>
+        <div class="gd">
+          把你给的深色余额卡套到 BalanceSnapshot:20 根分段柱 = 每柱 5%,填满=已用、空柱=剩余;80%/95%
+          阈值正好落在整柱边界(第 16/19 根),色温 金→琥珀→红
+          随已用占比升级。语义色刻意避开琥珀/红,留给预警。
+        </div>
+        <div class="row c3">
+          <!-- 健康(金) -->
+          <div class="card lift bal-card">
+            <div class="bal-top">
+              <span class="tag"
+                ><span class="pd" style="background: var(--blue)"></span>OpenAI</span
+              >
+              <span class="tag">12 分钟前</span>
+            </div>
+            <div class="bal-num">4.6<span class="unit">M tokens</span></div>
+            <div class="seg-bars" style="--seg: #b59a58; margin-top: 14px">
+              <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i
+              ><i class="th"></i><i></i><i></i><i class="th"></i><i></i>
+            </div>
+            <div class="bal-meta">
+              <span class="m1">已用 5.1M / 共 9.7M(53%)</span><span class="m2">剩余 47%</span>
+            </div>
+            <div class="bal-meta" style="margin-top: 4px">
+              <span class="m2">快照 08/10 14:32 · 数据完整</span>
+            </div>
+          </div>
+          <!-- 预警(琥珀) -->
+          <div class="card lift bal-card">
+            <span class="warn-edge" style="background: var(--amber)"></span>
+            <div class="bal-top">
+              <span class="tag"
+                ><span class="pd" style="background: var(--purple)"></span>Anthropic</span
+              >
+              <span class="tag warn">已用 82% · 即将耗尽</span>
+            </div>
+            <div class="bal-num">1.2<span class="unit">M tokens</span></div>
+            <div class="seg-bars" style="--seg: #f59e0b; margin-top: 14px">
+              <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i class="on"></i><i class="on th"></i><i></i
+              ><i></i><i class="th"></i><i></i>
+            </div>
+            <div class="bal-meta">
+              <span class="m1">已用 6.5M / 共 7.7M(82%)</span><span class="m2">仅剩 18%</span>
+            </div>
+            <div class="bal-meta" style="margin-top: 4px">
+              <span class="m2">快照 08/10 14:30 · 建议充值 / 更换 Key</span>
+            </div>
+          </div>
+          <!-- 危急(红) -->
+          <div class="card lift bal-card">
+            <span class="warn-edge" style="background: var(--red)"></span>
+            <div class="bal-top">
+              <span class="tag"
+                ><span class="pd" style="background: var(--green)"></span>DeepSeek</span
+              >
+              <span class="tag bad">仅剩 4% · 即将用尽</span>
+            </div>
+            <div class="bal-num">0.4<span class="unit">M tokens</span></div>
+            <div class="seg-bars" style="--seg: #ef4444; margin-top: 14px">
+              <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i
+              ><i class="on"></i><i class="on"></i><i class="on"></i><i class="on th"></i
+              ><i class="on"></i><i class="on"></i><i class="on th"></i><i></i>
+            </div>
+            <div class="bal-meta">
+              <span class="m1">已用 9.1M / 共 9.5M(96%)</span><span class="m2">仅剩 4%</span>
+            </div>
+            <div class="bal-meta" style="margin-top: 4px">
+              <span class="m2">快照 08/09 22:14 · 立即充值</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ③ 预算半圆弧卡 ================= -->
+      <section class="group">
+        <div class="gh">
+          <span class="idx">03</span>
+          <h2>预算 / 目标 · 半圆弧进度卡</h2>
+        </div>
+        <div class="gd">
+          状态徽章(数据可信度,health.tone 驱动) + 当前消费大数字 +「/预算上限」+
+          底部半圆弧进度(预算消耗,阈值变色)。两套语义分离:徽章说数据信不信,弧说钱花到哪了。
+        </div>
+        <div class="row c2">
+          <!-- ON TRACK -->
+          <div class="card lift goal">
+            <div class="g-top">
+              <div>
+                <div class="g-cycle"><span class="ci">◔</span>本月 · 自然月</div>
+                <div class="g-org">2026-08 账期 · 全部来源</div>
+              </div>
+              <span class="badge ok"><span class="d"></span>ON TRACK</span>
+            </div>
+            <div class="g-amt">¥943.94<span class="of"> / ¥2,000</span></div>
+            <svg class="arc" viewBox="0 0 200 118" preserveAspectRatio="xMidYMax meet">
+              <path
+                d="M20,110 A80,80 0 0 1 180,110"
+                fill="none"
+                stroke="rgb(21 21 21 / .07)"
+                stroke-width="10"
+                stroke-linecap="round"
+              />
+              <path
+                d="M20,110 A80,80 0 0 1 95,32"
+                fill="none"
+                stroke="#10B981"
+                stroke-width="10"
+                stroke-linecap="round"
+              />
+              <text
+                x="100"
+                y="98"
+                text-anchor="middle"
+                font-family="var(--mono)"
+                font-size="26"
+                font-weight="800"
+                fill="rgb(21 21 21)"
+              >
+                47%
+              </text>
+              <text x="100" y="112" text-anchor="middle" font-size="9" fill="rgb(119 115 107)">
+                已用
+              </text>
+            </svg>
+          </div>
+          <!-- NEEDS ATTENTION -->
+          <div class="card lift goal">
+            <div class="g-top">
+              <div>
+                <div class="g-cycle"><span class="ci">◑</span>本季度 · 自定义</div>
+                <div class="g-org">Anthropic + OpenAI · 2 个来源</div>
+              </div>
+              <span class="badge warn"><span class="d"></span>NEEDS ATTENTION</span>
+            </div>
+            <div class="g-amt">¥268.85<span class="of"> / ¥300</span></div>
+            <svg class="arc" viewBox="0 0 200 118" preserveAspectRatio="xMidYMax meet">
+              <path
+                d="M20,110 A80,80 0 0 1 180,110"
+                fill="none"
+                stroke="rgb(21 21 21 / .07)"
+                stroke-width="10"
+                stroke-linecap="round"
+              />
+              <path
+                d="M20,110 A80,80 0 0 1 168,68"
+                fill="none"
+                stroke="#8B5CF6"
+                stroke-width="10"
+                stroke-linecap="round"
+              />
+              <text
+                x="100"
+                y="98"
+                text-anchor="middle"
+                font-family="var(--mono)"
+                font-size="26"
+                font-weight="800"
+                fill="rgb(21 21 21)"
+              >
+                90%
+              </text>
+              <text x="100" y="112" text-anchor="middle" font-size="9" fill="rgb(119 115 107)">
+                已用
+              </text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ④ 组合 KPI 条 ================= -->
+      <section class="group">
+        <div class="gh">
+          <span class="idx">04</span>
+          <h2>组合式 KPI 条</h2>
+        </div>
+        <div class="gd">
+          把 5 个核心指标的「数字 + 方向 +
+          趋势」压缩进一条通栏,段间细竖线分隔,适合首屏顶部扫读;精度留给点开后的单卡。
+        </div>
+        <div class="card kpi-strip">
+          <div class="seg">
+            <div class="sl"><span>总成本</span><span class="chg up">▲12%</span></div>
+            <div class="sv" style="color: rgb(var(--accent-strong))">¥1,284</div>
+            <svg
+              class="spark2"
+              viewBox="0 0 100 26"
+              preserveAspectRatio="none"
+              data-points="20,17,19,12,14,6"
+              data-stroke="#917938"
+              data-fill="rgb(181 154 88 / .2)"
+            ></svg>
+          </div>
+          <div class="seg">
+            <div class="sl"><span>消耗 Tokens</span><span class="chg up">▲8%</span></div>
+            <div class="sv">48.2M</div>
+            <svg
+              class="spark2"
+              viewBox="0 0 100 26"
+              preserveAspectRatio="none"
+              data-points="21,19,20,15,16,11"
+              data-stroke="#3B82F6"
+              data-fill="rgb(59 130 246 / .18)"
+            ></svg>
+          </div>
+          <div class="seg">
+            <div class="sl"><span>总请求</span><span class="chg up">▲4%</span></div>
+            <div class="sv">9,214</div>
+            <svg
+              class="spark2"
+              viewBox="0 0 100 26"
+              preserveAspectRatio="none"
+              data-points="22,21,21,18,18,15"
+              data-stroke="#8B5CF6"
+              data-fill="rgb(139 92 246 / .18)"
+            ></svg>
+          </div>
+          <div class="seg">
+            <div class="sl"><span>缓存命中</span><span class="chg dn">▼1%</span></div>
+            <div class="sv">67.3%</div>
+            <svg
+              class="spark2"
+              viewBox="0 0 100 26"
+              preserveAspectRatio="none"
+              data-points="14,15,13,16,14,17"
+              data-stroke="#10B981"
+              data-fill="rgb(16 185 129 / .18)"
+            ></svg>
+          </div>
+          <div class="seg">
+            <div class="sl"><span>计价覆盖</span><span class="chg up">▲2%</span></div>
+            <div class="sv" style="color: var(--green)">96.4%</div>
+            <div
+              style="
+                margin-top: 10px;
+                height: 6px;
+                border-radius: 99px;
+                background: rgb(var(--ink) / 0.06);
+                overflow: hidden;
+              "
+            >
+              <div
+                style="width: 96.4%; height: 100%; background: var(--green); border-radius: 99px"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑤ Sankey 流向 + ⑥ 堆叠构成条 ================= -->
+      <section class="group">
+        <div class="gh">
+          <span class="idx">05</span>
+          <h2>流向 / 分布</h2>
+        </div>
+        <div class="gd">
+          左侧:币种折算流向(桑基,节点为带数值的圆角竖条,流动带按金额等比);右侧:来源构成横向堆叠条(数据少时的降级形态,信息不降级)。
+        </div>
+        <div class="row c21">
+          <!-- Sankey -->
+          <div class="card sankey">
+            <div class="sh">
+              <div>
+                <div class="st">币种 → 人民币流向</div>
+                <div class="ss">各币种折算成多少人民币,合计 ¥1,284.56</div>
+              </div>
+              <span class="tag"
+                ><span class="pd" style="background: var(--green)"></span>实时汇率</span
+              >
+            </div>
+            <svg
+              viewBox="0 0 560 240"
+              width="100%"
+              height="240"
+              style="display: block; margin-top: 8px"
+            >
+              <defs>
+                <linearGradient id="fU" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#3B82F6" stop-opacity=".5" />
+                  <stop offset="100%" stop-color="#B59A58" stop-opacity=".25" />
+                </linearGradient>
+                <linearGradient id="fC" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#10B981" stop-opacity=".5" />
+                  <stop offset="100%" stop-color="#B59A58" stop-opacity=".25" />
+                </linearGradient>
+                <linearGradient id="fE" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#8B5CF6" stop-opacity=".5" />
+                  <stop offset="100%" stop-color="#B59A58" stop-opacity=".25" />
+                </linearGradient>
+              </defs>
+              <!-- flow bands -->
+              <path
+                d="M40,40 C 260,40 300,70 470,86 L470,150 C 300,134 260,106 40,118 Z"
+                fill="url(#fU)"
+              />
+              <path
+                d="M40,132 C 260,132 300,160 470,158 L470,176 C 300,178 260,168 40,176 Z"
+                fill="url(#fC)"
+              />
+              <path
+                d="M40,196 C 260,196 300,196 470,182 L470,192 C 300,206 260,224 40,224 Z"
+                fill="url(#fE)"
+              />
+              <!-- source nodes -->
+              <rect x="24" y="40" width="14" height="78" rx="5" fill="#3B82F6" />
+              <rect x="24" y="132" width="14" height="44" rx="5" fill="#10B981" />
+              <rect x="24" y="196" width="14" height="28" rx="5" fill="#8B5CF6" />
+              <!-- target node -->
+              <rect x="470" y="86" width="14" height="106" rx="5" fill="#B59A58" />
+              <!-- source labels -->
+              <text x="48" y="66" font-size="12" font-weight="600" fill="rgb(21 21 21)">USD</text>
+              <text
+                x="48"
+                y="82"
+                font-size="10.5"
+                fill="rgb(119 115 107)"
+                font-family="var(--mono)"
+              >
+                $128.40 · 7.18
+              </text>
+              <text x="48" y="150" font-size="12" font-weight="600" fill="rgb(21 21 21)">CNY</text>
+              <text
+                x="48"
+                y="166"
+                font-size="10.5"
+                fill="rgb(119 115 107)"
+                font-family="var(--mono)"
+              >
+                ¥210.00 · 1.00
+              </text>
+              <text x="48" y="212" font-size="12" font-weight="600" fill="rgb(21 21 21)">EUR</text>
+              <text
+                x="48"
+                y="228"
+                font-size="10.5"
+                fill="rgb(119 115 107)"
+                font-family="var(--mono)"
+              >
+                €15.20 · 7.85
+              </text>
+              <!-- target label -->
+              <text x="496" y="120" font-size="11" fill="rgb(119 115 107)">CNY 合计</text>
+              <text
+                x="496"
+                y="140"
+                font-size="17"
+                font-weight="800"
+                fill="rgb(21 21 21)"
+                font-family="var(--mono)"
+              >
+                ¥1,284
+              </text>
+              <text
+                x="496"
+                y="156"
+                font-size="10.5"
+                fill="rgb(151 146 136)"
+                font-family="var(--mono)"
+              >
+                .56
+              </text>
+            </svg>
+          </div>
+          <!-- Stacked bar -->
+          <div class="card stack">
+            <div
+              class="sh"
+              style="display: flex; justify-content: space-between; align-items: flex-end"
+            >
+              <div>
+                <div class="st" style="font-size: 14.5px; font-weight: 700">来源构成</div>
+                <div class="ss" style="font-size: 12px; color: rgb(var(--muted)); margin-top: 3px">
+                  按 Token 用量占比
+                </div>
+              </div>
+              <div class="mono" style="font-size: 20px; font-weight: 800">48.2M</div>
+            </div>
+            <div class="stackbar">
+              <i style="width: 44%; background: #b59a58"></i>
+              <i style="width: 27%; background: #3b82f6"></i>
+              <i style="width: 16%; background: #8b5cf6"></i>
+              <i style="width: 13%; background: #10b981"></i>
+            </div>
+            <div class="legend-rows">
+              <div class="lr">
+                <span class="dot" style="background: #b59a58"></span
+                ><span class="nm">anthropic</span><span class="vv">21.4M</span
+                ><span class="pp">44%</span>
+              </div>
+              <div class="lr">
+                <span class="dot" style="background: #3b82f6"></span><span class="nm">openai</span
+                ><span class="vv">12.8M</span><span class="pp">27%</span>
+              </div>
+              <div class="lr">
+                <span class="dot" style="background: #8b5cf6"></span><span class="nm">gemini</span
+                ><span class="vv">7.9M</span><span class="pp">16%</span>
+              </div>
+              <div class="lr">
+                <span class="dot" style="background: #10b981"></span><span class="nm">deepseek</span
+                ><span class="vv">6.1M</span><span class="pp">13%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ⑦ 用量排行 + ⑧ 来源健康 ================= -->
+      <section class="group">
+        <div class="gh">
+          <span class="idx">06</span>
+          <h2>明细 / 状态</h2>
+        </div>
+        <div class="gd">
+          左侧:Provider 用量排行(名次 + 量 + 占比 + 内嵌细进度条 +
+          迷你走势,点击可展开);右侧:来源健康列表(状态点承载全部健康语义,异常自动置顶)。
+        </div>
+        <div class="row c2">
+          <!-- 排行 -->
+          <div class="card rank">
+            <div class="rh">
+              <div class="rt">Provider 用量排行</div>
+              <div class="rswitch"><b class="on">用量</b><b>费用</b></div>
+            </div>
+            <div class="rhead">
+              <span></span><span>来源</span><span style="text-align: right">用量</span
+              ><span style="text-align: right">占比</span
+              ><span style="text-align: right">近7日</span>
+            </div>
+            <div class="rrow">
+              <span class="ridx">1</span>
+              <div>
+                <div class="rname">anthropic</div>
+                <div class="rbar"><i style="width: 100%"></i></div>
+              </div>
+              <div class="rnum">
+                <div class="a">21.4M</div>
+                <div class="b">¥612.30</div>
+              </div>
+              <div class="rpct">44%</div>
+              <svg viewBox="0 0 84 24" width="84" height="24" preserveAspectRatio="none">
+                <path
+                  d="M0,18 L14,15 L28,16 L42,10 L56,12 L70,7 L84,4"
+                  fill="none"
+                  stroke="#B59A58"
+                  stroke-width="1.6"
+                />
+              </svg>
+            </div>
+            <div class="rrow">
+              <span class="ridx">2</span>
+              <div>
+                <div class="rname">openai</div>
+                <div class="rbar"><i style="width: 60%"></i></div>
+              </div>
+              <div class="rnum">
+                <div class="a">12.8M</div>
+                <div class="b">¥388.10</div>
+              </div>
+              <div class="rpct">27%</div>
+              <svg viewBox="0 0 84 24" width="84" height="24" preserveAspectRatio="none">
+                <path
+                  d="M0,16 L14,14 L28,15 L42,11 L56,13 L70,9 L84,10"
+                  fill="none"
+                  stroke="#B59A58"
+                  stroke-width="1.6"
+                />
+              </svg>
+            </div>
+            <div class="rrow">
+              <span class="ridx">3</span>
+              <div>
+                <div class="rname">gemini</div>
+                <div class="rbar"><i style="width: 37%"></i></div>
+              </div>
+              <div class="rnum">
+                <div class="a">7.9M</div>
+                <div class="b">¥184.20</div>
+              </div>
+              <div class="rpct">16%</div>
+              <svg viewBox="0 0 84 24" width="84" height="24" preserveAspectRatio="none">
+                <path
+                  d="M0,12 L14,14 L28,12 L42,15 L56,13 L70,16 L84,14"
+                  fill="none"
+                  stroke="#B59A58"
+                  stroke-width="1.6"
+                />
+              </svg>
+            </div>
+            <div class="rrow">
+              <span class="ridx">4</span>
+              <div>
+                <div class="rname">deepseek</div>
+                <div class="rbar"><i style="width: 29%"></i></div>
+              </div>
+              <div class="rnum">
+                <div class="a">6.1M</div>
+                <div class="b">¥99.96</div>
+              </div>
+              <div class="rpct">13%</div>
+              <svg viewBox="0 0 84 24" width="84" height="24" preserveAspectRatio="none">
+                <path
+                  d="M0,14 L14,16 L28,15 L42,18 L56,17 L70,19 L84,18"
+                  fill="none"
+                  stroke="#B59A58"
+                  stroke-width="1.6"
+                />
+              </svg>
+            </div>
+          </div>
+          <!-- 健康 -->
+          <div class="card health">
+            <div class="hh">
+              <div class="ht">来源健康</div>
+              <div class="hsum"><span class="d"></span>5/6 可用</div>
+            </div>
+            <div class="hrow">
+              <span class="hdot err" style="background: var(--red)"></span>
+              <div>
+                <div class="hname">kimi-coding</div>
+                <div class="htype">provider</div>
+              </div>
+              <span class="htime err">刷新失败</span>
+            </div>
+            <div class="hrow">
+              <span class="hdot" style="background: var(--amber)"></span>
+              <div>
+                <div class="hname">minimax</div>
+                <div class="htype">provider</div>
+              </div>
+              <span class="htime stale">2 小时前</span>
+            </div>
+            <div class="hrow">
+              <span class="hdot" style="background: var(--green)"></span>
+              <div>
+                <div class="hname">anthropic</div>
+                <div class="htype">provider</div>
+              </div>
+              <span class="htime">5 分钟前</span>
+            </div>
+            <div class="hrow">
+              <span class="hdot" style="background: var(--green)"></span>
+              <div>
+                <div class="hname">openai</div>
+                <div class="htype">provider</div>
+              </div>
+              <span class="htime">6 分钟前</span>
+            </div>
+            <div class="hrow">
+              <span class="hdot" style="background: var(--green)"></span>
+              <div>
+                <div class="hname">claude-code</div>
+                <div class="htype">cli-log</div>
+              </div>
+              <span class="htime">12 分钟前</span>
+            </div>
+            <div class="hrow">
+              <span class="hdot" style="background: var(--green)"></span>
+              <div>
+                <div class="hname">codex</div>
+                <div class="htype">cli-log</div>
+              </div>
+              <span class="htime">18 分钟前</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      /* ============================================================
+   Sparkline 平滑(Fritsch–Carlson 单调三次)
+   把 .spark / .spark2 的折线点(data-points)渲染成顺滑曲线,
+   单调插值保证不越过数据点、不产生回勾,趋势忠于原折线。
+   ============================================================ */
+      ;(function () {
+        const NS = 'http://www.w3.org/2000/svg'
+        function el(name, attrs) {
+          const e = document.createElementNS(NS, name)
+          for (const k in attrs) e.setAttribute(k, attrs[k])
+          return e
+        }
+
+        /* 单调三次 Hermite → 三次贝塞尔 path。pts = [[x,y],...] 按 x 升序。 */
+        function smoothPath(pts) {
+          const n = pts.length
+          if (n < 2) return ''
+          if (n === 2) return `M${pts[0][0]},${pts[0][1]}L${pts[1][0]},${pts[1][1]}`
+          const m = [],
+            t = new Array(n)
+          for (let i = 0; i < n - 1; i++) {
+            const dx = pts[i + 1][0] - pts[i][0] || 1e-6
+            m.push((pts[i + 1][1] - pts[i][1]) / dx)
+          }
+          t[0] = m[0]
+          t[n - 1] = m[n - 2]
+          for (let i = 1; i < n - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2
+          for (let i = 0; i < n - 1; i++) {
+            if (m[i] === 0) {
+              t[i] = 0
+              t[i + 1] = 0
+              continue
+            }
+            const a = t[i] / m[i],
+              b = t[i + 1] / m[i],
+              s = a * a + b * b
+            if (s > 9) {
+              const tau = 3 / Math.sqrt(s)
+              t[i] = tau * a * m[i]
+              t[i + 1] = tau * b * m[i]
+            }
+          }
+          let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`
+          for (let i = 0; i < n - 1; i++) {
+            const dx = (pts[i + 1][0] - pts[i][0]) / 3
+            d +=
+              `C${(pts[i][0] + dx).toFixed(2)},${(pts[i][1] + t[i] * dx).toFixed(2)} ` +
+              `${(pts[i + 1][0] - dx).toFixed(2)},${(pts[i + 1][1] - t[i + 1] * dx).toFixed(2)} ` +
+              `${pts[i + 1][0].toFixed(2)},${pts[i + 1][1].toFixed(2)}`
+          }
+          return d
+        }
+
+        function renderSpark(svg) {
+          const ys = (svg.dataset.points || '')
+            .split(',')
+            .map(Number)
+            .filter((v) => !isNaN(v))
+          if (ys.length < 2) return
+          const vb = svg.viewBox.baseVal,
+            W = vb.width,
+            H = vb.height
+          const n = ys.length,
+            step = n > 1 ? W / (n - 1) : 0
+          const pts = ys.map((y, i) => [i * step, y])
+          const stroke = svg.dataset.stroke || '#917938'
+          const fill = svg.dataset.fill
+          const sw = svg.classList.contains('spark2') ? 1.6 : 1.8
+          const d = smoothPath(pts)
+          if (fill)
+            svg.appendChild(el('path', { d: `${d}L${W},${H}L0,${H}Z`, fill, stroke: 'none' }))
+          svg.appendChild(
+            el('path', {
+              d,
+              fill: 'none',
+              stroke,
+              'stroke-width': sw,
+              'stroke-linecap': 'round',
+              'stroke-linejoin': 'round'
+            })
+          )
+        }
+
+        document
+          .querySelectorAll('svg.spark[data-points], svg.spark2[data-points]')
+          .forEach(renderSpark)
+      })()
+    </script>
+  </body>
+</html>
