@@ -120,7 +120,7 @@ export function MetricCard({
       data-dashboard-metric={label}
       className={clsx(
         CARD_SURFACE_CLASS,
-        'motion-card group relative flex min-h-[148px] flex-col transition-colors hover:bg-bg-card/80'
+        'motion-card group relative flex h-full min-h-[168px] flex-col transition-colors hover:bg-bg-card/80'
       )}
       style={{ '--motion-order': motionOrder } as CSSProperties}
     >
@@ -170,7 +170,8 @@ export function MetricCard({
         ) : null}
 
         {showProgress ? (
-          <div className="mt-auto pb-4 pt-3">
+          /* 与 sparkline 卡等高:固定 footer 高度,分段条在其中垂直居中,保证整行卡片齐平 */
+          <div className="mt-auto flex h-[54px] flex-col justify-center pb-1">
             <SegmentedProgress
               value={progress!}
               label={`${label}进度`}

@@ -738,8 +738,8 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <MotionGroup className="grid grid-cols-4 gap-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
-              <div data-dashboard-primary-metric>
+            <MotionGroup className="grid auto-rows-fr grid-cols-4 gap-3 max-xl:grid-cols-2 max-sm:grid-cols-1">
+              <div data-dashboard-primary-metric className="h-full">
                 <MetricCard
                   label="总成本"
                   icon="fa-coins"
@@ -758,7 +758,7 @@ export default function Dashboard() {
                   motionOrder={0}
                 />
               </div>
-              <div data-dashboard-primary-metric>
+              <div data-dashboard-primary-metric className="h-full">
                 <MetricCard
                   label="真实消耗 Tokens"
                   icon="fa-bolt"
@@ -777,7 +777,7 @@ export default function Dashboard() {
                   motionOrder={1}
                 />
               </div>
-              <div data-dashboard-primary-metric>
+              <div data-dashboard-primary-metric className="h-full">
                 <MetricCard
                   label="总请求数"
                   icon="fa-arrow-right-arrow-left"
@@ -790,7 +790,7 @@ export default function Dashboard() {
                   motionOrder={2}
                 />
               </div>
-              <div data-dashboard-primary-metric>
+              <div data-dashboard-primary-metric className="h-full">
                 <MetricCard
                   label="计价覆盖"
                   icon="fa-tag"

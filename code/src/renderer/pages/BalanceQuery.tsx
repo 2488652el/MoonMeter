@@ -10,7 +10,12 @@ import { CARD_SURFACE_CLASS } from '../components/cardStyles'
 import { EmptyState } from '../components/EmptyState'
 import { ProviderIcon } from '../components/ProviderIcon'
 import { CodexQuotaPanel } from '../components/CodexQuotaPanel'
-import { AnimatedNumber, MotionGroup, ProgressBar, SortableCardGrid } from '../components/motion'
+import {
+  AnimatedNumber,
+  MotionGroup,
+  SegmentedProgress,
+  SortableCardGrid
+} from '../components/motion'
 import { useCardOrder } from '../hooks/useCardOrder'
 import { useCodexUsage } from '../hooks/useCodexUsage'
 import { useReducedMotion } from '../hooks/useReducedMotion'
@@ -729,11 +734,12 @@ function PlanQuotaRow({
         <span className="text-[12px] font-medium text-text-secondary">{label}</span>
         <span className="font-mono text-[12px] font-medium text-text-primary">{remainingText}</span>
       </div>
-      <ProgressBar
+      <SegmentedProgress
         value={(safeUsed ?? 0) / 100}
         label={`${label}已用比例`}
         tone={tone}
-        trackClassName="h-2 bg-bg-hover"
+        height={22}
+        showTicks={false}
         color={safeUsed !== null && safeUsed < 90 ? color : undefined}
       />
       <div className="mt-1.5 flex justify-between gap-3 text-[10.5px] text-text-muted">
@@ -771,11 +777,12 @@ function UsageProgress({
         <span className="text-text-muted">{label}</span>
         <span className="font-mono text-text-secondary">{valueLabel}</span>
       </div>
-      <ProgressBar
+      <SegmentedProgress
         value={safeValue / 100}
         label={label}
         tone={tone}
-        trackClassName="h-2 bg-bg-hover"
+        height={22}
+        showTicks={false}
         color={safeValue > 35 ? color : undefined}
       />
     </div>
