@@ -119,22 +119,20 @@ export function syncFiles(
     if (byteOffset > 0 && st.mtimeMs === mtimeMs && st.size === byteOffset) {
       continue
     }
+    const truncated = st.size < byteOffset
+    const activeParserState = truncated ? undefined : parserState
     const {
       records,
       nextOffset,
       parserState: nextParserState
-    } = syncOne(
-      file,
-      st.size < byteOffset ? 0 : byteOffset,
-      st.size < byteOffset ? undefined : parserState
-    )
+    } = syncOne(file, truncated ? 0 : byteOffset, activeParserState)
     if (records.length > 0) {
       inserted += insertUsage(records).inserted
     }
     lines += records.length
     const fileTokens = sumTokens(records)
     tokens += fileTokens
-    writeSyncState(source, file, nextOffset, st.mtimeMs, nextParserState ?? parserState)
+    writeSyncState(source, file, nextOffset, st.mtimeMs, nextParserState ?? activeParserState)
     onProgress?.({ source, file, lines: records.length, tokens: fileTokens })
   }
   return { source, totals: { lines, tokens, inserted } }

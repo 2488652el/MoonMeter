@@ -99,6 +99,27 @@ describe('DeepSeek Harness log parser', () => {
     })
   })
 
+  it('falls back to the session timestamp when an event date is out of range', () => {
+    const createdAt = 1_755_250_000_000
+    const content = [
+      JSON.stringify({ type: 'session', id: 'invalid-date-session', createdAt }),
+      JSON.stringify({
+        type: 'request/header',
+        data: { header: { config: { provider: 'deepseek-official', model: 'deepseek-chat' } } }
+      }),
+      JSON.stringify({
+        type: 'assistant/message',
+        seq: 3,
+        time: 9_000_000_000_000_000,
+        data: { usage: { inputTokens: 1, outputTokens: 2 } }
+      })
+    ].join('\n')
+
+    expect(parseDeepSeekHarnessSessionFile(content, 'session.jsonl')[0]?.capturedAt).toBe(
+      new Date(createdAt).toISOString()
+    )
+  })
+
   it('parses only appended complete lines while preserving session routing context', () => {
     const root = join(tmpdir(), `deepseek-harness-incremental-${process.pid}-${Date.now()}`)
     mkdirSync(root, { recursive: true })

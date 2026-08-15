@@ -454,7 +454,7 @@ export function LocalSessionSourcesPanel() {
 }
 
 /** 从请求日志构建按来源汇总的 Session 用量统计。 */
-function buildSessionStats(summaries: SessionUsageSummary[]): SessionStats {
+export function buildSessionStats(summaries: SessionUsageSummary[]): SessionStats {
   const out: SessionStats = {
     'claude-code': { ...EMPTY_SESSION_STATS['claude-code'] },
     codex: { ...EMPTY_SESSION_STATS.codex },
@@ -475,7 +475,7 @@ function buildSessionStats(summaries: SessionUsageSummary[]): SessionStats {
               ? 'gemini-cli'
               : summary.providerId === 'opencode'
                 ? 'opencode'
-                : summary.providerId === 'deepseek'
+                : summary.providerId === 'deepseek-harness' || summary.providerId === 'deepseek'
                   ? 'deepseek-harness'
                   : null
     if (!source) continue

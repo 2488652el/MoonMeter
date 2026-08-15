@@ -70,10 +70,10 @@ function nonNegativeNumber(value: unknown): number {
 }
 
 function timestamp(value: unknown, fallback?: unknown): string {
-  const millis =
-    typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : fallback
-  if (typeof millis === 'number' && Number.isFinite(millis) && millis >= 0) {
-    return new Date(millis).toISOString()
+  for (const candidate of [value, fallback]) {
+    if (typeof candidate !== 'number' || !Number.isFinite(candidate) || candidate < 0) continue
+    const date = new Date(candidate)
+    if (!Number.isNaN(date.getTime())) return date.toISOString()
   }
   return new Date().toISOString()
 }

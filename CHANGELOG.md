@@ -4,7 +4,7 @@
 
 ## 1.4.1 - 2026-08-15
 
-- 新增 DeepSeek Harness 明文 `session.jsonl` 解析：按官方 `inputTokens`、`outputTokens`、`cacheReadTokens` 与 `cacheWriteTokens` 记录用量，追加同步只读取新增完整行并恢复 session 的 provider/model 上下文；仅 DeepSeek provider route 使用 DeepSeek 定价，其他 provider 明确标记为未计价，`.jsonl.zstd` 暂不读取。
+- 新增 DeepSeek Harness 明文 `session.jsonl` 解析：按官方 `inputTokens`、`outputTokens`、`cacheReadTokens` 与 `cacheWriteTokens` 记录用量，追加同步只读取新增完整行并恢复 session 的 provider/model 上下文；仅 DeepSeek provider route 使用 DeepSeek 定价，其他 provider 明确标记为未计价但仍计入 Harness 汇总，越界时间戳会安全回退，`.jsonl.zstd` 暂不读取。
 - 安全：自动更新不再于下载完成后 1 秒内强制安装重启；新版本仍会后台下载，但需在「设置 → 应用更新」中点击「安装并重启」显式确认（退出应用时也会自动完成安装）。
 - 安全：同步服务器为登录/注册/刷新/绑定/邮箱验证/改密等认证端点增加账号限流与共享路由上限（默认账号 10 次/分钟、单路由 120 次/分钟），且限流 key 不再信任可伪造的 `X-Forwarded-For` 头；速率限制器增加过期窗口淘汰和活动 key 硬上限，避免长期运行内存无限增长。
 - 安全：自建 NewAPI（newapi-generic）端点策略收紧——HTTP 仅允许回环与 RFC1918 私网地址，公网地址必须使用 HTTPS。
