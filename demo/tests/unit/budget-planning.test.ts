@@ -47,6 +47,14 @@ const rule: BudgetRule = {
   updatedAt: '2026-07-01T00:00:00.000Z'
 }
 
+function localDate(year: number, month: number, day: number, hour = 12): Date {
+  return new Date(year, month, day, hour, 0, 0, 0)
+}
+
+function localMidnightIso(year: number, month: number, day: number): string {
+  return new Date(year, month, day).toISOString()
+}
+
 beforeEach(() => {
   mocks.rules = [rule]
   mocks.events = []
@@ -65,17 +73,17 @@ beforeEach(() => {
 
 describe('soft budget planning', () => {
   it('resolves a recurring custom billing cycle instead of comparing calendar months', () => {
-    const period = resolveBudgetPeriod(rule, new Date('2026-07-10T08:00:00.000Z'))
-    expect(period.startsAt).toBe('2026-06-14T16:00:00.000Z')
-    expect(period.endsAt).toBe('2026-07-14T16:00:00.000Z')
+    const period = resolveBudgetPeriod(rule, localDate(2026, 6, 10))
+    expect(period.startsAt).toBe(localMidnightIso(2026, 5, 15))
+    expect(period.endsAt).toBe(localMidnightIso(2026, 6, 15))
   })
 
   it('uses the rule scope and exact billing period as the spend filter', () => {
-    const now = new Date('2026-07-20T08:00:00.000Z')
+    const now = localDate(2026, 6, 20)
     const period = resolveBudgetPeriod(rule, now)
     expect(budgetRuleToFilter(rule, period, now)).toEqual({
-      fromISO: '2026-07-14T16:00:00.000Z',
-      toISO: '2026-07-20T08:00:00.000Z',
+      fromISO: localMidnightIso(2026, 6, 15),
+      toISO: now.toISOString(),
       projectContains: 'tokenlub'
     })
   })
@@ -91,9 +99,12 @@ describe('soft budget planning', () => {
       unpricedRequests: 2,
       unconvertedCurrencies: ['JPY']
     }
-    const result = evaluateBudgetRule(rule, new Date('2026-07-20T08:00:00.000Z'))
+    const result = evaluateBudgetRule(rule, localDate(2026, 6, 20))
     expect(computeTotalSpend).toHaveBeenCalledWith(
-      expect.objectContaining({ projectContains: 'tokenlub', fromISO: '2026-07-14T16:00:00.000Z' })
+      expect.objectContaining({
+        projectContains: 'tokenlub',
+        fromISO: localMidnightIso(2026, 6, 15)
+      })
     )
     expect(result).toMatchObject({
       spentCny: 42,
