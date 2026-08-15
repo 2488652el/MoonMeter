@@ -6,7 +6,7 @@
  * `assistant/message.data.usage`. Compressed `session.jsonl.zstd` files are
  * deliberately ignored until MoonMeter owns a zstd decoder.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import type { UsageRecord } from '@shared/types/usage'
 import { getCliPaths } from '../platform/paths'
@@ -293,6 +293,24 @@ function encodeParserState(meta: HarnessMeta, context: HarnessParseContext): str
   return JSON.stringify(state)
 }
 
+function readFileRange(filePath: string, start: number, end: number): Buffer {
+  const length = Math.max(0, end - start)
+  if (length === 0) return Buffer.alloc(0)
+  const buffer = Buffer.alloc(length)
+  const fd = openSync(filePath, 'r')
+  try {
+    let read = 0
+    while (read < length) {
+      const count = readSync(fd, buffer, read, length - read, start + read)
+      if (count === 0) break
+      read += count
+    }
+    return read === length ? buffer : buffer.subarray(0, read)
+  } finally {
+    closeSync(fd)
+  }
+}
+
 /** Recover only routing context for old sync rows created before v28. */
 function recoverParserContext(buffer: Buffer, offset: number): HarnessParseContext {
   const context: HarnessParseContext = { lineNumber: 0 }
@@ -326,20 +344,26 @@ export function syncDeepSeekHarnessFile(
     return { records: [], nextOffset: st.size, ...(parserState ? { parserState } : {}) }
   }
 
-  const buffer = readFileSync(filePath)
-  const headerEnd = buffer.indexOf(0x0a)
-  if (headerEnd === -1) {
-    // A live writer may not have flushed the header newline yet.
-    return { records: [], nextOffset: byteOffset, ...(parserState ? { parserState } : {}) }
-  }
-  const meta = headerFromLine(buffer.subarray(0, headerEnd).toString('utf8').trim(), filePath)
-  let startOffset = byteOffset > 0 && byteOffset < buffer.length ? byteOffset : 0
-  if (startOffset > 0 && buffer[startOffset - 1] !== 0x0a) {
+  let startOffset = byteOffset > 0 && byteOffset < st.size ? byteOffset : 0
+  if (startOffset > 0 && readFileRange(filePath, startOffset - 1, startOffset)[0] !== 0x0a) {
     // Sync checkpoints are newline boundaries. A malformed/legacy checkpoint
     // is safest to rebuild from zero rather than emit a partial JSON record.
     startOffset = 0
     parserState = undefined
   }
+
+  // Once parser state is persisted, only the appended byte range is read.
+  // A legacy row without parser_state pays one prefix scan to recover routing
+  // context, then the next sync is O(new bytes) again.
+  const buffer = readFileRange(filePath, startOffset, st.size)
+  const headerBuffer =
+    startOffset === 0 ? buffer : readFileRange(filePath, 0, Math.min(st.size, 128 * 1024))
+  const headerEnd = headerBuffer.indexOf(0x0a)
+  if (headerEnd === -1) {
+    // A live writer may not have flushed the header newline yet.
+    return { records: [], nextOffset: byteOffset, ...(parserState ? { parserState } : {}) }
+  }
+  const meta = headerFromLine(headerBuffer.subarray(0, headerEnd).toString('utf8').trim(), filePath)
 
   const saved = decodeParserState(parserState)
   const context: HarnessParseContext =
@@ -350,10 +374,10 @@ export function syncDeepSeekHarnessFile(
           ...(saved.provider ? { provider: saved.provider } : {})
         }
       : startOffset > 0
-        ? recoverParserContext(buffer, startOffset)
+        ? recoverParserContext(readFileRange(filePath, 0, startOffset), startOffset)
         : { lineNumber: 0 }
   const records: UsageRecord[] = []
-  let cursor = startOffset
+  let cursor = 0
   while (cursor < buffer.length) {
     const newline = buffer.indexOf(0x0a, cursor)
     if (newline === -1) break
@@ -364,7 +388,7 @@ export function syncDeepSeekHarnessFile(
 
   return {
     records,
-    nextOffset: cursor,
+    nextOffset: startOffset + cursor,
     parserState: encodeParserState(meta, context)
   }
 }
