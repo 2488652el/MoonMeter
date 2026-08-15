@@ -110,13 +110,13 @@ npm run build
 ### Package for Windows
 
 ```powershell
-npm run dist:win -- --change "deepseek-harness-tracking" --model "gpt-5.6-luna"
+npm run dist:win -- --change "MoonMeter-1.4.1" --model "release"
 ```
 
 Output:
 
 ```text
-demo/moonmeter-1.4.1-deepseek-harness-tracking-gpt-5.6-luna/
+demo/moonmeter-1.4.1-MoonMeter-1.4.1-release/
 ```
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
