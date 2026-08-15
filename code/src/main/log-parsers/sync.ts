@@ -39,17 +39,24 @@ export interface SyncResult {
 interface SyncStateRow {
   byte_offset: number | null
   mtime_ms: number | null
+  parser_state: string | null
 }
 
 /** 读取指定来源+文件路径在 log_sync_state 中的字节偏移与 mtime。 */
-function readSyncState(source: string, filePath: string): { byteOffset: number; mtimeMs: number } {
+function readSyncState(
+  source: string,
+  filePath: string
+): { byteOffset: number; mtimeMs: number; parserState?: string } {
   const db = getDb()
   const row = db
-    .prepare('SELECT byte_offset, mtime_ms FROM log_sync_state WHERE source = ? AND file_path = ?')
+    .prepare(
+      'SELECT byte_offset, mtime_ms, parser_state FROM log_sync_state WHERE source = ? AND file_path = ?'
+    )
     .get(source, filePath) as SyncStateRow | undefined
   return {
     byteOffset: row?.byte_offset ?? 0,
-    mtimeMs: row?.mtime_ms ?? 0
+    mtimeMs: row?.mtime_ms ?? 0,
+    ...(row?.parser_state ? { parserState: row.parser_state } : {})
   }
 }
 
@@ -58,19 +65,21 @@ function writeSyncState(
   source: string,
   filePath: string,
   byteOffset: number,
-  mtimeMs: number
+  mtimeMs: number,
+  parserState?: string
 ): void {
   const db = getDb()
   db.prepare(
     `
-    INSERT INTO log_sync_state (source, file_path, mtime_ms, byte_offset, last_synced_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO log_sync_state (source, file_path, mtime_ms, byte_offset, parser_state, last_synced_at)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(source, file_path) DO UPDATE SET
       mtime_ms = excluded.mtime_ms,
       byte_offset = excluded.byte_offset,
+      parser_state = excluded.parser_state,
       last_synced_at = excluded.last_synced_at
   `
-  ).run(source, filePath, mtimeMs, byteOffset, new Date().toISOString())
+  ).run(source, filePath, mtimeMs, byteOffset, parserState ?? null, new Date().toISOString())
 }
 
 /** 累加一组 UsageRecord 的 totalTokens 总和。 */
@@ -87,7 +96,11 @@ function sumTokens(records: UsageRecord[]): number {
 export function syncFiles(
   source: string,
   files: string[],
-  syncOne: (file: string, byteOffset: number) => { records: UsageRecord[]; nextOffset: number },
+  syncOne: (
+    file: string,
+    byteOffset: number,
+    parserState?: string
+  ) => { records: UsageRecord[]; nextOffset: number; parserState?: string },
   onProgress?: (p: SyncProgress) => void
 ): SyncResult {
   let lines = 0
@@ -100,20 +113,28 @@ export function syncFiles(
     } catch {
       continue
     }
-    const { byteOffset, mtimeMs } = readSyncState(source, file)
+    const { byteOffset, mtimeMs, parserState } = readSyncState(source, file)
     // Fast path: already synced once AND unchanged since.
     // 快速路径:已同步过且文件未变更(mtime 与大小一致)则跳过。
     if (byteOffset > 0 && st.mtimeMs === mtimeMs && st.size === byteOffset) {
       continue
     }
-    const { records, nextOffset } = syncOne(file, st.size < byteOffset ? 0 : byteOffset)
+    const {
+      records,
+      nextOffset,
+      parserState: nextParserState
+    } = syncOne(
+      file,
+      st.size < byteOffset ? 0 : byteOffset,
+      st.size < byteOffset ? undefined : parserState
+    )
     if (records.length > 0) {
       inserted += insertUsage(records).inserted
     }
     lines += records.length
     const fileTokens = sumTokens(records)
     tokens += fileTokens
-    writeSyncState(source, file, nextOffset, st.mtimeMs)
+    writeSyncState(source, file, nextOffset, st.mtimeMs, nextParserState ?? parserState)
     onProgress?.({ source, file, lines: records.length, tokens: fileTokens })
   }
   return { source, totals: { lines, tokens, inserted } }
@@ -142,6 +163,11 @@ export function syncGeminiSessions(onProgress?: (p: SyncProgress) => void): Sync
 /** 同步 OpenCode 持久化的 assistant 消息记录。 */
 export function syncOpenCodeSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
   return syncCliLogSource('opencode', onProgress)
+}
+
+/** 同步 DeepSeek Harness 的明文 session.jsonl 用量事件。 */
+export function syncDeepSeekHarnessSessions(onProgress?: (p: SyncProgress) => void): SyncResult {
+  return syncCliLogSource('deepseek-harness', onProgress)
 }
 
 function syncCliLogSource(
@@ -176,7 +202,9 @@ export function syncAllSessions(
           ? syncCliLogSource('kimi-code', onProgress, context)
           : source === 'gemini-cli'
             ? syncCliLogSource('gemini-cli', onProgress, context)
-            : syncCliLogSource('opencode', onProgress, context)
+            : source === 'opencode'
+              ? syncCliLogSource('opencode', onProgress, context)
+              : syncCliLogSource('deepseek-harness', onProgress, context)
   // Best-effort: label historical rows that predate the agent_label column so
   // the UI can show a project name. Guarded internally so it never breaks sync.
   // 尽力而为:为早于 agent_label 列的历史行补充标签,内部已做防护,失败不影响同步。
@@ -278,6 +306,7 @@ export function discoverAllSessions(context?: CliSourceContext): {
   kimiCode: string[]
   gemini: string[]
   opencode: string[]
+  deepseekHarness: string[]
 } {
   return discoverCliLogSessions(context)
 }

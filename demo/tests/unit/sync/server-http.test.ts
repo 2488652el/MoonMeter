@@ -11,7 +11,7 @@ import {
 } from '../../../../drive/src/server/snapshot-sync'
 import { BindingTicketService } from '../../../../drive/src/server/binding-ticket'
 
-function createFixture(rateLimit = 120) {
+function createFixture(rateLimit = 120, authRateLimit = 10, authRouteRateLimit?: number) {
   const store = createInMemoryPhase1Store()
   const auth = new Phase1AuthService({
     store,
@@ -34,6 +34,10 @@ function createFixture(rateLimit = 120) {
       now: () => Date.parse('2026-07-14T00:00:00.000Z')
     }),
     rateLimit: { max: rateLimit, windowMs: 60_000 },
+    authRateLimit: { max: authRateLimit, windowMs: 60_000 },
+    ...(authRouteRateLimit === undefined
+      ? {}
+      : { authRouteRateLimit: { max: authRouteRateLimit, windowMs: 60_000 } }),
     log: (entry) => logs.push(entry)
   })
   return { auth, handle, logs }
@@ -198,6 +202,48 @@ describe('Sync V2 HTTP handler', () => {
     }
     expect((await postJson(handle, '/v1/sync/exchange', body)).status).toBe(401)
     const limited = await postJson(handle, '/v1/sync/exchange', body)
+    expect(limited.status).toBe(429)
+    expect(limited.headers.get('retry-after')).toBeTruthy()
+  })
+
+  it('rate-limits repeated login attempts against one account', async () => {
+    const { handle } = createFixture(120, 3)
+    const attempt = () =>
+      postJson(handle, '/v1/auth/login', {
+        email: 'brute@example.com',
+        password: 'wrong-password',
+        deviceId: 'missing-device'
+      })
+    for (let i = 0; i < 3; i++) await attempt()
+    const limited = await attempt()
+    expect(limited.status).toBe(429)
+    expect(limited.headers.get('retry-after')).toBeTruthy()
+    // 其他账号不受影响
+    expect(
+      (
+        await postJson(handle, '/v1/auth/login', {
+          email: 'other@example.com',
+          password: 'wrong-password',
+          deviceId: 'missing-device'
+        })
+      ).status
+    ).not.toBe(429)
+  })
+
+  it('keeps a rotating-bearer auth flood behind the shared route bucket', async () => {
+    const { handle } = createFixture(120, 100, 2)
+    const attempt = (token: string) =>
+      postJson(
+        handle,
+        '/v1/auth/login',
+        { email: 'rotating@example.com', password: 'wrong-password', deviceId: 'missing-device' },
+        { authorization: `Bearer ${token}` }
+      )
+
+    expect((await attempt('rotating-token-1')).status).not.toBe(429)
+    expect((await attempt('rotating-token-2')).status).not.toBe(429)
+    const limited = await attempt('rotating-token-3')
+
     expect(limited.status).toBe(429)
     expect(limited.headers.get('retry-after')).toBeTruthy()
   })
