@@ -55,17 +55,17 @@ export function ProviderMetaCard({
           {entry.region}
         </span>
         {entry.category === 'manual' && (
-          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[11.5px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[11.5px] font-medium bg-status-warn-dim text-status-warn border border-status-warn/30">
             <Icon name="fa-pen-to-square" className="text-[10px] mr-1" /> 手动录入
           </span>
         )}
         {entry.category === 'admin-org' && (
-          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[11.5px] font-medium bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[11.5px] font-medium bg-status-purple-dim text-status-purple border border-status-purple/30">
             <Icon name="fa-building" className="text-[10px] mr-1" /> 组织管理
           </span>
         )}
         {entry.category === 'newapi-generic' && (
-          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[11.5px] font-medium bg-sky-50 text-sky-700 border border-sky-200">
+          <span className="inline-flex items-center px-2 py-[2px] rounded-full text-[11.5px] font-medium bg-status-info-dim text-status-info border border-status-info/30">
             <Icon name="fa-server" className="text-[10px] mr-1" /> 自建代理
           </span>
         )}
@@ -155,7 +155,7 @@ export function ProviderMetaCard({
 function BaseUrlTemplateChip({ tpl, onClick }: { tpl: BaseUrlTemplate; onClick: () => void }) {
   const label = PROTOCOL_LABEL[tpl.protocol]
   return (
-    <div className="w-full rounded border border-border-light bg-bg-card/60 hover:border-accent/50 transition-colors">
+    <div className="w-full rounded border border-border-light bg-bg-card hover:border-accent/50 transition-colors">
       <button
         type="button"
         onClick={onClick}

@@ -105,7 +105,8 @@ export function resolveCliPaths(
     kimiCodeSessionIndex: joinHome('.kimi-code', 'session_index.jsonl'),
     geminiTemp,
     opencodeStorage,
-    opencodeMessages: wslPath(p.join(xdgDataHome, 'opencode', 'storage', 'message'))
+    opencodeMessages: wslPath(p.join(xdgDataHome, 'opencode', 'storage', 'message')),
+    deepseekHarnessHome: joinHome('.dsh')
   }
 }
 
@@ -126,7 +127,20 @@ export function getCliPaths(): CliPaths {
 }
 
 export function getCliDisplayPaths(): CliDisplayPaths {
-  const { claudeProjects, codexSessions, kimiCodeSessions, geminiTemp, opencodeMessages } =
-    getCliPaths()
-  return { claudeProjects, codexSessions, kimiCodeSessions, geminiTemp, opencodeMessages }
+  const {
+    claudeProjects,
+    codexSessions,
+    kimiCodeSessions,
+    geminiTemp,
+    opencodeMessages,
+    deepseekHarnessHome
+  } = getCliPaths()
+  return {
+    claudeProjects,
+    codexSessions,
+    kimiCodeSessions,
+    geminiTemp,
+    opencodeMessages,
+    deepseekHarnessHome
+  }
 }

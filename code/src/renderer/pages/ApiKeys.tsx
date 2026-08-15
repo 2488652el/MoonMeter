@@ -477,7 +477,7 @@ function DeleteKeyDialog({
     <Modal title="删除 API Key" onClose={onClose}>
       <div className="space-y-5">
         <div className="flex gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-status-err-dim text-status-err">
             <Icon name="fa-trash-can" />
           </span>
           <div>
@@ -504,7 +504,7 @@ function DeleteKeyDialog({
         {error && (
           <p
             role="alert"
-            className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700"
+            className="rounded-md border border-status-err/30 bg-status-err-dim px-3 py-2 text-[12px] text-status-err"
           >
             删除失败：{error}
           </p>
@@ -516,7 +516,7 @@ function DeleteKeyDialog({
           </button>
           <button
             type="button"
-            className="btn border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700"
+            className="btn border-status-err bg-status-err text-white hover:border-status-err hover:bg-status-err"
             onClick={onConfirm}
             disabled={deleting}
           >
@@ -545,12 +545,16 @@ function TestConnectionDialog({
   const visual = testing
     ? {
         icon: 'fa-spinner',
-        className: 'animate-spin bg-blue-50 text-blue-600',
+        className: 'animate-spin bg-status-info-dim text-status-info',
         title: '正在测试连接'
       }
     : success
-      ? { icon: 'fa-circle-check', className: 'bg-emerald-50 text-emerald-600', title: '连接正常' }
-      : { icon: 'fa-triangle-exclamation', className: 'bg-red-50 text-red-600', title: '连接失败' }
+      ? { icon: 'fa-circle-check', className: 'bg-status-ok-dim text-status-ok', title: '连接正常' }
+      : {
+          icon: 'fa-triangle-exclamation',
+          className: 'bg-status-err-dim text-status-err',
+          title: '连接失败'
+        }
 
   return (
     <Modal title="测试连接" onClose={onClose}>
@@ -575,7 +579,7 @@ function TestConnectionDialog({
         </div>
 
         {state.hint && (
-          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-relaxed text-amber-800">
+          <p className="rounded-md border border-status-warn/30 bg-status-warn-dim px-3 py-2 text-[12px] leading-relaxed text-status-warn">
             <Icon name="fa-lightbulb" className="mr-1" /> 建议：{state.hint}
           </p>
         )}

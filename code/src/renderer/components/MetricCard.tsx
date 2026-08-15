@@ -49,11 +49,11 @@ export interface MetricCardProps {
 
 const TONE_HEX: Record<MetricTone, string> = {
   accent: '#917938',
-  blue: '#3B82F6',
-  purple: '#8B5CF6',
-  green: '#10B981',
-  amber: '#F59E0B',
-  red: '#EF4444',
+  blue: 'rgb(var(--status-info))',
+  purple: 'rgb(var(--status-purple))',
+  green: 'rgb(var(--status-ok))',
+  amber: 'rgb(var(--status-warn))',
+  red: 'rgb(var(--status-err))',
   neutral: '#77736B'
 }
 
@@ -61,7 +61,7 @@ const TONE_ICON: Record<MetricTone, string> = {
   accent: 'text-accent-text bg-accent-dim',
   blue: 'text-status-blue bg-status-blue-dim',
   purple: 'text-status-purple bg-status-purple-dim',
-  green: 'text-emerald-600 bg-emerald-500/10',
+  green: 'text-status-ok bg-status-ok/10',
   amber: 'text-status-amber bg-status-amber-dim',
   red: 'text-status-red bg-status-red-dim',
   neutral: 'text-text-secondary bg-bg-hover'
@@ -79,11 +79,7 @@ function DeltaChip({ delta }: { delta: MetricDelta }) {
     <span
       className={clsx(
         'inline-flex items-center gap-0.5 font-mono text-[12px] font-bold leading-none',
-        delta.direction === 'flat'
-          ? 'text-text-muted'
-          : good
-            ? 'text-emerald-500'
-            : 'text-status-red'
+        delta.direction === 'flat' ? 'text-text-muted' : good ? 'text-status-ok' : 'text-status-red'
       )}
     >
       <span aria-hidden="true" className="text-[9px]">
@@ -120,7 +116,7 @@ export function MetricCard({
       data-dashboard-metric={label}
       className={clsx(
         CARD_SURFACE_CLASS,
-        'motion-card group relative flex h-full min-h-[168px] flex-col transition-colors hover:bg-bg-card/80'
+        'motion-card group relative flex h-full min-h-[168px] flex-col transition-colors hover:bg-bg-hover'
       )}
       style={{ '--motion-order': motionOrder } as CSSProperties}
     >

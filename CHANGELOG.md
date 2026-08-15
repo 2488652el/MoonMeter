@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 1.4.1 - 2026-08-15
+
+- 新增 DeepSeek Harness 明文 `session.jsonl` 解析：按官方 `inputTokens`、`outputTokens`、`cacheReadTokens` 与 `cacheWriteTokens` 记录用量，追加同步只读取新增完整行并恢复 session 的 provider/model 上下文；仅 DeepSeek provider route 使用 DeepSeek 定价，其他 provider 明确标记为未计价但仍计入 Harness 汇总，越界时间戳会安全回退，`.jsonl.zstd` 暂不读取。
+- 安全：自动更新不再于下载完成后 1 秒内强制安装重启；新版本仍会后台下载，但需在「设置 → 应用更新」中点击「安装并重启」显式确认（退出应用时也会自动完成安装）。
+- 安全：同步服务器为登录/注册/刷新/绑定/邮箱验证/改密等认证端点增加账号限流与共享路由上限（默认账号 10 次/分钟、单路由 120 次/分钟），且限流 key 不再信任可伪造的 `X-Forwarded-For` 头；速率限制器增加过期窗口淘汰和活动 key 硬上限，避免长期运行内存无限增长。
+- 安全：自建 NewAPI（newapi-generic）端点策略收紧——HTTP 仅允许回环与 RFC1918 私网地址，公网地址必须使用 HTTPS。
+- 安全：同步绑定 deep link（moonmeter:// / tokenlub://）默认拒绝 HTTP 同步服务器地址，仅在开发模式或设置 `MOONMETER_ALLOW_HTTP_SYNC=1` 时放行。
+- 工程化：新增 GitHub Actions CI（Windows，Node 版本跟随 `.nvmrc`），push/PR 自动执行 typecheck / lint / format / 单元测试；`.github` 已纳入公开发布清单。
+- 依赖：`https-proxy-agent` 由 v5 升级至 v7（消除陈旧依赖与传递性风险，价格目录代理回退行为不变）。
+- 测试：新增 PostgreSQL 存储层 SQL 注入回归测试——恶意 email/设备名/令牌哈希仅通过参数化通道传输，SQL 文本不得包含载荷。
+- Direction C 精修：卡片改为实底并移除全部毛玻璃效果（含侧栏），纸张噪点保留。
+- 语义色收编为低饱和 token（ok/warn/err/info/purple，双主题），替换全页面 110 处 Tailwind 默认高饱和色；Provider 汇总图表改用纸墨体系校准的分类色板。
+- 设计 token 增补成文字阶变量（display 30 / title 22 / body 13.5 / label 12 / eyebrow 9.5 / micro 10.5）。
+
 ## 1.4.0 - 2026-08-11
 
 - 将各仪表盘的进度展示统一为分段进度条（SegmentedProgress)：预算、Codex/套餐额度、余额用量、计价覆盖率、费用 Top 5、更新下载与告警阈值等，替换原实心进度条。

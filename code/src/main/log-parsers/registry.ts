@@ -7,9 +7,11 @@ import { discoverCodexSessions, syncCodexFile } from './codex'
 import { discoverKimiCodeSessions, syncKimiCodeFile } from './kimi-code'
 import { discoverGeminiSessions, syncGeminiFile } from './gemini'
 import { discoverOpenCodeSessions, syncOpenCodeFile } from './opencode'
+import { discoverDeepSeekHarnessSessions, syncDeepSeekHarnessFile } from './deepseek-harness'
 
 export type CliLogSourceId = CliSourceId
-export type CliDiscoveryKey = 'claude' | 'codex' | 'kimiCode' | 'gemini' | 'opencode'
+export type CliDiscoveryKey =
+  'claude' | 'codex' | 'kimiCode' | 'gemini' | 'opencode' | 'deepseekHarness'
 
 export interface CliSourceContext {
   environment: 'windows' | 'macos' | 'wsl'
@@ -25,6 +27,7 @@ type CliRootPathKey =
   | 'kimiCodeSessions'
   | 'geminiTemp'
   | 'opencodeMessages'
+  | 'deepseekHarnessHome'
 
 export interface CliLogSourceDefinition {
   id: CliLogSourceId
@@ -34,7 +37,11 @@ export interface CliLogSourceDefinition {
   syncStateSource: string
   rootPathKey: CliRootPathKey
   discover: (context?: CliSourceContext) => string[]
-  syncFile: (file: string, byteOffset: number) => { records: UsageRecord[]; nextOffset: number }
+  syncFile: (
+    file: string,
+    byteOffset: number,
+    parserState?: string
+  ) => { records: UsageRecord[]; nextOffset: number; parserState?: string }
 }
 
 export const CLI_LOG_SOURCES: readonly CliLogSourceDefinition[] = [
@@ -90,6 +97,16 @@ export const CLI_LOG_SOURCES: readonly CliLogSourceDefinition[] = [
     rootPathKey: 'opencodeMessages',
     discover: (context) => discoverOpenCodeSessions(context?.paths.opencodeMessages),
     syncFile: syncOpenCodeFile
+  },
+  {
+    id: 'deepseek-harness',
+    healthSourceId: 'cli:deepseek-harness',
+    discoveryKey: 'deepseekHarness',
+    displayName: 'DeepSeek Harness 日志',
+    syncStateSource: 'deepseek-harness:v1',
+    rootPathKey: 'deepseekHarnessHome',
+    discover: (context) => discoverDeepSeekHarnessSessions(context?.paths.deepseekHarnessHome),
+    syncFile: syncDeepSeekHarnessFile
   }
 ]
 

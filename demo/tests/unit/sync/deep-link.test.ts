@@ -24,4 +24,13 @@ describe('sync binding deep link', () => {
   ])('rejects an unsafe link: %s', (link) => {
     expect(() => parseSyncBindingLink(link)).toThrow('invalid sync binding link')
   })
+
+  it('rejects HTTP sync servers unless explicitly allowed', () => {
+    const link = `moonmeter://sync/bind?server=${encodeURIComponent('http://sync.example.com')}&ticket=${ticket}`
+    expect(() => parseSyncBindingLink(link)).toThrow('invalid sync binding link')
+    expect(parseSyncBindingLink(link, { allowHttp: true })).toEqual({
+      baseUrl: 'http://sync.example.com',
+      ticket
+    })
+  })
 })

@@ -446,10 +446,10 @@ function CatalogStatusCard({
           <span
             className={`w-10 h-10 rounded-lg inline-flex items-center justify-center ${
               isError
-                ? 'bg-red-50 text-red'
+                ? 'bg-status-err-dim text-red'
                 : isSyncing
-                  ? 'bg-blue-50 text-status-blue'
-                  : 'bg-emerald-50 text-accent'
+                  ? 'bg-status-info-dim text-status-blue'
+                  : 'bg-status-ok-dim text-accent'
             }`}
           >
             <Icon name={isSyncing ? 'fa-arrows-rotate' : 'fa-tags'} />
@@ -462,10 +462,10 @@ function CatalogStatusCard({
               <span
                 className={`inline-flex items-center gap-1 px-2 py-[2px] rounded-full text-[11px] font-medium ${
                   isError
-                    ? 'bg-red-50 text-red'
+                    ? 'bg-status-err-dim text-red'
                     : isSyncing
-                      ? 'bg-blue-50 text-status-blue'
-                      : 'bg-emerald-50 text-emerald-700'
+                      ? 'bg-status-info-dim text-status-blue'
+                      : 'bg-status-ok-dim text-status-ok'
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -528,7 +528,7 @@ function CatalogStatusCard({
       </div>
 
       {status?.pendingPreview && (
-        <div className="px-5 py-3 border-t border-border-light bg-amber-50 flex items-center justify-between gap-3 text-[12.5px] text-amber-700">
+        <div className="px-5 py-3 border-t border-border-light bg-status-warn-dim flex items-center justify-between gap-3 text-[12.5px] text-status-warn">
           <span>
             <Icon name="fa-triangle-exclamation" className="mr-2" />
             {status.pendingPreview.blocked} 个异常变动等待确认
@@ -933,7 +933,7 @@ function PricingTable({
                       <SourceBadge source={entry.source} />
                       <span
                         className={`inline-flex items-center gap-1 text-[11px] ${
-                          entry.catalogActive === false ? 'text-amber-700' : 'text-emerald-700'
+                          entry.catalogActive === false ? 'text-status-warn' : 'text-status-ok'
                         }`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -1063,7 +1063,7 @@ function SourceBadge({ source }: { source: 'catalog' | 'user' }) {
   return (
     <span
       className={`inline-block px-2 py-[2px] rounded text-[11.5px] font-medium ${
-        isUser ? 'bg-emerald-100 text-emerald-700' : 'bg-neutral-100 text-neutral-600'
+        isUser ? 'bg-status-ok-dim text-status-ok' : 'bg-neutral-100 text-neutral-600'
       }`}
     >
       {isUser ? '自定义' : '官方'}

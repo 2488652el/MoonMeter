@@ -9,15 +9,28 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // touches Electron's userData path or the developer's real ~/.claude logs.
 
 const syncState = vi.hoisted(() => ({
-  rows: new Map<string, { byte_offset: number; mtime_ms: number }>()
+  rows: new Map<
+    string,
+    { byte_offset: number; mtime_ms: number; parser_state: string | null | undefined }
+  >()
 }))
 
 vi.mock('../../../../code/src/main/store/db', () => ({
   getDb: () => ({
     prepare: () => ({
       get: (_source: string, file: string) => syncState.rows.get(file),
-      run: (_source: string, file: string, mtimeMs: number, byteOffset: number) => {
-        syncState.rows.set(file, { byte_offset: byteOffset, mtime_ms: mtimeMs })
+      run: (
+        _source: string,
+        file: string,
+        mtimeMs: number,
+        byteOffset: number,
+        parserState?: string | null
+      ) => {
+        syncState.rows.set(file, {
+          byte_offset: byteOffset,
+          mtime_ms: mtimeMs,
+          parser_state: parserState
+        })
         return { changes: 1 }
       }
     })
@@ -103,11 +116,30 @@ describe('syncFiles (Claude)', () => {
     mkdirSync(dir, { recursive: true })
     const file = join(dir, 'sess.jsonl')
     writeFileSync(file, claudeAssistantLine(20, 5, 'new') + '\n')
-    syncState.rows.set(file, { byte_offset: 10_000, mtime_ms: 0 })
+    syncState.rows.set(file, { byte_offset: 10_000, mtime_ms: 0, parser_state: null })
 
     const result = syncFiles('claude-code', [file], syncClaudeFile)
 
     expect(result.totals).toEqual({ lines: 1, tokens: 25, inserted: 1 })
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('does not restore stale parser state after a truncated file has no complete header', () => {
+    const dir = join(tmpdir(), `tokenlub-sync-truncated-state-${process.pid}`)
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, 'session.jsonl')
+    writeFileSync(file, '{"type":"session"')
+    syncState.rows.set(file, {
+      byte_offset: 10_000,
+      mtime_ms: 0,
+      parser_state: '{"sessionId":"stale"}'
+    })
+    const syncOne = vi.fn(() => ({ records: [], nextOffset: 0 }))
+
+    syncFiles('deepseek-harness:v1', [file], syncOne)
+
+    expect(syncOne).toHaveBeenCalledWith(file, 0, undefined)
+    expect(syncState.rows.get(file)?.parser_state).toBeNull()
     rmSync(dir, { recursive: true, force: true })
   })
 })

@@ -3,7 +3,10 @@ export type SyncBindingLink = {
   ticket: string
 }
 
-export function parseSyncBindingLink(value: string): SyncBindingLink {
+export function parseSyncBindingLink(
+  value: string,
+  options: { allowHttp?: boolean } = {}
+): SyncBindingLink {
   let link: URL
   try {
     link = new URL(value)
@@ -27,8 +30,9 @@ export function parseSyncBindingLink(value: string): SyncBindingLink {
   } catch {
     throw new Error('invalid sync binding link')
   }
+  // HTTP 同步地址会明文传输令牌，默认拒绝；仅在开发模式或显式 opt-in 时放行。
   if (
-    (server.protocol !== 'https:' && server.protocol !== 'http:') ||
+    (server.protocol !== 'https:' && !(server.protocol === 'http:' && options.allowHttp)) ||
     server.username ||
     server.password ||
     server.search ||

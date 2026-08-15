@@ -90,6 +90,7 @@ export const IPC = {
   pricingCnyRate: 'pricing:cny-rate',
   appUpdateGetStatus: 'app-update:get-status',
   appUpdateCheck: 'app-update:check',
+  appUpdateInstall: 'app-update:install',
   appUpdateStatusChanged: 'subscribe:app-update-status',
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',

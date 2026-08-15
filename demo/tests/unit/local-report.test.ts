@@ -7,7 +7,8 @@ const state = vi.hoisted(() => ({
   recommendationsEnabled: true,
   settings: new Map<string, unknown>(),
   rows: [] as UsageRecord[],
-  prices: [] as PricingEntry[]
+  prices: [] as PricingEntry[],
+  spendCalls: 0
 }))
 
 vi.mock('../../../code/src/main/store/settings-store', () => ({
@@ -22,11 +23,11 @@ vi.mock('../../../code/src/main/store/pricing-repo', () => ({
   listPricing: vi.fn(() => state.prices)
 }))
 vi.mock('../../../code/src/main/store/usage-repo', () => ({
-  computeTotalSpend: vi.fn((filter) => ({
+  computeTotalSpend: vi.fn(() => ({
     total: 0,
     currency: 'CNY',
     byCurrency: [],
-    cnyTotal: filter.fromISO === '2026-06-11T00:00:00.000Z' ? 8 : 12,
+    cnyTotal: state.spendCalls++ === 0 ? 12 : 8,
     convertedByCurrency: [],
     exchangeRateSource: 'fallback',
     unconvertedCurrencies: [],
@@ -106,6 +107,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   state.enabled = true
   state.recommendationsEnabled = true
+  state.spendCalls = 0
   state.settings.clear()
   state.rows = [
     {
@@ -141,20 +143,34 @@ beforeEach(() => {
   ]
 })
 
+function localDate(year: number, month: number, day: number, hour = 12): Date {
+  return new Date(year, month, day, hour, 0, 0, 0)
+}
+
+function localMonthStartIso(year: number, month: number): string {
+  return new Date(year, month, 1).toISOString()
+}
+
 describe('local report planning', () => {
   it('compares month-to-date with the same elapsed prior duration', () => {
-    const current = resolveLocalReportPeriod('month', new Date('2026-07-20T08:00:00.000Z'))
+    const now = localDate(2026, 6, 20)
+    const current = resolveLocalReportPeriod('month', now)
     const comparison = resolveComparableReportPeriod(current)
-    expect(current.startsAt).toBe('2026-06-30T16:00:00.000Z')
-    expect(comparison.startsAt).toBe('2026-06-11T00:00:00.000Z')
+    const expectedStart = localMonthStartIso(2026, 6)
+    const expectedComparisonStart = new Date(
+      2 * Date.parse(expectedStart) - now.getTime()
+    ).toISOString()
+    expect(current.startsAt).toBe(expectedStart)
+    expect(comparison.startsAt).toBe(expectedComparisonStart)
     expect(comparison.endsAt).toBe(current.startsAt)
   })
 
   it('uses exact report periods and only returns sanitized display labels', async () => {
-    const overview = await getLocalReportOverview('month', new Date('2026-07-20T08:00:00.000Z'))
+    const now = localDate(2026, 6, 20)
+    const overview = await getLocalReportOverview('month', now)
     expect(computeTotalSpend).toHaveBeenCalledWith({
-      fromISO: '2026-06-30T16:00:00.000Z',
-      toISO: '2026-07-20T08:00:00.000Z'
+      fromISO: localMonthStartIso(2026, 6),
+      toISO: now.toISOString()
     })
     expect(overview.report).toMatchObject({ totalCny: 12, comparisonTotalCny: 8, changeCny: 4 })
     expect(overview.report?.projects).toEqual([

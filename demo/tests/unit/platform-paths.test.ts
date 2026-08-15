@@ -25,7 +25,8 @@ describe('resolveCliPaths', () => {
       kimiCodeSessionIndex: '/Users/tester/.kimi-code/session_index.jsonl',
       geminiTemp: '/Users/tester/.gemini/tmp',
       opencodeStorage: '/Users/tester/.local/share/opencode/storage',
-      opencodeMessages: '/Users/tester/.local/share/opencode/storage/message'
+      opencodeMessages: '/Users/tester/.local/share/opencode/storage/message',
+      deepseekHarnessHome: '/Users/tester/.dsh'
     })
   })
 
@@ -38,6 +39,7 @@ describe('resolveCliPaths', () => {
     expect(result.opencodeMessages).toBe(
       'C:\\Users\\Best Z\\.local\\share\\opencode\\storage\\message'
     )
+    expect(result.deepseekHarnessHome).toBe('C:\\Users\\Best Z\\.dsh')
   })
 
   it('preserves unicode characters in macOS home paths', () => {
@@ -58,6 +60,7 @@ describe('resolveCliPaths', () => {
     expect(result.opencodeMessages).toBe(
       '\\\\wsl$\\Ubuntu\\home\\Best Z\\.local\\share\\opencode\\storage\\message'
     )
+    expect(result.deepseekHarnessHome).toBe('\\\\wsl$\\Ubuntu\\home\\Best Z\\.dsh')
     expect(toWslUncPath('Ubuntu', '/')).toBe('\\\\wsl$\\Ubuntu')
   })
 

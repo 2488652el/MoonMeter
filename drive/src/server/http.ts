@@ -34,6 +34,9 @@ type HandlerOptions = {
   traceId?: () => string
   metrics?: ReturnType<typeof createServerMetrics>
   rateLimit?: RateLimitOptions
+  authRateLimit?: RateLimitOptions
+  /** Shared per-route ceiling that complements identity-based auth limiting. */
+  authRouteRateLimit?: RateLimitOptions
   admin?: AdminAuthenticator
   audit?: { list(limit: number): Promise<AuditEventRecord[]> }
   storage?: () => Promise<{
@@ -53,12 +56,60 @@ type RequestContext = {
   traceId: string
 }
 
+// 这些端点在认证前即可被调用，必须独立限流以阻断撞库 / 暴力破解。
+const AUTH_RATE_LIMITED_PATHS = new Set([
+  '/v1/auth/login',
+  '/v1/auth/register',
+  '/v1/auth/refresh',
+  '/v1/auth/bind',
+  '/v1/auth/verify-email',
+  '/v1/account/password'
+])
+
+function hashIdentity(value: string): string {
+  return createHash('sha256').update(value).digest('hex').slice(0, 16)
+}
+
+/**
+ * 认证端点的限流身份：优先 Bearer / refreshToken，其次 login email。
+ * 不使用 x-forwarded-for —— 该头可被客户端伪造，起不到限流作用。
+ */
+async function authRateLimitIdentity(request: Request): Promise<string> {
+  const bearer = request.headers.get('authorization')
+  if (bearer) return `bearer:${hashIdentity(bearer)}`
+  if (request.method === 'POST') {
+    try {
+      const body = JSON.parse(await request.clone().text()) as {
+        refreshToken?: unknown
+        email?: unknown
+      }
+      if (typeof body.refreshToken === 'string' && body.refreshToken.length > 0) {
+        return `refresh:${hashIdentity(body.refreshToken)}`
+      }
+      if (typeof body.email === 'string' && body.email.length > 0) {
+        return `email:${hashIdentity(body.email.toLowerCase())}`
+      }
+    } catch {
+      // 非法 body 走 anonymous 桶，route() 稍后会以 400 拒绝
+    }
+  }
+  return 'anonymous'
+}
+
 export function createPhase1HttpHandler(
   options: HandlerOptions
 ): (request: Request) => Promise<Response> {
   const traceId = options.traceId ?? randomUUID
   const metrics = options.metrics ?? createServerMetrics()
   const limiter = createRateLimiter(options.rateLimit ?? { max: 120, windowMs: 60_000 })
+  const authRateLimit = options.authRateLimit ?? { max: 10, windowMs: 60_000 }
+  const authLimiter = createRateLimiter(authRateLimit)
+  const authRouteLimiter = createRateLimiter(
+    options.authRouteRateLimit ?? {
+      max: Math.max(120, authRateLimit.max * 10),
+      windowMs: authRateLimit.windowMs
+    }
+  )
 
   return async (request: Request): Promise<Response> => {
     const startedAt = Date.now()
@@ -66,11 +117,14 @@ export function createPhase1HttpHandler(
     const ctx: RequestContext = { request, url, traceId: traceId() }
 
     try {
-      if (url.pathname.startsWith('/v1/sync/') || url.pathname.startsWith('/v1/data/')) {
-        const bearer =
-          request.headers.get('authorization') ??
-          request.headers.get('x-forwarded-for') ??
-          'anonymous'
+      if (AUTH_RATE_LIMITED_PATHS.has(url.pathname)) {
+        // Identity keys stop one account from being brute-forced. The shared
+        // route bucket still bounds attackers who rotate bearer/refresh values
+        // when this Request adapter has no trustworthy remote address.
+        authRouteLimiter.check(url.pathname)
+        authLimiter.check(`${await authRateLimitIdentity(request)}:${url.pathname}`)
+      } else if (url.pathname.startsWith('/v1/sync/') || url.pathname.startsWith('/v1/data/')) {
+        const bearer = request.headers.get('authorization') ?? 'anonymous'
         const key = createHash('sha256').update(bearer).digest('hex').slice(0, 16)
         limiter.check(`${key}:${url.pathname.split('/').slice(0, 3).join('/')}`)
       }

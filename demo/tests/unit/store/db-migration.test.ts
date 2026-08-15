@@ -137,7 +137,7 @@ describe('PR-1: db v5 migration contract', () => {
     const versionRow = fresh
       .prepare('SELECT MAX(version) AS v FROM schema_version')
       .get() as SchemaVersionRow
-    expect(versionRow.v).toBe(27)
+    expect(versionRow.v).toBe(28)
     expect(readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')).toContain('model_pricing')
 
     // Both new columns should be visible via PRAGMA table_info(api_keys).
@@ -369,6 +369,13 @@ describe('PR-1: db v5 migration contract', () => {
     expect(additiveMigrations).not.toMatch(/DROP TABLE|CREATE TABLE usage_records_v2/)
   })
 
+  it('v28 persists local parser context alongside byte offsets', () => {
+    const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
+
+    expect(sql).toContain("INSERT INTO schema_version (version) VALUES (?)').run(28)")
+    expect(sql).toContain('ALTER TABLE log_sync_state ADD COLUMN parser_state TEXT')
+  })
+
   it('v2 usage_records rebuild preserves agent_label while copying legacy rows', () => {
     const sql = readFileSync(resolve('code/src/main/store/db.ts'), 'utf8')
 
@@ -415,7 +422,7 @@ describe('PR-1: db v5 migration contract', () => {
     expect(state.columns.filter((c) => c.name === 'usage_query_enabled').length).toBe(1)
     expect(state.columns.filter((c) => c.name === 'query_mode').length).toBe(1)
     // Re-running an up-to-date database must not bump the schema version.
-    expect(state.version).toBe(27)
+    expect(state.version).toBe(28)
   })
 
   it('v8 migration maps existing pricing rows without creating duplicate identities', () => {
@@ -438,7 +445,7 @@ describe('PR-1: db v5 migration contract', () => {
     }
 
     applyMigrationsForTest(fakeDb as unknown as Parameters<typeof applyMigrationsForTest>[0])
-    expect(state.version).toBe(27)
+    expect(state.version).toBe(28)
     expect(maps).toHaveLength(2)
     expect(maps.every((map) => map.startsWith('model_pricing:'))).toBe(true)
   })

@@ -152,7 +152,7 @@ export function CodexQuotaPanel({
       {!loading && !error && usage && (
         <div className="mt-3 flex items-center justify-between gap-3 border-t border-border-light pt-3 text-[10.5px] text-text-muted">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-status-ok" />
             Codex 登录状态正常
           </span>
           <span>每 30 秒自动刷新</span>

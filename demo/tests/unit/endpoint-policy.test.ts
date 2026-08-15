@@ -14,10 +14,19 @@ describe('provider endpoint policy', () => {
 
   it('allows loopback HTTP only for self-hosted NewAPI', () => {
     expect(validateProviderEndpoint('newapi-generic', 'http://127.0.0.1:3000').ok).toBe(true)
+    expect(validateProviderEndpoint('newapi-generic', 'http://localhost:3000').ok).toBe(true)
     expect(validateProviderEndpoint('newapi-generic', 'https://192.168.1.10:3000').ok).toBe(true)
     expect(validateProviderEndpoint('newapi-generic', 'http://10.0.0.8:3000').ok).toBe(true)
+    expect(validateProviderEndpoint('newapi-generic', 'http://172.16.5.4:3000').ok).toBe(true)
     expect(validateProviderEndpoint('newapi-generic', 'https://proxy.example').ok).toBe(true)
     expect(validateProviderEndpoint('newapi-generic', 'file:///C:/x').ok).toBe(false)
+  })
+
+  it('rejects public plaintext HTTP endpoints for NewAPI', () => {
+    expect(validateProviderEndpoint('newapi-generic', 'http://newapi.example.com').ok).toBe(false)
+    expect(validateProviderEndpoint('newapi-generic', 'http://8.8.8.8:3000').ok).toBe(false)
+    expect(validateProviderEndpoint('newapi-generic', 'http://172.32.0.1:3000').ok).toBe(false)
+    expect(validateProviderEndpoint('newapi-generic', 'http://172.15.0.1:3000').ok).toBe(false)
   })
 
   it('compares normalized origins', () => {
