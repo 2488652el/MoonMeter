@@ -31,11 +31,11 @@ export type SegmentedProgressProps = {
 
 const TONE_FILL: Record<SegmentedProgressTone, string> = {
   accent: 'rgb(var(--color-accent-strong))',
-  blue: '#3B82F6',
-  purple: '#8B5CF6',
-  green: '#10B981',
-  amber: '#F59E0B',
-  red: '#EF4444'
+  blue: 'rgb(var(--status-info))',
+  purple: 'rgb(var(--status-purple))',
+  green: 'rgb(var(--status-ok))',
+  amber: 'rgb(var(--status-warn))',
+  red: 'rgb(var(--status-err))'
 }
 
 export function SegmentedProgress({

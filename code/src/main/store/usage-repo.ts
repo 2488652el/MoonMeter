@@ -588,6 +588,36 @@ export function querySessionUsageSummaries(): SessionUsageSummary[] {
   return getDb()
     .prepare(
       `
+        WITH session_usage AS (
+          SELECT
+            CASE
+              WHEN provider_id = 'deepseek'
+                OR provider_id LIKE 'deepseek-harness:%'
+              THEN 'deepseek-harness'
+              ELSE provider_id
+            END AS provider_id,
+            prompt_tokens,
+            completion_tokens,
+            cache_read_tokens,
+            cache_creation_tokens,
+            total_tokens,
+            session_id,
+            model,
+            captured_at
+          FROM usage_records
+          WHERE source = 'session-log'
+            AND (
+              provider_id IN (
+                'claude-code',
+                'codex',
+                'kimi-coding',
+                'gemini-cli',
+                'opencode',
+                'deepseek'
+              )
+              OR provider_id LIKE 'deepseek-harness:%'
+            )
+        )
         SELECT
           provider_id,
           COUNT(*) AS requests,
@@ -607,9 +637,7 @@ export function querySessionUsageSummaries(): SessionUsageSummary[] {
           COUNT(DISTINCT NULLIF(session_id, '')) AS sessions,
           COUNT(DISTINCT NULLIF(model, '')) AS models,
           MAX(captured_at) AS last_captured_at
-        FROM usage_records
-        WHERE source = 'session-log'
-          AND provider_id IN ('claude-code', 'codex', 'kimi-coding', 'gemini-cli', 'opencode')
+        FROM session_usage
         GROUP BY provider_id
       `
     )

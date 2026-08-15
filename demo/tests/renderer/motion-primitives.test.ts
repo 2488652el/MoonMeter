@@ -51,7 +51,7 @@ describe('renderer motion primitives', () => {
     expect(interactiveCard).toContain('motion-card-interactive')
     expect(staticCard).toContain(CARD_SURFACE_CLASS)
     expect(CARD_SURFACE_CLASS).toContain('rounded-lg')
-    expect(CARD_SURFACE_CLASS).toContain('bg-bg-card/60')
+    expect(CARD_SURFACE_CLASS).toContain('bg-bg-card')
     expect(CARD_SURFACE_CLASS).toContain('shadow-card')
   })
 

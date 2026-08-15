@@ -85,7 +85,7 @@ window.addEventListener('online', () => {
  * the same zod schema before dispatching. Validating twice is YAGNI.
  */
 const api = {
-  version: '1.4.0',
+  version: '1.4.1',
 
   keys: {
     list: (): Promise<ApiKeyRecord[]> => ipcRenderer.invoke(IPC.keysList),
@@ -311,6 +311,7 @@ const api = {
   appUpdate: {
     getStatus: (): Promise<AppUpdateStatus> => ipcRenderer.invoke(IPC.appUpdateGetStatus),
     check: (): Promise<AppUpdateStatus> => ipcRenderer.invoke(IPC.appUpdateCheck),
+    install: (): Promise<AppUpdateStatus> => ipcRenderer.invoke(IPC.appUpdateInstall),
     onStatusChange: (cb: (status: AppUpdateStatus) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, status: AppUpdateStatus) => cb(status)
       ipcRenderer.on(IPC.appUpdateStatusChanged, listener)
@@ -366,6 +367,7 @@ const api = {
       kimiCode: string[]
       gemini: string[]
       opencode: string[]
+      deepseekHarness: string[]
     }> => ipcRenderer.invoke(IPC.logDiscover),
     locations: (): Promise<{
       claudeProjects: string
@@ -373,9 +375,10 @@ const api = {
       kimiCodeSessions: string
       geminiTemp: string
       opencodeMessages: string
+      deepseekHarnessHome: string
     }> => ipcRenderer.invoke(IPC.logLocations),
     sync: (
-      source: 'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode'
+      source: 'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode' | 'deepseek-harness'
     ): Promise<{ started: boolean }> => ipcRenderer.invoke(IPC.logSync, { source }),
     detectCodexKey: (): Promise<{ found: boolean; maskedKey?: string; path?: string }> =>
       ipcRenderer.invoke(IPC.logDetectCodexKey),

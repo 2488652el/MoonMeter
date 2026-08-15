@@ -108,7 +108,8 @@ test('syncs two isolated Electron profiles and recovers after server restart', a
         codexSessions: expect.any(String),
         kimiCodeSessions: expect.any(String),
         geminiTemp: expect.any(String),
-        opencodeMessages: expect.any(String)
+        opencodeMessages: expect.any(String),
+        deepseekHarnessHome: expect.any(String)
       })
       const locations = await window.evaluate(() => window.api.log.locations())
       expect(isAbsolute(locations.claudeProjects)).toBe(true)
@@ -116,6 +117,7 @@ test('syncs two isolated Electron profiles and recovers after server restart', a
       expect(isAbsolute(locations.kimiCodeSessions)).toBe(true)
       expect(isAbsolute(locations.geminiTemp)).toBe(true)
       expect(isAbsolute(locations.opencodeMessages)).toBe(true)
+      expect(isAbsolute(locations.deepseekHarnessHome)).toBe(true)
       await expect(window.evaluate(() => window.api.sync.status())).resolves.toMatchObject({
         configured: false
       })

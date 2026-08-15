@@ -138,7 +138,7 @@ export function LocalReportPanel({
       ) : loading && !report ? (
         <p className="text-[13px] text-text-secondary">正在汇总本地报告…</p>
       ) : error ? (
-        <div className="flex items-center justify-between gap-3 text-[13px] text-red-600">
+        <div className="flex items-center justify-between gap-3 text-[13px] text-status-err">
           <span>{error}</span>
           <button
             type="button"
@@ -192,7 +192,7 @@ export function LocalReportPanel({
             <div className="rounded-lg bg-bg-base p-3">
               <p className="text-[11px] text-text-secondary">成本变化</p>
               <p
-                className={`mt-1 text-lg font-semibold tabular-nums ${report.changeCny > 0 ? 'text-amber-600' : report.changeCny < 0 ? 'text-emerald-600' : 'text-text-primary'}`}
+                className={`mt-1 text-lg font-semibold tabular-nums ${report.changeCny > 0 ? 'text-status-warn' : report.changeCny < 0 ? 'text-status-ok' : 'text-text-primary'}`}
               >
                 {report.changeCny > 0 ? '+' : ''}
                 {money(report.changeCny)}

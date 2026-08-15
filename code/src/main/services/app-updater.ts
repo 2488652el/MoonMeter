@@ -14,6 +14,7 @@ const INSTALL_DELAY_MS = 1_000
 
 let initialized = false
 let checkInFlight: Promise<AppUpdateStatus> | null = null
+let installScheduled = false
 let status: AppUpdateStatus = {
   phase: 'idle',
   currentVersion: app.getVersion()
@@ -97,11 +98,9 @@ function configureUpdaterEvents(): void {
         latestVersion: info.version,
         percent: 100,
         checkedAt: new Date().toISOString(),
-        message: '更新已下载，正在静默安装并重启'
+        message: '更新已下载，确认后才会安装并重启'
       })
     )
-    const installTimer = setTimeout(() => autoUpdater.quitAndInstall(true, true), INSTALL_DELAY_MS)
-    installTimer.unref()
   })
   autoUpdater.on('error', (error: Error) => {
     updateStatus(
@@ -153,6 +152,18 @@ export function checkForAppUpdates(): Promise<AppUpdateStatus> {
   return checkInFlight
 }
 
+/**
+ * 用户在 UI 显式确认后安装已下载的更新并重启。
+ * 未下载完成时为 no-op，返回当前状态。
+ */
+export function installAppUpdate(): AppUpdateStatus {
+  if (status.phase !== 'downloaded' || installScheduled) return getAppUpdateStatus()
+  installScheduled = true
+  const installTimer = setTimeout(() => autoUpdater.quitAndInstall(true, true), INSTALL_DELAY_MS)
+  installTimer.unref()
+  return getAppUpdateStatus()
+}
+
 export function initializeAppUpdater(): void {
   if (initialized) return
   initialized = true
@@ -160,6 +171,7 @@ export function initializeAppUpdater(): void {
   configureUpdaterEvents()
   ipcMain.handle(IPC.appUpdateGetStatus, () => getAppUpdateStatus())
   ipcMain.handle(IPC.appUpdateCheck, () => checkForAppUpdates())
+  ipcMain.handle(IPC.appUpdateInstall, () => installAppUpdate())
 
   const unsupportedReason = unsupportedMessage()
   if (unsupportedReason) {

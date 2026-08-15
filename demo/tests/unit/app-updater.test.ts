@@ -92,6 +92,7 @@ describe('application updater', () => {
 
     expect(state.handlers.has(IPC.appUpdateGetStatus)).toBe(true)
     expect(state.handlers.has(IPC.appUpdateCheck)).toBe(true)
+    expect(state.handlers.has(IPC.appUpdateInstall)).toBe(true)
     expect(state.disableDifferentialDownload).toBe(true)
     expect(state.checkForUpdates).not.toHaveBeenCalled()
 
@@ -124,7 +125,7 @@ describe('application updater', () => {
     expect(state.checkForUpdates).not.toHaveBeenCalled()
   })
 
-  it('reports download progress and silently installs the downloaded update', async () => {
+  it('waits for explicit user confirmation before installing the downloaded update', async () => {
     const { getAppUpdateStatus, initializeAppUpdater } = await loadUpdater()
     initializeAppUpdater()
 
@@ -139,10 +140,30 @@ describe('application updater', () => {
 
     emit('update-downloaded', { version: '1.1.0' })
     expect(getAppUpdateStatus()).toMatchObject({ phase: 'downloaded', percent: 100 })
+
+    // 下载完成后不得自动重启，必须等待用户在 UI 显式确认。
+    await vi.advanceTimersByTimeAsync(60_000)
     expect(state.quitAndInstall).not.toHaveBeenCalled()
 
+    const install = state.handlers.get(IPC.appUpdateInstall)
+    expect(install).toBeDefined()
+    await install?.()
+    await install?.()
     await vi.advanceTimersByTimeAsync(1_000)
     expect(state.quitAndInstall).toHaveBeenCalledWith(true, true)
+    expect(state.quitAndInstall).toHaveBeenCalledOnce()
+  })
+
+  it('ignores install requests unless an update has been downloaded', async () => {
+    const { initializeAppUpdater } = await loadUpdater()
+    initializeAppUpdater()
+
+    const install = state.handlers.get(IPC.appUpdateInstall)
+    const result = await install?.()
+
+    expect(result).toMatchObject({ phase: 'idle', currentVersion: '1.0.5' })
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(state.quitAndInstall).not.toHaveBeenCalled()
   })
 
   it('redacts GitHub tokens from updater errors', async () => {

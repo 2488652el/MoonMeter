@@ -9,7 +9,7 @@ import { Card } from './Card'
 import { Icon } from './Icon'
 
 const STATUS_META: Record<SourceStatus, { label: string; dot: string }> = {
-  healthy: { label: '可用', dot: 'bg-emerald-500' },
+  healthy: { label: '可用', dot: 'bg-status-ok' },
   stale: { label: '已过期', dot: 'bg-status-amber' },
   error: { label: '异常', dot: 'bg-status-red' },
   unavailable: { label: '待连接', dot: 'bg-text-muted' }

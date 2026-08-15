@@ -71,7 +71,7 @@ describe('MetricCard + Sparkline (dashboard stat cards)', () => {
     // 分段竖条:20 段,填充数 = round(0.673*20)=13
     const bars = html.match(/rounded-\[4px\]/g) ?? []
     expect(bars.length).toBe(20)
-    const filledBars = html.match(/#10B981/g) ?? []
+    const filledBars = html.match(/rgb\(var\(--status-ok\)\)/g) ?? []
     expect(filledBars.length).toBe(13)
     // 占比模式不画 sparkline 曲线
     expect(html).not.toContain('linearGradient')

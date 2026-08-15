@@ -18,20 +18,27 @@ describe('createSyncScheduler', () => {
   })
 
   it('runs once more when triggered during an in-flight sync', async () => {
-    let release!: () => void
+    let releaseFirst!: () => void
+    let releaseSecond!: () => void
     const run = vi
       .fn<() => Promise<void>>()
-      .mockImplementationOnce(() => new Promise<void>((resolve) => (release = resolve)))
-      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (releaseFirst = resolve)))
+      .mockImplementationOnce(() => new Promise<void>((resolve) => (releaseSecond = resolve)))
     const { createSyncScheduler } = await import('../../../../code/src/main/sync/scheduler')
     const scheduler = createSyncScheduler(run)
 
     const first = scheduler.trigger()
     await Promise.resolve()
-    void scheduler.trigger()
-    release()
+    const second = scheduler.trigger()
+    releaseFirst()
     await first
     await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2))
+    let secondSettled = false
+    void second.then(() => (secondSettled = true))
+    await Promise.resolve()
+    expect(secondSettled).toBe(false)
+    releaseSecond()
+    await expect(second).resolves.toBeUndefined()
   })
 
   it('retries failures with exponential backoff and resets after success', async () => {
@@ -76,6 +83,34 @@ describe('createSyncScheduler', () => {
       await expect(scheduler.trigger()).rejects.toThrow('temporary')
       await scheduler.trigger().catch(() => undefined)
       expect(run).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(100)
+      expect(run).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not retain a retry when a queued trigger follows an in-flight failure', async () => {
+    vi.useFakeTimers()
+    try {
+      let rejectFirst!: (error: Error) => void
+      const run = vi
+        .fn<() => Promise<void>>()
+        .mockImplementationOnce(
+          () => new Promise<void>((_resolve, reject) => (rejectFirst = reject))
+        )
+        .mockResolvedValue(undefined)
+      const { createSyncScheduler } = await import('../../../../code/src/main/sync/scheduler')
+      const scheduler = createSyncScheduler(run, { baseDelayMs: 100 })
+
+      const first = scheduler.trigger()
+      await Promise.resolve()
+      const queued = scheduler.trigger()
+      rejectFirst(new Error('temporary'))
+      await expect(first).rejects.toThrow('temporary')
+      await expect(queued).resolves.toBeUndefined()
+      expect(run).toHaveBeenCalledTimes(2)
+
       await vi.advanceTimersByTimeAsync(100)
       expect(run).toHaveBeenCalledTimes(2)
     } finally {

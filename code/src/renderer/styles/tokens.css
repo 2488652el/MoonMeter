@@ -12,6 +12,17 @@
   --color-accent: 181 154 88;
   --color-accent-strong: 145 118 56;
   --color-on-accent: 21 21 21;
+  --status-ok: 77 122 94;
+  --status-warn: 154 123 58;
+  --status-err: 168 85 70;
+  --status-info: 95 115 144;
+  --status-purple: 122 111 158;
+  --text-display: 30px;
+  --text-title: 22px;
+  --text-body: 13.5px;
+  --text-label: 12px;
+  --text-eyebrow: 9.5px;
+  --text-micro: 10.5px;
   --surface-alpha: 0.58;
   --line-alpha: 0.14;
   --line-strong-alpha: 0.24;
@@ -43,6 +54,11 @@
   --color-accent: 194 166 99;
   --color-accent-strong: 220 195 132;
   --color-on-accent: 18 18 18;
+  --status-ok: 126 168 142;
+  --status-warn: 194 162 99;
+  --status-err: 196 129 111;
+  --status-info: 139 160 184;
+  --status-purple: 154 143 192;
   --surface-alpha: 0.72;
   --line-alpha: 0.14;
   --line-strong-alpha: 0.26;
@@ -240,7 +256,7 @@ body::before {
 }
 
 .text-red {
-  color: #ef4444;
+  color: rgb(var(--status-err));
 }
 
 .form-group {

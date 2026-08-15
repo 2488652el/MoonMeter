@@ -1016,4 +1016,15 @@ function applyMigrations(db: Database.Database): void {
       throw e
     }
   }
+
+  // --- v28: persist incremental local-log parser context ---
+  if (currentVersion < 28) {
+    const columns = db.prepare('PRAGMA table_info(log_sync_state)').all() as Array<{
+      name: string
+    }>
+    if (!columns.some((column) => column.name === 'parser_state')) {
+      db.exec('ALTER TABLE log_sync_state ADD COLUMN parser_state TEXT')
+    }
+    db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(28)
+  }
 }

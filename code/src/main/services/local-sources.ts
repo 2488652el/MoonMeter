@@ -54,7 +54,8 @@ function sourcePosixRoot(homeDir: string, cliSource: CliSourceId): string {
     codex: `${homeDir}/.codex/sessions`,
     'kimi-code': `${homeDir}/.kimi-code/sessions`,
     'gemini-cli': `${homeDir}/.gemini/tmp`,
-    opencode: `${homeDir}/.local/share/opencode/storage/message`
+    opencode: `${homeDir}/.local/share/opencode/storage/message`,
+    'deepseek-harness': `${homeDir}/.dsh`
   }
   return roots[cliSource]
 }

@@ -10,7 +10,7 @@ const TONE_CLASS: Record<ProgressTone, string> = {
   amber: 'bg-status-amber',
   purple: 'bg-status-purple',
   red: 'bg-status-red',
-  green: 'bg-emerald-500'
+  green: 'bg-status-ok'
 }
 
 export type ProgressBarProps = {

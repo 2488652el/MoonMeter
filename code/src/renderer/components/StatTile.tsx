@@ -38,7 +38,7 @@ export function StatTile({
   }[accent]
   return (
     <div
-      className="motion-card rounded-lg border border-border-light bg-bg-card/55 p-4 shadow-card"
+      className="motion-card rounded-lg border border-border-light bg-bg-card p-4 shadow-card"
       style={{ '--motion-order': motionOrder } as CSSProperties}
     >
       <div

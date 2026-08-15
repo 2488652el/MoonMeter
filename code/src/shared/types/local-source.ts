@@ -5,7 +5,8 @@
  * 进程生成，renderer 不接受任意路径作为输入。
  */
 
-export type CliSourceId = 'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode'
+export type CliSourceId =
+  'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode' | 'deepseek-harness'
 export type LocalSourceEnvironment = 'windows' | 'wsl'
 export type LocalSourceStatus =
   | 'discovered'

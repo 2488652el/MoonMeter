@@ -14,7 +14,7 @@ export function createSyncScheduler(
   const baseDelayMs = options.baseDelayMs ?? 1_000
   const maxDelayMs = options.maxDelayMs ?? 30 * 60_000
   let inFlight: Promise<void> | null = null
-  let pending = false
+  let pending: Promise<void> | null = null
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let failures = 0
   let disposed = false
@@ -30,11 +30,24 @@ export function createSyncScheduler(
   }
 
   const runOnce = (): Promise<void> => {
+    if (pending) return pending
     if (inFlight) {
-      pending = true
-      return inFlight
+      const activeRun = inFlight
+      const queuedRun: Promise<void> = activeRun
+        .catch(() => undefined)
+        .then(() => {
+          if (pending === queuedRun) pending = null
+          if (disposed) return
+          if (retryTimer) {
+            clearTimeout(retryTimer)
+            retryTimer = null
+          }
+          return runOnce()
+        })
+      pending = queuedRun
+      return queuedRun
     }
-    inFlight = Promise.resolve()
+    const activeRun: Promise<void> = Promise.resolve()
       .then(run)
       .then(() => {
         failures = 0
@@ -45,13 +58,10 @@ export function createSyncScheduler(
         throw error
       })
       .finally(() => {
-        inFlight = null
-        if (pending && !disposed) {
-          pending = false
-          void runOnce().catch(() => undefined)
-        }
+        if (inFlight === activeRun) inFlight = null
       })
-    return inFlight
+    inFlight = activeRun
+    return activeRun
   }
 
   return {
@@ -65,7 +75,7 @@ export function createSyncScheduler(
     },
     dispose() {
       disposed = true
-      pending = false
+      pending = null
       if (retryTimer) clearTimeout(retryTimer)
       retryTimer = null
     }

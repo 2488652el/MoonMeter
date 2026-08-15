@@ -2,6 +2,7 @@
 .gitattributes
 .dockerignore
 .editorconfig
+.github
 .gitignore
 .husky
 .nvmrc

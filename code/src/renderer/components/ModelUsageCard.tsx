@@ -37,7 +37,7 @@ export function ModelUsageCard({ model, rank }: { model: ModelSpendAggregate; ra
             data-model-logo
             role="img"
             aria-label={`${displayName} 模型 Logo`}
-            className="flex h-12 w-12 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card/70"
+            className="flex h-12 w-12 flex-none items-center justify-center rounded-lg border border-border-light bg-bg-card"
           >
             <ModelLogo
               model={model.model}

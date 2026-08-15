@@ -85,7 +85,7 @@ export function Sidebar() {
   return (
     <aside
       aria-label="MoonMeter 导航"
-      className="z-10 flex w-[216px] min-w-[216px] flex-col overflow-y-auto border-r border-border-light bg-bg-sidebar/80 backdrop-blur-xl"
+      className="z-10 flex w-[216px] min-w-[216px] flex-col overflow-y-auto border-r border-border-light bg-bg-sidebar"
     >
       <div className="px-5 pb-5 pt-6">
         <MoonMeterWordmark compact className="text-text-primary" />
@@ -196,7 +196,7 @@ export function Sidebar() {
 
       <div className="mt-auto border-t border-border-light p-3">
         <div
-          className="mb-3 grid grid-cols-3 gap-2 rounded-full border border-border-light bg-bg-card/45 p-1"
+          className="mb-3 grid grid-cols-3 gap-2 rounded-full border border-border-light bg-bg-card p-1"
           aria-label="外观主题"
         >
           {THEME_OPTIONS.map((option) => (

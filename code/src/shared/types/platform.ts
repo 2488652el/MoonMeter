@@ -13,6 +13,7 @@ export interface CliPaths {
   geminiTemp: string
   opencodeStorage: string
   opencodeMessages: string
+  deepseekHarnessHome: string
 }
 
 export interface CliDisplayPaths {
@@ -21,4 +22,5 @@ export interface CliDisplayPaths {
   kimiCodeSessions: string
   geminiTemp: string
   opencodeMessages: string
+  deepseekHarnessHome: string
 }

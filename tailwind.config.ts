@@ -32,7 +32,27 @@ export default {
           muted: 'rgb(var(--color-faint) / <alpha-value>)',
           'on-accent': 'rgb(var(--color-on-accent) / <alpha-value>)'
         },
-        status: { red: '#EF4444', 'red-dim': 'rgba(239,68,68,0.08)', amber: '#F59E0B', 'amber-dim': 'rgba(245,158,11,0.08)', blue: '#3B82F6', 'blue-dim': 'rgba(59,130,246,0.08)', purple: '#8B5CF6', 'purple-dim': 'rgba(139,92,246,0.08)', pink: '#EC4899', orange: '#F97316' },
+        status: {
+          ok: 'rgb(var(--status-ok) / <alpha-value>)',
+          'ok-dim': 'rgb(var(--status-ok) / 0.1)',
+          warn: 'rgb(var(--status-warn) / <alpha-value>)',
+          'warn-dim': 'rgb(var(--status-warn) / 0.1)',
+          err: 'rgb(var(--status-err) / <alpha-value>)',
+          'err-dim': 'rgb(var(--status-err) / 0.1)',
+          info: 'rgb(var(--status-info) / <alpha-value>)',
+          'info-dim': 'rgb(var(--status-info) / 0.1)',
+          purple: 'rgb(var(--status-purple) / <alpha-value>)',
+          'purple-dim': 'rgb(var(--status-purple) / 0.1)',
+          // 旧类名别名：历史代码中的 status-red/amber/blue 自动获得精修低饱和色值
+          red: 'rgb(var(--status-err) / <alpha-value>)',
+          'red-dim': 'rgb(var(--status-err) / 0.1)',
+          amber: 'rgb(var(--status-warn) / <alpha-value>)',
+          'amber-dim': 'rgb(var(--status-warn) / 0.1)',
+          blue: 'rgb(var(--status-info) / <alpha-value>)',
+          'blue-dim': 'rgb(var(--status-info) / 0.1)',
+          pink: '#EC4899',
+          orange: '#F97316'
+        },
         tag: {
           anthropic: { bg: 'rgba(195,154,109,0.1)', fg: '#996B38' },
           openai: { bg: 'rgba(59,130,246,0.08)', fg: '#3B82F6' },
@@ -45,7 +65,16 @@ export default {
         sans: ['system-ui', '-apple-system', '"PingFang SC"', '"Microsoft YaHei"', 'sans-serif'],
         mono: ['"SF Mono"', 'SFMono-Regular', 'Menlo', 'Consolas', 'monospace']
       },
-      spacing: { '1': '4px', '2': '8px', '3': '12px', '4': '16px', '5': '20px', '6': '24px', '8': '32px', '10': '40px' },
+      spacing: {
+        '1': '4px',
+        '2': '8px',
+        '3': '12px',
+        '4': '16px',
+        '5': '20px',
+        '6': '24px',
+        '8': '32px',
+        '10': '40px'
+      },
       borderRadius: { sm: '8px', md: '10px', lg: '14px', xl: '16px', full: '9999px' }
     }
   },
