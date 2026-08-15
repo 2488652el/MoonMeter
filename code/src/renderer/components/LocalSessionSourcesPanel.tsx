@@ -8,7 +8,8 @@ import { fmtCount } from '../../shared/utils/money'
 import type { SessionUsageSummary } from '../../shared/types/usage'
 import type { CliDisplayPaths } from '../../shared/types/platform'
 
-type SessionSource = 'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode'
+type SessionSource =
+  'claude-code' | 'codex' | 'kimi-code' | 'gemini-cli' | 'opencode' | 'deepseek-harness'
 
 type SessionCounts = {
   claude: number
@@ -16,6 +17,7 @@ type SessionCounts = {
   kimiCode: number
   gemini: number
   opencode: number
+  deepseekHarness: number
 }
 
 type SessionSyncTotals = {
@@ -46,7 +48,8 @@ const SESSION_LABEL: Record<SessionSource, string> = {
   codex: 'Codex CLI',
   'kimi-code': 'Kimi Code CLI',
   'gemini-cli': 'Gemini CLI',
-  opencode: 'OpenCode'
+  opencode: 'OpenCode',
+  'deepseek-harness': 'DeepSeek Harness'
 }
 
 const SESSION_COUNT_KEY: Record<SessionSource, keyof SessionCounts> = {
@@ -54,7 +57,8 @@ const SESSION_COUNT_KEY: Record<SessionSource, keyof SessionCounts> = {
   codex: 'codex',
   'kimi-code': 'kimiCode',
   'gemini-cli': 'gemini',
-  opencode: 'opencode'
+  opencode: 'opencode',
+  'deepseek-harness': 'deepseekHarness'
 }
 
 const EMPTY_SESSION_STATS: SessionStats = {
@@ -107,6 +111,16 @@ const EMPTY_SESSION_STATS: SessionStats = {
     cacheCreationTokens: 0,
     sessions: 0,
     models: 0
+  },
+  'deepseek-harness': {
+    requests: 0,
+    tokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    sessions: 0,
+    models: 0
   }
 }
 
@@ -133,9 +147,14 @@ export function LocalSessionSourcesPanel() {
   /** 刷新 Session 统计：发现会话文件并重新构建用量统计。 */
   const refreshSessionStats = useCallback(async () => {
     const [files, summaries] = await Promise.all([
-      window.api.log
-        .discover()
-        .catch(() => ({ claude: [], codex: [], kimiCode: [], gemini: [], opencode: [] })),
+      window.api.log.discover().catch(() => ({
+        claude: [],
+        codex: [],
+        kimiCode: [],
+        gemini: [],
+        opencode: [],
+        deepseekHarness: []
+      })),
       window.api.usage.getSessionSummaries().catch(() => [])
     ])
     setSessionCounts({
@@ -143,7 +162,8 @@ export function LocalSessionSourcesPanel() {
       codex: files.codex.length,
       kimiCode: files.kimiCode?.length ?? 0,
       gemini: files.gemini?.length ?? 0,
-      opencode: files.opencode?.length ?? 0
+      opencode: files.opencode?.length ?? 0,
+      deepseekHarness: files.deepseekHarness?.length ?? 0
     })
     setSessionStats(buildSessionStats(summaries))
   }, [])
@@ -170,7 +190,8 @@ export function LocalSessionSourcesPanel() {
           codex: files.codex.length,
           kimiCode: files.kimiCode?.length ?? 0,
           gemini: files.gemini?.length ?? 0,
-          opencode: files.opencode?.length ?? 0
+          opencode: files.opencode?.length ?? 0,
+          deepseekHarness: files.deepseekHarness?.length ?? 0
         })
         const count = files[SESSION_COUNT_KEY[source]]?.length ?? 0
         if (count === 0) {
@@ -209,6 +230,7 @@ export function LocalSessionSourcesPanel() {
     await syncSessionSource('kimi-code')
     await syncSessionSource('gemini-cli')
     await syncSessionSource('opencode')
+    await syncSessionSource('deepseek-harness')
   }, [syncSessionSource])
 
   /** 加载 Session 面板：读取自动解析设置并刷新统计。 */
@@ -232,7 +254,8 @@ export function LocalSessionSourcesPanel() {
         payload.source !== 'codex' &&
         payload.source !== 'kimi-code' &&
         payload.source !== 'gemini-cli' &&
-        payload.source !== 'opencode'
+        payload.source !== 'opencode' &&
+        payload.source !== 'deepseek-harness'
       )
         return
       setSessionProgress((prev) => ({
@@ -251,7 +274,8 @@ export function LocalSessionSourcesPanel() {
         payload.source !== 'codex' &&
         payload.source !== 'kimi-code' &&
         payload.source !== 'gemini-cli' &&
-        payload.source !== 'opencode'
+        payload.source !== 'opencode' &&
+        payload.source !== 'deepseek-harness'
       )
         return
       const source = payload.source
@@ -315,7 +339,7 @@ export function LocalSessionSourcesPanel() {
           <div>
             <div className="text-[13px] font-medium text-text-primary">会话目录与解析</div>
             <p className="mt-1 text-[12px] text-text-muted">
-              只读发现 Claude Code、Codex、Kimi、Gemini 与 OpenCode 的本地日志。
+              只读发现 Claude Code、Codex、Kimi、Gemini、OpenCode 与 DeepSeek Harness 的本地日志。
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -389,6 +413,18 @@ export function LocalSessionSourcesPanel() {
           onSync={syncSessionSource}
         />
         <SessionUsageCard
+          source="deepseek-harness"
+          counts={sessionCounts}
+          stats={sessionStats['deepseek-harness']}
+          syncing={sessionSyncing.has('deepseek-harness')}
+          progress={sessionProgress['deepseek-harness']}
+          done={sessionDone['deepseek-harness']}
+          path={sessionPaths?.deepseekHarnessHome}
+          pathLoading={sessionPathsLoading}
+          pathError={sessionPathsError}
+          onSync={syncSessionSource}
+        />
+        <SessionUsageCard
           source="codex"
           counts={sessionCounts}
           stats={sessionStats.codex}
@@ -424,7 +460,8 @@ function buildSessionStats(summaries: SessionUsageSummary[]): SessionStats {
     codex: { ...EMPTY_SESSION_STATS.codex },
     'kimi-code': { ...EMPTY_SESSION_STATS['kimi-code'] },
     'gemini-cli': { ...EMPTY_SESSION_STATS['gemini-cli'] },
-    opencode: { ...EMPTY_SESSION_STATS.opencode }
+    opencode: { ...EMPTY_SESSION_STATS.opencode },
+    'deepseek-harness': { ...EMPTY_SESSION_STATS['deepseek-harness'] }
   }
   for (const summary of summaries) {
     const source: SessionSource | null =
@@ -438,7 +475,9 @@ function buildSessionStats(summaries: SessionUsageSummary[]): SessionStats {
               ? 'gemini-cli'
               : summary.providerId === 'opencode'
                 ? 'opencode'
-                : null
+                : summary.providerId === 'deepseek'
+                  ? 'deepseek-harness'
+                  : null
     if (!source) continue
     const stat = out[source]
     stat.requests = summary.requests
@@ -496,7 +535,9 @@ function SessionUsageCard({
               ? 2
               : source === 'gemini-cli'
                 ? 3
-                : 4
+                : source === 'opencode'
+                  ? 4
+                  : 5
       }
       iconNode={
         <ProviderIcon

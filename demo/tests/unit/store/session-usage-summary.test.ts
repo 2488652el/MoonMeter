@@ -24,6 +24,18 @@ const aggregateRows = [
     sessions: 1,
     models: 1,
     last_captured_at: null
+  },
+  {
+    provider_id: 'deepseek',
+    requests: 2,
+    input_tokens: 200,
+    output_tokens: 100,
+    cache_read_tokens: 40,
+    cache_creation_tokens: 0,
+    total_tokens: 340,
+    sessions: 1,
+    models: 1,
+    last_captured_at: '2026-08-15T08:00:00.000Z'
   }
 ]
 
@@ -66,6 +78,18 @@ describe('querySessionUsageSummaries', () => {
         totalTokens: 75,
         sessions: 1,
         models: 1
+      },
+      {
+        providerId: 'deepseek',
+        requests: 2,
+        inputTokens: 200,
+        outputTokens: 100,
+        cacheReadTokens: 40,
+        cacheCreationTokens: 0,
+        totalTokens: 340,
+        sessions: 1,
+        models: 1,
+        lastCapturedAt: '2026-08-15T08:00:00.000Z'
       }
     ])
     expect(capturedSql).toContain("WHERE source = 'session-log'")

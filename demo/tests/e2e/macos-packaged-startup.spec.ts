@@ -125,14 +125,16 @@ test('starts the packaged macOS app with an isolated profile', async () => {
       codexSessions: join(home, '.codex', 'sessions'),
       kimiCodeSessions: join(home, '.kimi-code', 'sessions'),
       geminiTemp: join(home, '.gemini', 'tmp'),
-      opencodeMessages: join(home, '.local', 'share', 'opencode', 'storage', 'message')
+      opencodeMessages: join(home, '.local', 'share', 'opencode', 'storage', 'message'),
+      deepseekHarnessHome: join(home, '.dsh')
     })
     await expect(window.evaluate(() => window.api.log.discover())).resolves.toEqual({
       claude: [],
       codex: [],
       kimiCode: [],
       gemini: [],
-      opencode: []
+      opencode: [],
+      deepseekHarness: []
     })
 
     await window.evaluate(() => window.api.settings.set('macos_e2e_probe', 'ok'))

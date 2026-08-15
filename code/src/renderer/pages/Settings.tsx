@@ -57,7 +57,7 @@ const UPDATE_PHASE_META: Record<
     badgeClassName: 'border-status-info/30 bg-status-info-dim text-status-info'
   },
   downloaded: {
-    label: '正在安装',
+    label: '已下载待确认',
     badgeClassName: 'border-status-ok/30 bg-status-ok-dim text-status-ok'
   },
   'up-to-date': {
@@ -261,6 +261,20 @@ export default function Settings() {
     }
   }
 
+  /** 用户确认后安装已下载的更新并重启应用 */
+  async function installAppUpdate() {
+    if (appUpdateStatus?.phase !== 'downloaded') return
+    try {
+      setAppUpdateStatus(await window.api.appUpdate.install())
+    } catch (error) {
+      setAppUpdateStatus({
+        ...appUpdateStatus,
+        phase: 'error',
+        message: (error as Error).message
+      })
+    }
+  }
+
   async function triggerSync() {
     if (!syncStatus?.configured || syncBusy) return
     setSyncing(true)
@@ -455,8 +469,9 @@ export default function Settings() {
                 )}
             </div>
             <p className="form-hint mt-1.5">
-              安装版启动后会自动检查 GitHub Release。新版本将在后台下载，随后静默覆盖安装并重启；
-              本地数据库和设置位于独立的用户数据目录，不会被安装包覆盖。
+              安装版启动后会自动检查 GitHub
+              Release。新版本将在后台下载，下载完成后需要你在此确认才会安装并重启；
+              也可以暂时忽略，退出应用时会自动完成安装。本地数据库和设置位于独立的用户数据目录，不会被安装包覆盖。
             </p>
             {appUpdateStatus?.message && (
               <div
@@ -486,18 +501,30 @@ export default function Settings() {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm shrink-0"
-            onClick={() => void checkForAppUpdate()}
-            disabled={updateBusy}
-          >
-            <Icon
-              name="fa-arrows-rotate"
-              className={updateBusy && !reducedMotion ? 'icon-spin' : ''}
-            />
-            {appUpdateStatus?.phase === 'checking' ? '检查中…' : '检查更新'}
-          </button>
+          <div className="flex shrink-0 flex-col gap-2">
+            {appUpdateStatus?.phase === 'downloaded' && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => void installAppUpdate()}
+              >
+                <Icon name="fa-circle-check" />
+                安装并重启
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => void checkForAppUpdate()}
+              disabled={updateBusy}
+            >
+              <Icon
+                name="fa-arrows-rotate"
+                className={updateBusy && !reducedMotion ? 'icon-spin' : ''}
+              />
+              {appUpdateStatus?.phase === 'checking' ? '检查中…' : '检查更新'}
+            </button>
+          </div>
         </div>
       </Card>
 

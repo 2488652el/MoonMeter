@@ -205,3 +205,76 @@ describe('Sync V2 PostgreSQL migration', () => {
     expect(constraint).toContain("jsonb_typeof(snapshot) = 'object'")
   })
 })
+
+describe('PostgresPhase1Store SQL injection regression', () => {
+  const ATTACK_EMAIL = "bob@example.com'; DROP TABLE users; --"
+  const ATTACK_DEVICE = 'device"); DELETE FROM devices; --'
+  const ATTACK_HASH = "abc123' OR '1'='1"
+
+  it('passes attacker-controlled values only through query parameters', async () => {
+    const calls: Array<{ sql: string; params?: readonly unknown[] }> = []
+    // INSERT/UPDATE ... RETURNING 会读取返回行；给一个字段齐全的通用行。
+    const stubRow = {
+      id: 'row-id',
+      user_id: 'row-user',
+      device_id: 'row-device',
+      email: 'row@example.com',
+      password_hash: 'row-hash',
+      refresh_token_hash: 'row-hash',
+      name: 'row-name',
+      platform: 'win32',
+      app_version: '1.0.0',
+      active: true,
+      created_at: '2026-08-15T00:00:00.000Z',
+      rotated_at: null,
+      last_seen_at: null,
+      revoked_at: null,
+      email_verified_at: null
+    }
+    const client: PostgresQueryClient = {
+      query: async (sql, params) => {
+        calls.push({ sql, ...(params ? { params } : {}) })
+        return { rows: /RETURNING/i.test(sql) ? [stubRow] : [] }
+      }
+    }
+    const store = new PostgresPhase1Store(client, { id: () => 'fixed-id' })
+
+    await store.createUser({
+      email: ATTACK_EMAIL,
+      passwordHash: ATTACK_HASH,
+      createdAt: '2026-08-15T00:00:00.000Z'
+    })
+    await store.getUserByEmail(ATTACK_EMAIL)
+    await store.updateUserPassword(ATTACK_EMAIL, ATTACK_HASH)
+    await store.consumeEmailVerificationToken(ATTACK_HASH, '2026-08-15T00:00:00.000Z')
+    await store.createDevice({
+      userId: ATTACK_EMAIL,
+      name: ATTACK_DEVICE,
+      createdAt: '2026-08-15T00:00:00.000Z'
+    })
+    await store.updateDeviceName(ATTACK_EMAIL, ATTACK_DEVICE, ATTACK_DEVICE)
+    await store.createRefreshSession({
+      userId: ATTACK_EMAIL,
+      deviceId: ATTACK_DEVICE,
+      refreshTokenHash: ATTACK_HASH,
+      createdAt: '2026-08-15T00:00:00.000Z'
+    })
+    await store.getRefreshSessionByTokenHash(ATTACK_HASH)
+
+    expect(calls.length).toBeGreaterThan(0)
+    for (const call of calls) {
+      // SQL 文本里绝不允许出现攻击载荷或拼接引号逃逸。
+      expect(call.sql).not.toContain('DROP TABLE')
+      expect(call.sql).not.toContain('DELETE FROM devices')
+      expect(call.sql).not.toContain("OR '1'='1")
+      expect(call.sql).not.toContain(ATTACK_EMAIL)
+      expect(call.sql).not.toContain(ATTACK_DEVICE)
+      expect(call.sql).not.toContain(ATTACK_HASH)
+    }
+    // 载荷必须原样出现在参数数组中（由 pg 参数化传输）。
+    const allParams = calls.flatMap((call) => [...(call.params ?? [])])
+    expect(allParams).toContain(ATTACK_EMAIL)
+    expect(allParams).toContain(ATTACK_DEVICE)
+    expect(allParams).toContain(ATTACK_HASH)
+  })
+})

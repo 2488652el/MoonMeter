@@ -133,7 +133,8 @@ describe('log IPC input validation', () => {
         codexSessions: expect.any(String),
         kimiCodeSessions: expect.any(String),
         geminiTemp: expect.any(String),
-        opencodeMessages: expect.any(String)
+        opencodeMessages: expect.any(String),
+        deepseekHarnessHome: expect.any(String)
       })
     )
     expect(result).not.toHaveProperty('codexAuthFile')

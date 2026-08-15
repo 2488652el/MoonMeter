@@ -43,7 +43,10 @@ function focusMainWindow(): void {
 
 async function handleBindingLink(value: string): Promise<void> {
   try {
-    const binding = parseSyncBindingLink(value)
+    const binding = parseSyncBindingLink(value, {
+      // HTTP 同步服务器仅在开发模式或显式环境变量 opt-in 时允许绑定。
+      allowHttp: !app.isPackaged || process.env['MOONMETER_ALLOW_HTTP_SYNC'] === '1'
+    })
     await bindSync({
       ...binding,
       deviceName: hostname() || 'MoonMeter Desktop',

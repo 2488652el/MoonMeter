@@ -5,7 +5,7 @@
   <p>A local-first usage, balance, and cost workspace for developers.</p>
 
   <p>
-    <img alt="Version" src="https://img.shields.io/badge/version-1.4.0-151515?style=flat-square" />
+    <img alt="Version" src="https://img.shields.io/badge/version-1.4.1-151515?style=flat-square" />
     <img alt="React" src="https://img.shields.io/badge/React-19.2-151515?style=flat-square&logo=react" />
     <img alt="Electron" src="https://img.shields.io/badge/Electron-31-151515?style=flat-square&logo=electron" />
     <img alt="Platforms" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-B59A58?style=flat-square" />
@@ -110,13 +110,13 @@ npm run build
 ### Package for Windows
 
 ```powershell
-npm run dist:win -- --change "MoonMeter-1.4.0" --model "release"
+npm run dist:win -- --change "deepseek-harness-tracking" --model "gpt-5.6-luna"
 ```
 
 Output:
 
 ```text
-demo/moonmeter-1.4.0-MoonMeter-1.4.0-release/
+demo/moonmeter-1.4.1-deepseek-harness-tracking-gpt-5.6-luna/
 ```
 
 For macOS, use `npm run dist:mac:x64`, `npm run dist:mac:arm64`, or `npm run dist:mac`. Formal builds and historical versions are available from [GitHub Releases](https://github.com/2488652el/MoonMeter/releases).
@@ -181,4 +181,4 @@ Run at least `typecheck`, `test`, `lint`, and `format:check` before submitting a
 
 ## Version
 
-Current source version: **MoonMeter 1.4.0**. This release rolls MetricCard and SegmentedProgress out across the app, fixes primary dashboard card alignment, corrects budget progress scaling, and improves compact progress displays. User data remains on the device. See [CHANGELOG.md](./CHANGELOG.md).
+Current source version: **MoonMeter 1.4.1**. This release adds local DeepSeek Harness session usage tracking and strengthens append-only sync, update installation confirmation, authentication rate limits, and self-hosted endpoint safety. User data remains on the device. See [CHANGELOG.md](./CHANGELOG.md).

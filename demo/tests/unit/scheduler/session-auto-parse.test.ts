@@ -55,6 +55,7 @@ describe('session auto-parse scheduler', () => {
     expect(syncAllSessions).toHaveBeenNthCalledWith(3, 'kimi-code')
     expect(syncAllSessions).toHaveBeenNthCalledWith(4, 'gemini-cli')
     expect(syncAllSessions).toHaveBeenNthCalledWith(5, 'opencode')
+    expect(syncAllSessions).toHaveBeenNthCalledWith(6, 'deepseek-harness')
 
     vi.mocked(syncAllSessions).mockClear()
     await vi.advanceTimersByTimeAsync(15 * 60 * 1000)
@@ -64,6 +65,7 @@ describe('session auto-parse scheduler', () => {
     expect(syncAllSessions).toHaveBeenNthCalledWith(3, 'kimi-code')
     expect(syncAllSessions).toHaveBeenNthCalledWith(4, 'gemini-cli')
     expect(syncAllSessions).toHaveBeenNthCalledWith(5, 'opencode')
+    expect(syncAllSessions).toHaveBeenNthCalledWith(6, 'deepseek-harness')
   })
 
   it('stops future parsing after the switch is disabled', async () => {

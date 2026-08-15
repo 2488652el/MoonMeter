@@ -609,7 +609,14 @@ export function querySessionUsageSummaries(): SessionUsageSummary[] {
           MAX(captured_at) AS last_captured_at
         FROM usage_records
         WHERE source = 'session-log'
-          AND provider_id IN ('claude-code', 'codex', 'kimi-coding', 'gemini-cli', 'opencode')
+          AND provider_id IN (
+            'claude-code',
+            'codex',
+            'kimi-coding',
+            'gemini-cli',
+            'opencode',
+            'deepseek'
+          )
         GROUP BY provider_id
       `
     )

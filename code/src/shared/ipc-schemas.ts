@@ -169,7 +169,14 @@ export const syncDeviceIdInputSchema = z.object({ deviceId: z.string().min(1) })
 // Log sync (Phase D2)
 /** 会话日志同步入参校验。 */
 export const logSyncInputSchema = z.object({
-  source: z.enum(['claude-code', 'codex', 'kimi-code', 'gemini-cli', 'opencode'])
+  source: z.enum([
+    'claude-code',
+    'codex',
+    'kimi-code',
+    'gemini-cli',
+    'opencode',
+    'deepseek-harness'
+  ])
 })
 
 /** 打开日志文件夹入参校验。 */
@@ -180,7 +187,14 @@ export const logOpenFolderInputSchema = z.object({
 // Windows / WSL local source management. Paths are deliberately absent from
 // these schemas; main derives every path from a validated environment, distro
 // and allowlisted CLI source.
-const cliSourceIdSchema = z.enum(['claude-code', 'codex', 'kimi-code', 'gemini-cli', 'opencode'])
+const cliSourceIdSchema = z.enum([
+  'claude-code',
+  'codex',
+  'kimi-code',
+  'gemini-cli',
+  'opencode',
+  'deepseek-harness'
+])
 const localSourceEnvironmentSchema = z.enum(['windows', 'wsl'])
 const wslDistributionNameSchema = z
   .string()

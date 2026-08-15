@@ -8,7 +8,8 @@ describe('CLI log source registry', () => {
       'codex',
       'kimi-code',
       'gemini-cli',
-      'opencode'
+      'opencode',
+      'deepseek-harness'
     ])
     for (const source of CLI_LOG_SOURCES) {
       expect(source.healthSourceId).toBe(`cli:${source.id}`)
