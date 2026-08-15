@@ -27,7 +27,7 @@ describe('Sync V2 runner', () => {
   beforeEach(() => {
     state.dirty = false
     state.base = { settings: {}, pricing: [], balances: [] }
-    state.apply.mockReset()
+    state.apply.mockReset().mockReturnValue(true)
   })
 
   it('uses exactly one exchange and applies the returned snapshot transactionally', async () => {
@@ -127,6 +127,22 @@ describe('Sync V2 runner', () => {
     expect(state.apply).not.toHaveBeenCalled()
   })
 
+  it('rejects instead of reporting success when local state changes during exchange', async () => {
+    state.apply.mockReturnValue(false)
+    const exchange = vi.fn().mockResolvedValue({
+      revision: 5,
+      serverTime: '2026-07-14T00:00:00.000Z',
+      snapshot: state.snapshot,
+      changed: true,
+      accepted: true
+    })
+    const { runSyncV2Once } = await import('../../../../code/src/main/sync/runner-v2')
+
+    await expect(
+      runSyncV2Once({ exchange, listDevices: vi.fn(), revokeDevice: vi.fn() }, 'merge')
+    ).rejects.toThrow('sync local state changed during exchange')
+  })
+
   it('restores without uploading the potentially oversized local snapshot', async () => {
     const exchange = vi.fn().mockResolvedValue({
       revision: 5,
@@ -144,5 +160,12 @@ describe('Sync V2 runner', () => {
       strategy: 'restore',
       snapshot: { settings: {}, pricing: [], balances: [] }
     })
+    expect(state.apply).toHaveBeenCalledWith(
+      state.snapshot,
+      5,
+      '2026-07-14T00:00:00.000Z',
+      undefined,
+      true
+    )
   })
 })

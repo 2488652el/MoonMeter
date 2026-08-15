@@ -43,13 +43,14 @@ export async function runSyncV2Once(
     throw new Error('sync response invalid')
   }
   if (shouldApply()) {
-    applySyncV2Snapshot(
+    const applied = applySyncV2Snapshot(
       result.snapshot,
       result.revision,
       result.serverTime,
-      generation,
+      mode === 'restore' ? undefined : generation,
       mode === 'restore'
     )
+    if (!applied) throw new Error('sync local state changed during exchange')
   }
   return {
     revision: result.revision,
